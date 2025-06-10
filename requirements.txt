@@ -10,3 +10,4 @@ speedtest-cli
 requests
 psutil
 pytest
+python-dotenv

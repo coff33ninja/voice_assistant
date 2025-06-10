@@ -16,6 +16,10 @@ import sys
 import time # For small delays
 import re  # For text matching
 import numpy as np
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Ensure core modules can be imported if script is run directly from root
 # This might be needed if first_run_setup.py is run as a separate process

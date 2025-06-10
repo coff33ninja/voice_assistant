@@ -7,7 +7,9 @@ import subprocess
 from core.engine import VoiceCore
 from core.tts import tts_engine, speak
 from core.user_config import load_config
+from dotenv import load_dotenv
 
+load_dotenv()
 
 class Assistant:
     def __init__(self):
