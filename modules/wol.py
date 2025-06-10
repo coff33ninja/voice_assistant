@@ -55,3 +55,20 @@ def send_wol_packet(mac_address: str) -> bool:
     except Exception as e:
         logging.error(f"Failed to send WOL packet to {mac_address}: {e}", exc_info=True)
         return False
+
+
+def wake_on_lan(mac_address: str) -> bool:
+    """
+    Alias for send_wol_packet for backward compatibility with tests and other modules.
+    """
+    return send_wol_packet(mac_address)
+
+
+def register_intents() -> dict:
+    """
+    Returns a dictionary of intents to register with the main application.
+    """
+    return {
+        "wake on lan": wake_on_lan,
+        "send wol packet": wake_on_lan,
+    }

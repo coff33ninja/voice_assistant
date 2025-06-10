@@ -106,6 +106,9 @@ def ping_target(target_identifier: str) -> None:
         logging.error(f"An unexpected error occurred while pinging {display_name}: {e}", exc_info=True)
         speak(f"An unexpected error occurred while trying to ping {display_name}.")
 
+# Alias for backward compatibility with tests and other modules
+ping = ping_target
+
 def register_intents() -> dict:
     """
     Returns a dictionary of intents to register with the main application.

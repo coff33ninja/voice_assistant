@@ -95,11 +95,19 @@ def start_server(server_name: Optional[str] = None) -> None:
         logging.error(response)
         speak(response)
 
+def stop_server() -> None:
+    """
+    Dummy implementation for stopping the server. To be implemented based on requirements.
+    """
+    speak("Stopping the server. This is a placeholder.")
+    # Add actual stop logic here in the future
+    pass
+
 def register_intents() -> dict:
     """
     Returns a dictionary of intents to register with the main application.
     """
     return {
-        "boot system": boot_system,
         "start server": start_server,
+        "stop server": stop_server,
     }

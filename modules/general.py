@@ -56,11 +56,18 @@ def log_and_speak(message: str, level: str = "info") -> None:
     speak(message)
 
 
+def hello() -> None:
+    """Simple hello intent for testing."""
+    speak("Hello! How can I help you?")
+    print("ACTION: Hello intent triggered.")
+
+
 def register_intents() -> dict:
     """
     Returns a dictionary of intents to register with the main application.
     """
     return {
+        "hello": hello,
         "what time is it": tell_time,
         "tell me the time": tell_time,
         "run self test": run_self_test,

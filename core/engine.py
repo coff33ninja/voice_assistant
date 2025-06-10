@@ -293,6 +293,35 @@ class VoiceCore:
         if self.on_command and command_text:
             threading.Thread(target=self.on_command, args=(command_text,)).start()
 
+    @staticmethod
+    def load_intents() -> dict:
+        """
+        Loads and returns all registered intents from modules.
+        This is a compatibility shim for test_core.py and can be expanded as needed.
+        """
+        import os
+        import importlib.util
+        intents = {}
+        modules_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "modules")
+        for filename in os.listdir(modules_dir):
+            if filename.endswith(".py") and not filename.startswith("__"):
+                module_name = filename[:-3]
+                try:
+                    spec = importlib.util.spec_from_file_location(
+                        module_name, os.path.join(modules_dir, filename)
+                    )
+                    if spec is not None and spec.loader is not None:
+                        module = importlib.util.module_from_spec(spec)
+                        spec.loader.exec_module(module)
+                        if hasattr(module, "register_intents"):
+                            intents_from_module = module.register_intents()
+                            intents.update(intents_from_module)
+                    else:
+                        logging.error(f"Failed to load spec or loader for '{filename}'")
+                except Exception as e:
+                    logging.error(f"Failed to load intents from '{filename}': {e}")
+        return intents
+
     # For future: support multiple wake words and engine plugins
     # def add_wakeword_model(self, model_path: str):
     #     """Add a new wake word model at runtime."""
