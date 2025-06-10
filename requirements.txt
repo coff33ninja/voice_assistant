@@ -9,3 +9,4 @@ pvporcupine
 numpy
 speedtest-cli
 requests
+psutil

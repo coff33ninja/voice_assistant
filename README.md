@@ -64,6 +64,7 @@ This project is a Python-based voice assistant that listens for a wake word, pro
     pip install -r requirements.txt
     ```
     *   The `requirements.txt` includes `pvporcupine` for Picovoice wake word support.
+    *   The `requirements.txt` includes `psutil` for the System Info module.
     *Note: `requirements.txt` may need to be updated or created based on all necessary packages like `openwakeword`, `pyaudio`, `whisper`, `pyttsx3`, etc.*
 
 4.  **Wake Word Model:**
@@ -148,6 +149,23 @@ The assistant's capabilities are extended by modules found in the `modules/` dir
     *   (Presumed) Functionality related to interacting with or managing a server. The exact capabilities would need to be reviewed in its source code.
 *   **`speedtest.py`**:
     *   (Presumed) Performs an internet speed test.
+*   **`system_info.py`** (uses `psutil` library):
+    *   Provides information about the system's hardware and operating system.
+    *   **Capabilities**:
+        *   Get current CPU utilization percentage.
+        *   Get current memory (RAM) usage (total, used, free, percentage).
+        *   Get disk usage for a specified path (defaults to root `/` or `C:\`) showing total, used, free, and percentage.
+        *   Get system uptime (how long the system has been running).
+        *   Get current system load average (more relevant for Linux/macOS).
+        *   Provide an overall system status summary.
+    *   **Example Voice Commands**:
+        *   "system status"
+        *   "cpu usage"
+        *   "memory usage"
+        *   "disk space" (for default drive)
+        *   "disk space for /home" (example for specific path, requires argument parsing in `main.py` to be effective)
+        *   "system uptime"
+        *   "system load"
 
 ### Module Configuration
 
