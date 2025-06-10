@@ -256,3 +256,28 @@ The current system uses pre-generated wake word models chosen by the user during
 1.  Speak a brand new, never-before-heard phrase, and have the system attempt to create a wake word model for it on the fly (highly complex, research-level task).
 2.  Type their desired wake word during setup, with the system then attempting to configure itself to use it, possibly by guiding the user through a service like Picovoice Console for model generation and placement (complex integration task).
 These are significant undertakings and are noted here for future consideration.
+
+## Setting the Picovoice Access Key (Windows, PowerShell)
+
+Before running the setup or main application, you must set your Picovoice Access Key as an environment variable. This is required for wake word functionality using Picovoice.
+
+### Temporary (for current session only)
+In your PowerShell terminal, run:
+```powershell
+$env:PICOVOICE_ACCESS_KEY = "<YOUR_KEY_HERE>"
+```
+Replace `<YOUR_KEY_HERE>` with your actual key. This will only last for the current terminal session.
+
+### Permanent (for all future sessions)
+To set the variable permanently for your user account, run:
+```powershell
+[System.Environment]::SetEnvironmentVariable("PICOVOICE_ACCESS_KEY", "<YOUR_KEY_HERE>", "User")
+```
+Restart your terminal after running this command.
+
+### (Optional) Using a `.env` file
+If you prefer, you can create a `.env` file in your project root with this content:
+```
+PICOVOICE_ACCESS_KEY=<YOUR_KEY_HERE>
+```
+Make sure your code loads environment variables from `.env` (using `python-dotenv`). The `.gitignore` is already set up to prevent `.env` from being uploaded to version control.
