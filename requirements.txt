@@ -6,3 +6,4 @@ pyaudio
 pyttsx3
 
 pvporcupine
+numpy

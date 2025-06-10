@@ -55,14 +55,16 @@ class VoiceCore:
                 raise # Re-raise the exception
         elif self.engine_type == "openwakeword":
             if not self.openwakeword_model_path:
-                raise ValueError("Openwakeword model path is required for 'openwakeword' engine.")
-            try:
-                self.oww = openwakeword.Model(wakeword_models=[self.openwakeword_model_path])
-                self.wakeword_model_name_oww = self.openwakeword_model_path.split('/')[-1].replace('.onnx', '')
-                print(f"Core Engine: openWakeWord initialized with model: {self.openwakeword_model_path}")
-            except Exception as e:
-                print(f"Core Engine Error: Failed to initialize openWakeWord: {e}")
-                raise # Re-raise the exception
+                print("INFO: openwakeword_model_path is None. Initializing in STT-only mode (no OWW engine loaded).")
+                # self.oww will remain None
+            else:
+                try:
+                    self.oww = openwakeword.Model(wakeword_models=[self.openwakeword_model_path])
+                    self.wakeword_model_name_oww = self.openwakeword_model_path.split('/')[-1].replace('.onnx', '')
+                    print(f"Core Engine: openWakeWord initialized with model: {self.openwakeword_model_path}")
+                except Exception as e:
+                    print(f"Core Engine Error: Failed to initialize openWakeWord: {e}")
+                    raise # Re-raise the exception
         else:
             raise ValueError(f"Unsupported engine_type: {self.engine_type}")
 
@@ -103,55 +105,63 @@ class VoiceCore:
         self._stop_event.set()
         if self.listen_thread:
             self.listen_thread.join()  # Wait for the thread to finish
+
+        if hasattr(self, 'porcupine') and self.porcupine: # Check attribute existence too
+            print("Core Engine: Releasing Picovoice Porcupine resources...")
+            self.porcupine.delete()
+            self.porcupine = None
+
         self.stream.stop_stream()
         self.stream.close()
         self.p.terminate()
         print("Core Engine: Stopped gracefully.")
 
     def _listen(self):
-        """The main loop that processes audio chunks."""
-        # self._picovoice_audio_buffer should be initialized in __init__
+        """The main loop that processes audio chunks, handling both OpenWakeWord and Picovoice."""
+        # Ensure _picovoice_audio_buffer is initialized in __init__; e.g., self._picovoice_audio_buffer = []
         while not self._stop_event.is_set():
             try:
+                # PyAudio stream configured for 1280 frames per read in __init__
                 audio_chunk_bytes = self.stream.read(1280, exception_on_overflow=False)
             except IOError as e:
-                if "Input overflowed" in str(e): # More general check for overflow message
+                if "Input overflowed" in str(e): # Check string for wider compatibility
                     print("Core Engine Warning: Input overflowed. Dropping frame.")
                     continue
                 print(f"Core Engine Error: PyAudio read error: {e}")
-                time.sleep(0.1) # Avoid tight loop on persistent error
-                continue # Or break, depending on desired robustness
+                time.sleep(0.1)  # Avoid tight loop on persistent error
+                continue # Or break, depending on desired robustness for other IOErrors
 
             if self.is_listening_for_command:
                 self.command_audio.append(audio_chunk_bytes)
                 if self._is_silent(audio_chunk_bytes, threshold=self.silence_threshold):
                     self._process_command()
-            else:
-                # Wake word detection logic
+            else: # Not listening for command, so in wake word detection mode
                 if self.engine_type == "openwakeword":
-                    if not self.oww:
-                        print("Core Engine Error: openWakeWord engine (self.oww) not initialized!")
+                    if not self.oww: # oww should be initialized if this engine_type is selected
+                        print("Core Engine Error: openWakeWord engine (self.oww) is not initialized!")
                         time.sleep(0.1); continue
-                    self.audio_buffer.append(audio_chunk_bytes) # audio_buffer is for pre-wake-word audio
+                    # audio_buffer is used by openwakeword to capture audio just before wake word
+                    self.audio_buffer.append(audio_chunk_bytes)
                     prediction = self.oww.predict(audio_chunk_bytes)
-                    # Ensure self.wakeword_model_name_oww is correctly set from the model path in __init__
-                    if self.wakeword_model_name_oww and prediction.get(self.wakeword_model_name_oww, 0) > 0.5:
+                    if self.wakeword_model_name_oww and prediction.get(self.wakeword_model_name_oww, 0) > 0.5: # Ensure correct attribute name is used
                         self.is_listening_for_command = True
-                        self.command_audio = list(self.audio_buffer)
+                        self.command_audio = list(self.audio_buffer) # Copy pre-wake-word audio
                         if self.on_wake_word:
                             threading.Thread(target=self.on_wake_word).start()
                 elif self.engine_type == "picovoice":
-                    if not self.porcupine:
-                        print("Core Engine Error: Picovoice engine (self.porcupine) not initialized!")
+                    if not self.porcupine: # porcupine should be initialized
+                        print("Core Engine Error: Picovoice engine (self.porcupine) is not initialized!")
                         time.sleep(0.1); continue
                     try:
-                        # Picovoice expects frames of 16-bit integers (shorts)
+                        # Convert raw byte chunk to int16 samples
                         current_samples = list(struct.unpack_from("h" * (len(audio_chunk_bytes) // 2), audio_chunk_bytes))
+                        if not hasattr(self, '_picovoice_audio_buffer'): self._picovoice_audio_buffer = [] # Defensive init
                         self._picovoice_audio_buffer.extend(current_samples)
                     except struct.error as se:
-                        print(f"Core Engine Error: Failed to unpack audio chunk for Picovoice: {se}. Chunk length: {len(audio_chunk_bytes)}")
-                        continue # Skip this corrupted/short chunk
+                        print(f"Core Engine Error: Failed to unpack audio chunk for Picovoice: {se}. Chunk len: {len(audio_chunk_bytes)}")
+                        continue # Skip this corrupted or unexpectedly short chunk
 
+                    # Process available audio in porcupine.frame_length (e.g., 512 samples) chunks
                     while len(self._picovoice_audio_buffer) >= self.porcupine.frame_length:
                         frame_to_process = self._picovoice_audio_buffer[:self.porcupine.frame_length]
                         del self._picovoice_audio_buffer[:self.porcupine.frame_length]
@@ -160,22 +170,28 @@ class VoiceCore:
                             if keyword_index >= 0:
                                 print(f"Core Engine: Picovoice detected keyword (index {keyword_index}).")
                                 self.is_listening_for_command = True
-                                # For Picovoice, command audio likely starts *after* wake word.
-                                # Consider if pre-pended audio is desired or if self.command_audio should be just new audio.
-                                # For now, starting fresh, but one might want to capture the wake word chunk itself.
-                                self.command_audio = [audio_chunk_bytes] # Start with current chunk or make it empty
+                                # For Picovoice, command audio typically starts *after* the wake word.
+                                # The current audio_chunk_bytes contains the end of the wake word.
+                                # self._picovoice_audio_buffer might contain some audio immediately after.
+                                # Decide if we want to include buffered audio or start fresh.
+                                self.command_audio = [audio_chunk_bytes] # Start with the raw chunk that triggered it
                                 if self.on_wake_word:
                                     threading.Thread(target=self.on_wake_word).start()
                                 self._picovoice_audio_buffer = [] # Clear buffer after detection
-                                break  # Exit from 'while len >= frame_length' loop
+                                break  # Exit from 'while len >= frame_length' loop, process this detection
                         except pvporcupine.PorcupineActivationRefusedError as pare:
-                            print(f"Core Engine Warning: Picovoice Activation Refused: {pare}")
-                            time.sleep(5)
-                        except Exception as e_pvp:
-                            print(f"Core Engine Error: Picovoice process error: {e_pvp}")
-                            break
-                    if self.is_listening_for_command:
-                        pass
+                            print(f"Core Engine Warning: Picovoice Activation Refused. Check AccessKey limits/status: {pare}")
+                            time.sleep(5) # Pause significantly if this happens
+                        except Exception as e_pv_process:
+                            print(f"Core Engine Error: Picovoice process() error: {e_pv_process}")
+                            # This might be a corrupted frame or an SDK issue.
+                            break # Break from frame processing loop for safety
+                    if self.is_listening_for_command: # If wake word was detected by the inner loop
+                        pass # Handled, main 'while not self._stop_event.is_set()' loop will continue
+                               # and next iteration will go into 'if self.is_listening_for_command:' block.
+                else: # Should not happen if __init__ validates engine_type
+                    print(f"Core Engine Error: Unknown engine_type '{self.engine_type}' in _listen loop.")
+                    time.sleep(1) # Avoid spamming logs
 
     def _is_silent(self, data, threshold):
         """Returns 'True' if the audio chunk is below a volume threshold."""

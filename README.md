@@ -4,7 +4,7 @@ This project is a Python-based voice assistant that listens for a wake word, pro
 
 ## Features
 
-*   **Wake Word Detection**: Uses `openwakeword` to listen for a specific wake word (e.g., "Hey Jimmy").
+*   **Wake Word Detection**: Uses `openwakeword` or `Picovoice Porcupine` (configurable on first run) to listen for a specific wake word (e.g., "Hey Jimmy").
 *   **Speech-to-Text**: Employs `whisper` (OpenAI) to transcribe voice commands into text.
 *   **Text-to-Speech**: Utilizes `pyttsx3` for voice responses.
 *   **Modular Intents**: Functionality is extended through modules located in the `modules` directory. Each module can define its own voice commands (intents) and corresponding actions.
@@ -63,10 +63,34 @@ This project is a Python-based voice assistant that listens for a wake word, pro
     ```bash
     pip install -r requirements.txt
     ```
+    *   The `requirements.txt` includes `pvporcupine` for Picovoice wake word support.
     *Note: `requirements.txt` may need to be updated or created based on all necessary packages like `openwakeword`, `pyaudio`, `whisper`, `pyttsx3`, etc.*
 
 4.  **Wake Word Model:**
-    Ensure you have a wake word model file (e.g., `hey_jimmy.onnx` referenced in `main.py`). You might need to download or train one if it's not included or if you wish to use a different wake word.
+    Ensure you have a wake word model file (the configured wake word model (e.g., `./hey_jimmy.onnx` for OpenWakeWord or a `.ppn` file for Picovoice) referenced in `main.py`). You might need to download or train one if it's not included or if you wish to use a different wake word.
+
+## First-Time Setup
+
+When you run the application for the first time, a setup script (`first_run_setup.py`) will automatically execute to configure your wake word.
+
+### Prerequisites for Setup:
+1.  **Picovoice Access Key**: You MUST have a Picovoice Access Key for the wake word functionality to work with the pre-generated options.
+    *   Obtain a free Access Key from the [Picovoice Console](https://console.picovoice.ai/).
+    *   Set it as an environment variable named `PICOVOICE_ACCESS_KEY` before running the application for the first time.
+      (e.g., `export PICOVOICE_ACCESS_KEY='YourActualKeyHere'` on Linux/macOS or set it in your system environment variables on Windows).
+
+### The Setup Process:
+1.  The script will greet you and confirm if your `PICOVOICE_ACCESS_KEY` is found.
+2.  It will then present a list of pre-configured wake word options (e.g., "Computer", "Jarvis").
+3.  You will be asked to choose your preferred wake word.
+    *   **Voice Input**: The script will attempt to use your voice to select the wake word. It will prompt you to speak your choice (e.g., the name of the wake word like "Computer", or its number like "Option One").
+    *   **Transcription**: Your spoken audio will be captured and transcribed using the Whisper STT engine.
+    *   **Retry Logic**: If your speech isn't clearly understood or doesn't match an option, you'll be asked to try again a few times.
+    *   **Typed Fallback**: If voice input fails after these retries, or if there's an issue with audio capture/transcription, the script will automatically fall back to asking you to type the number corresponding to your choice.
+4.  Once selected, the script will save your choice to `user_settings.json` in the project directory.
+5.  You will then be prompted to **restart the main application** for the new wake word to take effect.
+
+**Note**: If the `PICOVOICE_ACCESS_KEY` is not set, the setup script will instruct you to set it and exit. The main application will not run fully until setup is complete.
 
 ### Running the Assistant
 
@@ -92,7 +116,7 @@ pytest
 1.  The `main.py` script initializes the `Assistant`.
 2.  The `Assistant` loads intent modules from the `modules/` directory. Each module registers phrases it can understand and the functions to call.
 3.  The `VoiceCore` (`core/engine.py`) starts listening. It uses `PyAudio` to capture microphone input.
-4.  `openWakeWord` continuously processes the audio stream. When the wake word (e.g., "Hey Jimmy") is detected, the `VoiceCore` triggers its `on_wake_word` callback.
+4.  The configured wake word engine (OpenWakeWord or Picovoice) continuously processes the audio stream. When the wake word (e.g., "Hey Jimmy") is detected, the `VoiceCore` triggers its `on_wake_word` callback.
 5.  The assistant (via `handle_wake_word` in `main.py`) typically gives an audio cue (e.g., "Yes?") using the TTS engine.
 6.  The `VoiceCore` then records the audio following the wake word until a period of silence.
 7.  This recorded audio is transcribed into text using `whisper`.
@@ -168,3 +192,25 @@ To add new voice commands:
 4.  The assistant will automatically load your new module and its intents when it starts.
 
 Ensure any new dependencies for your module are added to `requirements.txt`.
+
+## Wake Word Configuration (for Developers)
+
+The voice assistant uses Picovoice Porcupine for wake word detection when configured via the first-run setup. This allows for high-accuracy, low-resource custom wake words.
+
+### Adding New Pre-Generated Wake Words:
+1.  **Picovoice Console**: Go to the [Picovoice Console](https://console.picovoice.ai/).
+2.  **Create Wake Word(s)**: Use the Porcupine wake word tool to type your desired wake word(s) (e.g., "Hey Assistant", "Hello Friend").
+3.  **Download Model Files**: Download the `.ppn` model file for each wake word. Make sure to select the correct platform (e.g., Raspberry Pi, Linux, Windows, macOS) that matches where you'll run this application.
+4.  **Place Model Files**: Put the downloaded `.ppn` files into the `wakeword_models/` directory in the project root. (Create this directory if it doesn't exist).
+5.  **Update `first_run_setup.py`**: Open `first_run_setup.py` and modify the `AVAILABLE_WAKE_WORDS` list. Add a new dictionary for each wake word you've added, specifying its display `name` and the relative `model_file` path (e.g., `{\"name\": \"My New Word\", \"model_file\": \"wakeword_models/My_New_Word.ppn\"}`).
+
+Users will then see these new options during the first-time setup.
+
+### User Configuration File (`user_settings.json`)
+User preferences, including the chosen wake word engine and model path, are stored in `user_settings.json` in the project root. This file is managed by `core/user_config.py`. Modifying it manually is possible but generally not recommended unless you know what you're doing.
+
+### Future Plans for Custom Wake Words (Developer Note)
+The current system uses pre-generated wake word models chosen by the user during setup. Future development aims to explore more dynamic custom wake word creation, potentially allowing users to:
+1.  Speak a brand new, never-before-heard phrase, and have the system attempt to create a wake word model for it on the fly (highly complex, research-level task).
+2.  Type their desired wake word during setup, with the system then attempting to configure itself to use it, possibly by guiding the user through a service like Picovoice Console for model generation and placement (complex integration task).
+These are significant undertakings and are noted here for future consideration.
