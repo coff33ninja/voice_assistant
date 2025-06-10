@@ -35,7 +35,7 @@ if __name__ == '__main__':
 try:
     from core.tts import speak, tts_engine # Import tts_engine to stop it later
     from core.user_config import load_config, save_config, DEFAULT_CONFIG
-    from core.engine import VoiceCore # For STT
+    # from core.engine import VoiceCore # For STT (moved to where needed)
 except ImportError as e:
     print(f"Error: Could not import core modules: {e}")
     print("Please ensure that the script is run from the project's root directory,")
@@ -147,11 +147,36 @@ def run_first_time_setup():
     # 1. Wake word engine selection
     engine_choice = select_wake_word_engine()
     if engine_choice == 'picovoice':
-        speak("You selected Picovoice Porcupine. Please ensure you have downloaded your .ppn model from the Picovoice Console for your platform (Windows) and placed it in the 'wakeword_models/' directory.")
+        speak("You selected Picovoice Porcupine. Please download your .ppn model from the Picovoice Console for your platform (Windows). Place it in the 'wakeword_models/' directory in your project root.")
         print("\n[Picovoice Setup]")
         print("- Download your .ppn model from https://console.picovoice.ai/")
-        print("- Name the file exactly as you want (e.g., 'Jarvis.ppn') and place it in 'wakeword_models/' in your project root.")
-        print("- Update AVAILABLE_WAKE_WORDS in first_run_setup.py if you add new models.")
+        print("- Place the downloaded .ppn file in the 'wakeword_models/' directory in your project root.")
+        while True:
+            model_filename = input("Enter the exact filename of your .ppn model (e.g., Jarvis.ppn): ").strip()
+            model_path = os.path.join("wakeword_models", model_filename)
+            if os.path.exists(model_path):
+                print(f"Model file found at: {model_path}")
+                speak(f"Model file {model_filename} found. Ready to test.")
+                break
+            else:
+                print(f"Model file '{model_path}' not found. Please ensure you have placed it in the 'wakeword_models/' directory.")
+                speak(f"Model file {model_filename} not found. Please try again.")
+        # Ask user to test the wake word
+        print("\nLet's test your wake word model before continuing.")
+        speak("Let's test your wake word model. Please say your wake word now.")
+        # Minimal test: try to initialize Picovoice engine with the model
+        try:
+            from core.engine import VoiceCore  # Import here to avoid unused import warning
+            test_core = VoiceCore(engine_type="picovoice", picovoice_keyword_paths=[model_path])
+            print("Picovoice engine initialized successfully with your model.")
+            speak("Wake word model loaded successfully. If you hear this, your model works.")
+            test_core.stop()
+        except Exception as e:
+            print(f"Failed to initialize Picovoice engine with your model: {e}")
+            speak("There was a problem loading your wake word model. Please check the file and try again.")
+            sys.exit(1)
+        # Set up the config for Picovoice
+        selected_wake_word = {"name": os.path.splitext(model_filename)[0], "model_file": model_path}
         # Skip OpenWakeWord download and continue to STT setup
     else:
         speak("You selected OpenWakeWord. ONNX models will be downloaded automatically if possible.")
