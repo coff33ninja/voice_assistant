@@ -16,6 +16,7 @@ import sys
 import time # For small delays
 import re  # For text matching
 import numpy as np
+import urllib.request
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -50,6 +51,33 @@ AVAILABLE_WAKE_WORDS = [
     {"name": "Assistant", "model_file": "wakeword_models/Assistant.ppn"} # Example, replace .ppn
 ]
 # --- End Placeholder Wake Word Data ---
+
+# --- OpenWakeWord Model Data ---
+# List of OpenWakeWord models to download if not present
+OPENWAKEWORD_MODELS = [
+    {"name": "Computer", "url": "https://github.com/synesthesiam/openwakeword-models/raw/main/onnx/computer.onnx", "model_file": "wakeword_models/Computer.onnx"},
+    {"name": "Jarvis", "url": "https://github.com/synesthesiam/openwakeword-models/raw/main/onnx/jarvis.onnx", "model_file": "wakeword_models/Jarvis.onnx"},
+    {"name": "Assistant", "url": "https://github.com/synesthesiam/openwakeword-models/raw/main/onnx/assistant.onnx", "model_file": "wakeword_models/Assistant.onnx"},
+]
+
+def download_openwakeword_models():
+    """
+    Download OpenWakeWord .onnx models if not present in wakeword_models/.
+    """
+    if not os.path.exists("wakeword_models"):
+        os.makedirs("wakeword_models")
+    for model in OPENWAKEWORD_MODELS:
+        path = model["model_file"]
+        url = model["url"]
+        if not os.path.exists(path):
+            print(f"Downloading OpenWakeWord model for {model['name']}...")
+            try:
+                urllib.request.urlretrieve(url, path)
+                print(f"Downloaded: {path}")
+            except Exception as e:
+                print(f"Failed to download {url}: {e}")
+        else:
+            print(f"Model already exists: {path}")
 
 def transcribe_audio_with_whisper(whisper_model, audio_bytes) -> str:
     """
@@ -394,6 +422,7 @@ def run_first_time_setup():
         tts_engine.stop()
 
 if __name__ == "__main__":
+    download_openwakeword_models()
     # Create dummy wakeword_models directory and files for standalone testing if they don't exist
     # In actual use, the developer provides these.
     if not os.path.exists("wakeword_models"):
