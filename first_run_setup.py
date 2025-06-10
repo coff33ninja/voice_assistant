@@ -144,7 +144,22 @@ def run_first_time_setup():
     speak("Let's get a few things configured.")
     time.sleep(0.5)
 
-    # 1. Check for Picovoice Access Key
+    # 1. Wake word engine selection
+    engine_choice = select_wake_word_engine()
+    if engine_choice == 'picovoice':
+        speak("You selected Picovoice Porcupine. Please ensure you have downloaded your .ppn model from the Picovoice Console for your platform (Windows) and placed it in the 'wakeword_models/' directory.")
+        print("\n[Picovoice Setup]")
+        print("- Download your .ppn model from https://console.picovoice.ai/")
+        print("- Name the file exactly as you want (e.g., 'Jarvis.ppn') and place it in 'wakeword_models/' in your project root.")
+        print("- Update AVAILABLE_WAKE_WORDS in first_run_setup.py if you add new models.")
+        # Skip OpenWakeWord download and continue to STT setup
+    else:
+        speak("You selected OpenWakeWord. ONNX models will be downloaded automatically if possible.")
+        print("\n[OpenWakeWord Setup]")
+        print("- ONNX models will be downloaded to 'wakeword_models/'. If download fails, download manually from the URLs printed above.")
+        download_openwakeword_models()
+
+    # 2. Check for Picovoice Access Key
     picovoice_access_key = os.environ.get("PICOVOICE_ACCESS_KEY")
     if not picovoice_access_key:
         speak("To use custom wake words with Picovoice, I need an Access Key.")
@@ -161,7 +176,7 @@ def run_first_time_setup():
         speak("Great, I found your Picovoice Access Key.")
         time.sleep(0.5)
 
-    # 2. Choose a Wake Word
+    # 3. Choose a Wake Word
     speak("Please choose a wake word from the following options.")
     print("\nAvailable Wake Words:")
     for i, ww_data in enumerate(AVAILABLE_WAKE_WORDS):
@@ -291,7 +306,7 @@ def run_first_time_setup():
     print(f"Selected wake word: {selected_wake_word['name']} (Model: {selected_wake_word['model_file']})")
     time.sleep(0.5)
 
-    # 3. Verify model file existence (basic check)
+    # 4. Verify model file existence (basic check)
     # Assumes script is run from project root where wakeword_models/ is located.
     model_path_to_check = selected_wake_word['model_file']
     if not os.path.exists(model_path_to_check):
@@ -306,7 +321,7 @@ def run_first_time_setup():
         print(f"Model file found at: {model_path_to_check}")
 
 
-    # 4. Save Configuration
+    # 5. Save Configuration
     speak("Saving your configuration...")
     config_data = DEFAULT_CONFIG.copy() # Start with defaults
     config_data["first_run_complete"] = True
@@ -437,5 +452,4 @@ def run_first_time_setup():
         tts_engine.stop()
 
 if __name__ == "__main__":
-    download_openwakeword_models()
     run_first_time_setup()
