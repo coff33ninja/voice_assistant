@@ -1,0 +1,1 @@
+pip install openwakeword==0.4.0 openai-whisper pyaudio pyttsx3
