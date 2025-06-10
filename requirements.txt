@@ -1,10 +1,9 @@
 # Base dependencies. Modules might have additional requirements.
 # It is recommended to pin versions for all packages (e.g., using 'pip freeze').
-openwakeword==0.4.0
+openwakeword
 openai-whisper
 pyaudio
 pyttsx3
-
 pvporcupine
 numpy
 speedtest-cli

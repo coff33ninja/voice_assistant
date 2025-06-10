@@ -94,11 +94,6 @@ def ping_target(target_identifier):
 
 def register_intents():
     """Returns a dictionary of intents to register with the main application."""
-    # TODO: The 'ping' intent requires main.py's handle_command to be enhanced
-    #       to extract the target (device name or IP) from the user's spoken command
-    #       and pass it as an argument to the ping_target function.
-    #       Example: User says "ping PC1", main.py should call ping_target("PC1").
-    #       User says "ping 1.2.3.4", main.py should call ping_target("1.2.3.4").
     return {
         # Intents that expect an argument (target name or IP) to be passed by main.py
         "ping": ping_target,
