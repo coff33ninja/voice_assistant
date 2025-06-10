@@ -49,10 +49,11 @@ def run_first_time_setup():
         print("You can get a free key at https://console.picovoice.ai/")
         print("After setting the environment variable, please restart the application.")
         # Stop TTS engine before exiting
-        if 'tts_engine' in globals(): tts_engine.stop()
+        if 'tts_engine' in globals():
+            tts_engine.stop()
         sys.exit(1)
     else:
-        print(f"Picovoice Access Key found in environment.")
+        print("Picovoice Access Key found in environment.")
         speak("Great, I found your Picovoice Access Key.")
         time.sleep(0.5)
 
@@ -138,7 +139,10 @@ def run_first_time_setup():
                                     # Ensure whisper_model was loaded: check 'hasattr(temp_voice_core, 'whisper_model') and temp_voice_core.whisper_model'
                                     # This was checked before this block in the original structure.
                                     result = temp_voice_core.whisper_model.transcribe(audio_float32, fp16=False) # fp16=False for broader CPU compatibility
-                                    transcribed_text = result['text'].strip().lower() if result and 'text' in result else ""
+                                    transcribed_text = result['text']
+                                    if isinstance(transcribed_text, list):
+                                        transcribed_text = " ".join(str(x) for x in transcribed_text)
+                                    transcribed_text = transcribed_text.strip().lower() if transcribed_text else ""
                                     if transcribed_text:
                                         print(f"Whisper transcribed: '{transcribed_text}'")
                                     else:
@@ -179,13 +183,20 @@ def run_first_time_setup():
                         break
                     # Match by number (e.g., "number one", "one", "1")
                     # Using re.search for more flexible number matching, e.g., "option 1", "number one"
+                    # Ensure transcribed_text is always a string before using re.search
+                    if isinstance(transcribed_text, list):
+                        transcribed_text = " ".join(str(x) for x in transcribed_text)
+                    transcribed_text = transcribed_text.strip().lower() if transcribed_text else ""
+                    # Now safe to use in re.search
                     if re.search(r'(number|option|#)\s*' + str(i + 1) + r'\b', transcribed_text, re.IGNORECASE) or \
                        transcribed_text == str(i + 1):
                         chosen_index = i
                         break
-                if chosen_index != -1: break # Found a match by name or number pattern
+                if chosen_index != -1:
+                    break # Found a match by name or number pattern
 
-            if chosen_index != -1: break # Break from voice_attempt loop
+            if chosen_index != -1:
+                break # Break from voice_attempt loop
             speak("I didn't quite catch that.")
         if chosen_index != -1:
             speak("Okay, I got your choice by voice!")
@@ -228,7 +239,8 @@ def run_first_time_setup():
                 speak("Let's try that again.")
             else:
                 speak("Sorry, I'm having trouble understanding your choice. Please try running the setup again later.")
-                if 'tts_engine' in globals(): tts_engine.stop()
+                if 'tts_engine' in globals():
+                    tts_engine.stop()
                 sys.exit(1)
 
     selected_wake_word = AVAILABLE_WAKE_WORDS[chosen_index]
@@ -244,7 +256,8 @@ def run_first_time_setup():
         print(f"WARNING: Model file '{model_path_to_check}' not found!")
         print("Please ensure you have downloaded the .ppn file from Picovoice Console and placed it correctly.")
         speak("Please check the file path and run the setup again.")
-        if 'tts_engine' in globals(): tts_engine.stop()
+        if 'tts_engine' in globals():
+            tts_engine.stop()
         sys.exit(1)
     else:
         print(f"Model file found at: {model_path_to_check}")
@@ -265,7 +278,8 @@ def run_first_time_setup():
     else:
         speak("There was an error saving your configuration. Please try again.")
         print("ERROR: Failed to save configuration.")
-        if 'tts_engine' in globals(): tts_engine.stop()
+        if 'tts_engine' in globals():
+            tts_engine.stop()
         sys.exit(1)
 
     # --- TTS Voice Selection ---
@@ -288,7 +302,7 @@ def run_first_time_setup():
                 speak(f"Option {i + 1}: {voice_display_name}")
                 time.sleep(0.2)
         if len(available_tts_voices) > 5:
-            speak(f"There are more voices listed in the console if you'd like to see them all.")
+            speak("There are more voices listed in the console if you'd like to see them all.")
 
         chosen_voice_id = None
         chosen_voice_obj_idx = -1
@@ -311,7 +325,8 @@ def run_first_time_setup():
                         try:
                             audio_chunk_tts = temp_stt_voice_core.stream.read(1280, exception_on_overflow=False)
                             recorded_audio_frames_tts.append(audio_chunk_tts)
-                        except IOError: break
+                        except IOError:
+                            break
                     print("TTS voice choice recording finished.")
                     if recorded_audio_frames_tts:
                         full_audio_data_tts = b''.join(recorded_audio_frames_tts)
@@ -321,16 +336,24 @@ def run_first_time_setup():
                                 audio_int16_tts = np.frombuffer(full_audio_data_tts, dtype=np.int16)
                                 audio_float32_tts = audio_int16_tts.astype(np.float32) / 32768.0
                                 result_tts = temp_stt_voice_core.whisper_model.transcribe(audio_float32_tts, fp16=False)
-                                transcribed_text_tts = result_tts['text'].strip().lower() if result_tts and 'text' in result_tts else ""
-                                if transcribed_text_tts: print(f"Whisper transcribed TTS choice as: '{transcribed_text_tts}'")
-                            except Exception as e_transcribe_tts: print(f"Error during TTS choice transcription: {e_transcribe_tts}")
+                                transcribed_text_tts = result_tts['text']
+                                if isinstance(transcribed_text_tts, list):
+                                    transcribed_text_tts = " ".join(str(x) for x in transcribed_text_tts)
+                                transcribed_text_tts = transcribed_text_tts.strip().lower() if transcribed_text_tts else ""
+                                if transcribed_text_tts:
+                                    print(f"Whisper transcribed TTS choice as: '{transcribed_text_tts}'")
+                            except Exception as e_transcribe_tts:
+                                print(f"Error during TTS choice transcription: {e_transcribe_tts}")
                 if transcribed_text_tts:
                     for i, voice_data in enumerate(available_tts_voices):
                         if voice_data['name'].lower() in transcribed_text_tts:
-                            chosen_voice_obj_idx = i; break
+                            chosen_voice_obj_idx = i
+                            break
                         if f"number {i + 1}" in transcribed_text_tts or f"option {i + 1}" in transcribed_text_tts or transcribed_text_tts == str(i + 1):
-                            chosen_voice_obj_idx = i; break
-                    if chosen_voice_obj_idx != -1: break
+                            chosen_voice_obj_idx = i
+                            break
+                    if chosen_voice_obj_idx != -1:
+                        break
                 speak("I didn't quite catch your voice selection.")
         finally:
             if temp_stt_voice_core:
@@ -345,10 +368,14 @@ def run_first_time_setup():
                     user_input_tts = input("Enter the number for your chosen TTS voice: ")
                     choice_tts = int(user_input_tts)
                     if 1 <= choice_tts <= len(available_tts_voices):
-                        chosen_voice_obj_idx = choice_tts - 1; break
-                    else: speak(f"That's not a valid number for voice choice.")
-                except ValueError: speak("That didn't seem like a number for voice choice.")
-                if tts_attempt_typed == 2: speak("Skipping TTS voice selection for now.")
+                        chosen_voice_obj_idx = choice_tts - 1
+                        break
+                    else:
+                        speak("That's not a valid number for voice choice.")
+                except ValueError:
+                    speak("That didn't seem like a number for voice choice.")
+                if tts_attempt_typed == 2:
+                    speak("Skipping TTS voice selection for now.")
 
         if chosen_voice_obj_idx != -1:
             chosen_voice_id = available_tts_voices[chosen_voice_obj_idx]['id']
@@ -360,9 +387,12 @@ def run_first_time_setup():
             if save_config(current_config):
                 print("TTS Voice ID saved to configuration.")
                 if 'tts_engine' in globals() and hasattr(tts_engine, 'set_voice'):
-                    if tts_engine.set_voice(chosen_voice_id): speak(f"I will now try to use the {chosen_voice_name} voice.")
-                    else: speak(f"I'll use the {chosen_voice_name} voice the next time you start me.")
-            else: speak("There was an error saving your voice choice.")
+                    if tts_engine.set_voice(chosen_voice_id):
+                        speak(f"I will now try to use the {chosen_voice_name} voice.")
+                    else:
+                        speak(f"I'll use the {chosen_voice_name} voice the next time you start me.")
+            else:
+                speak("There was an error saving your voice choice.")
         else:
             speak("Okay, we'll stick with the default voice for now.")
             print("INFO: Default TTS voice will be used.")
