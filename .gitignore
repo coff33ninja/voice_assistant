@@ -4,3 +4,8 @@
 /__pycache__
 /.vscode
 /.venv
+# Ignore environment variable and secret files
+.env
+.env.*
+PICOVOICE_ACCESS_KEY.txt
+# End sensitive data ignore
