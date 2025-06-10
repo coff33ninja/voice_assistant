@@ -1,5 +1,7 @@
 # voice_assistant/core/engine.py
 
+import pvporcupine
+import struct
 import openwakeword
 import pyaudio
 import whisper
@@ -10,26 +12,59 @@ from collections import deque
 
 
 class VoiceCore:
-    def __init__(
-        self,
-        wake_word_model_path,
-        on_wake_word=None,
-        on_command=None,
-        whisper_model_name="base.en",
-        silence_threshold=500,
-    ):
+    def __init__(self, on_wake_word=None, on_command=None, whisper_model_name="base.en", silence_threshold=500, engine_type="openwakeword", picovoice_access_key=None, picovoice_keyword_paths=None, openwakeword_model_path=None):
         """
         Initializes the Voice Core.
 
         Args:
-            wake_word_model_path (str): The path to the .onnx wake word model file.
             on_wake_word (function): A callback function to execute when the wake word is detected.
             on_command (function): A callback function to execute with the transcribed command text.
+            whisper_model_name (str): Name of the Whisper model to use.
+            silence_threshold (int): RMS level for silence detection.
+            engine_type (str): 'openwakeword' or 'picovoice'.
+            picovoice_access_key (str): Access key for Picovoice.
+            picovoice_keyword_paths (list): List of paths to Picovoice keyword model files.
+            openwakeword_model_path (str): Path to the OpenWakeWord model file.
         """
-        self.wake_word_model_path = wake_word_model_path
         self.on_wake_word = on_wake_word
         self.on_command = on_command
         self.silence_threshold = silence_threshold
+        self.engine_type = engine_type
+        self.picovoice_access_key = picovoice_access_key
+        self.picovoice_keyword_paths = picovoice_keyword_paths
+        self.openwakeword_model_path = openwakeword_model_path
+        self.porcupine = None
+        self.oww = None # Explicitly initialize to None
+        self.wakeword_model_name_oww = "" # Specific for openwakeword
+        self._picovoice_audio_buffer = []
+
+        print(f"Core Engine: Initializing with engine_type: {self.engine_type}")
+        if self.engine_type == "picovoice":
+            if not self.picovoice_access_key:
+                raise ValueError("Picovoice access key is required for 'picovoice' engine.")
+            if not self.picovoice_keyword_paths or not isinstance(self.picovoice_keyword_paths, list):
+                raise ValueError("Picovoice keyword paths (list) are required for 'picovoice' engine.")
+            try:
+                self.porcupine = pvporcupine.create(
+                    access_key=self.picovoice_access_key,
+                    keyword_paths=self.picovoice_keyword_paths
+                )
+                print(f"Core Engine: Picovoice Porcupine initialized with models: {self.picovoice_keyword_paths}")
+            except Exception as e:
+                print(f"Core Engine Error: Failed to initialize Picovoice Porcupine: {e}")
+                raise # Re-raise the exception
+        elif self.engine_type == "openwakeword":
+            if not self.openwakeword_model_path:
+                raise ValueError("Openwakeword model path is required for 'openwakeword' engine.")
+            try:
+                self.oww = openwakeword.Model(wakeword_models=[self.openwakeword_model_path])
+                self.wakeword_model_name_oww = self.openwakeword_model_path.split('/')[-1].replace('.onnx', '')
+                print(f"Core Engine: openWakeWord initialized with model: {self.openwakeword_model_path}")
+            except Exception as e:
+                print(f"Core Engine Error: Failed to initialize openWakeWord: {e}")
+                raise # Re-raise the exception
+        else:
+            raise ValueError(f"Unsupported engine_type: {self.engine_type}")
 
         # --- Initialize Audio Stream (PyAudio) ---
         self.p = pyaudio.PyAudio()
@@ -38,15 +73,11 @@ class VoiceCore:
             channels=1,
             rate=16000,
             input=True,
-            frames_per_buffer=1280,
+            frames_per_buffer=1280, # Matches openWakeWord chunk size & Picovoice frame length
         )
 
-        # --- Initialize Wake Word Engine (openWakeWord) ---
-        self.oww = openwakeword.Model(wakeword_models=[self.wake_word_model_path])
-
         # --- Initialize Speech-to-Text Engine (Whisper) ---
-        self.whisper_model = whisper.load_model("base.en")
-        self.model_name = wake_word_model_path.split("/")[-1].replace(".onnx", "")
+        self.whisper_model = whisper.load_model(whisper_model_name)
 
         # --- State Management ---
         self.is_listening_for_command = False
@@ -79,28 +110,72 @@ class VoiceCore:
 
     def _listen(self):
         """The main loop that processes audio chunks."""
+        # self._picovoice_audio_buffer should be initialized in __init__
         while not self._stop_event.is_set():
             try:
-                audio_chunk = self.stream.read(1280, exception_on_overflow=False)
+                audio_chunk_bytes = self.stream.read(1280, exception_on_overflow=False)
             except IOError as e:
-                # This can happen if the stream is closed while reading
-                if e.errno == pyaudio.paInputOverflowed:
+                if "Input overflowed" in str(e): # More general check for overflow message
                     print("Core Engine Warning: Input overflowed. Dropping frame.")
                     continue
-                break
+                print(f"Core Engine Error: PyAudio read error: {e}")
+                time.sleep(0.1) # Avoid tight loop on persistent error
+                continue # Or break, depending on desired robustness
 
             if self.is_listening_for_command:
-                self.command_audio.append(audio_chunk)
-                if self._is_silent(audio_chunk, threshold=self.silence_threshold):
+                self.command_audio.append(audio_chunk_bytes)
+                if self._is_silent(audio_chunk_bytes, threshold=self.silence_threshold):
                     self._process_command()
             else:
-                self.audio_buffer.append(audio_chunk)
-                prediction = self.oww.predict(audio_chunk)
-                if prediction[self.model_name] > 0.5:  # Use the dynamic model name
-                    self.is_listening_for_command = True
-                    self.command_audio = list(self.audio_buffer)
-                    if self.on_wake_word:
-                        threading.Thread(target=self.on_wake_word).start()
+                # Wake word detection logic
+                if self.engine_type == "openwakeword":
+                    if not self.oww:
+                        print("Core Engine Error: openWakeWord engine (self.oww) not initialized!")
+                        time.sleep(0.1); continue
+                    self.audio_buffer.append(audio_chunk_bytes) # audio_buffer is for pre-wake-word audio
+                    prediction = self.oww.predict(audio_chunk_bytes)
+                    # Ensure self.wakeword_model_name_oww is correctly set from the model path in __init__
+                    if self.wakeword_model_name_oww and prediction.get(self.wakeword_model_name_oww, 0) > 0.5:
+                        self.is_listening_for_command = True
+                        self.command_audio = list(self.audio_buffer)
+                        if self.on_wake_word:
+                            threading.Thread(target=self.on_wake_word).start()
+                elif self.engine_type == "picovoice":
+                    if not self.porcupine:
+                        print("Core Engine Error: Picovoice engine (self.porcupine) not initialized!")
+                        time.sleep(0.1); continue
+                    try:
+                        # Picovoice expects frames of 16-bit integers (shorts)
+                        current_samples = list(struct.unpack_from("h" * (len(audio_chunk_bytes) // 2), audio_chunk_bytes))
+                        self._picovoice_audio_buffer.extend(current_samples)
+                    except struct.error as se:
+                        print(f"Core Engine Error: Failed to unpack audio chunk for Picovoice: {se}. Chunk length: {len(audio_chunk_bytes)}")
+                        continue # Skip this corrupted/short chunk
+
+                    while len(self._picovoice_audio_buffer) >= self.porcupine.frame_length:
+                        frame_to_process = self._picovoice_audio_buffer[:self.porcupine.frame_length]
+                        del self._picovoice_audio_buffer[:self.porcupine.frame_length]
+                        try:
+                            keyword_index = self.porcupine.process(frame_to_process)
+                            if keyword_index >= 0:
+                                print(f"Core Engine: Picovoice detected keyword (index {keyword_index}).")
+                                self.is_listening_for_command = True
+                                # For Picovoice, command audio likely starts *after* wake word.
+                                # Consider if pre-pended audio is desired or if self.command_audio should be just new audio.
+                                # For now, starting fresh, but one might want to capture the wake word chunk itself.
+                                self.command_audio = [audio_chunk_bytes] # Start with current chunk or make it empty
+                                if self.on_wake_word:
+                                    threading.Thread(target=self.on_wake_word).start()
+                                self._picovoice_audio_buffer = [] # Clear buffer after detection
+                                break  # Exit from 'while len >= frame_length' loop
+                        except pvporcupine.PorcupineActivationRefusedError as pare:
+                            print(f"Core Engine Warning: Picovoice Activation Refused: {pare}")
+                            time.sleep(5)
+                        except Exception as e_pvp:
+                            print(f"Core Engine Error: Picovoice process error: {e_pvp}")
+                            break
+                    if self.is_listening_for_command:
+                        pass
 
     def _is_silent(self, data, threshold):
         """Returns 'True' if the audio chunk is below a volume threshold."""

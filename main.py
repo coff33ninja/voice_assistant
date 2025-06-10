@@ -3,21 +3,93 @@ import time
 import os
 import sys
 import importlib.util
+import subprocess
 from core.engine import VoiceCore
-from core.tts import tts_engine, speak  # Import speak for unrecognized commands
+from core.tts import tts_engine, speak
+from core.user_config import load_config, DEFAULT_CONFIG
 
 
 class Assistant:
     def __init__(self):
         """Initializes the Assistant, loads intents, and starts the core."""
+        # --- First Run Setup Check ---
+        self.config = load_config()
+        if not self.config.get("first_run_complete", False):
+            print("INFO: First run setup not complete or config missing. Running setup script...")
+            try:
+                script_dir = os.path.dirname(os.path.abspath(__file__))
+                setup_script_path = os.path.join(script_dir, "first_run_setup.py")
+                if not os.path.exists(setup_script_path):
+                    setup_script_path = os.path.join(os.path.dirname(script_dir), "first_run_setup.py")
+                if not os.path.exists(setup_script_path):
+                    print(f"CRITICAL: first_run_setup.py not found at expected locations (tried {os.path.join(script_dir, 'first_run_setup.py')} and {os.path.join(os.path.dirname(script_dir), 'first_run_setup.py')}).")
+                    sys.exit(1)
+                completed_process = subprocess.run([sys.executable, setup_script_path], check=False)
+                if completed_process.returncode != 0:
+                    print("ERROR: First run setup script exited with an error. Please check its output.")
+                else:
+                    print("First run setup script completed. Please restart the application.")
+            except Exception as e_setup:
+                print(f"ERROR: Failed to run first_run_setup.py: {e_setup}")
+            sys.exit(0)
+
+        self.picovoice_access_key = os.environ.get("PICOVOICE_ACCESS_KEY")
+        if not self.picovoice_access_key:
+            # This info is useful if user later tries to switch to Picovoice via config editing
+            # or if first_run_setup had an issue but config was partially saved.
+            print("INFO: PICOVOICE_ACCESS_KEY environment variable not set. This is required if using the Picovoice engine.")
+
         self.intents = {}
         self._load_modules()
 
-        self.core = VoiceCore(
-            wake_word_model_path="./hey_jimmy.onnx",
-            on_wake_word=self.handle_wake_word,
-            on_command=self.handle_command,
-        )
+        # --- Initialize Voice Core based on User Configuration ---
+        engine_to_use = self.config.get("chosen_wake_word_engine")
+        model_path = self.config.get("chosen_wake_word_model_path")
+        access_key_env_set = self.config.get("picovoice_access_key_is_set_env", False)
+        # self.picovoice_access_key is already loaded from env
+        effective_picovoice_access_key = self.picovoice_access_key
+
+        vc_args = {}
+        vc_args['on_wake_word'] = self.handle_wake_word
+        vc_args['on_command'] = self.handle_command
+        # Default whisper_model_name and silence_threshold from VoiceCore's __init__ will be used
+
+        if engine_to_use == "picovoice" and model_path and effective_picovoice_access_key and access_key_env_set:
+            print(f"INFO: Using Picovoice engine with model: {model_path}")
+            vc_args['engine_type'] = "picovoice"
+            vc_args['picovoice_access_key'] = effective_picovoice_access_key
+            vc_args['picovoice_keyword_paths'] = [model_path] # Porcupine expects a list
+        else:
+            if engine_to_use == "picovoice": # Specifically chosen but conditions not met
+                print("WARN: Picovoice was configured but not all conditions are met (e.g., model path missing or PICOVOICE_ACCESS_KEY not found/confirmed during setup). Defaulting to OpenWakeWord.")
+            elif engine_to_use is None: # No configuration set yet
+                print("INFO: No wake word engine configured yet. Defaulting to OpenWakeWord.")
+            else: # Configured to something else (e.g. openwakeword explicitly)
+                print(f"INFO: Using configured OpenWakeWord engine.")
+
+            # Fallback to OpenWakeWord
+            # WAKE_WORD_MODEL_PATH env var is the primary source for OpenWakeWord if not set by user config.
+            # The previous VoiceCore init used "./hey_jimmy.onnx" as a hardcoded default if env var wasn't set.
+            # We maintain that behavior for OpenWakeWord default.
+            default_oww_model_path = self.config.get("chosen_wake_word_model_path") \
+                                     if engine_to_use == "openwakeword" and self.config.get("chosen_wake_word_model_path") \
+                                     else os.environ.get("WAKE_WORD_MODEL_PATH", "./hey_jimmy.onnx")
+
+            if not os.path.exists(default_oww_model_path):
+                print(f"CRITICAL: OpenWakeWord model '{default_oww_model_path}' not found. Please set WAKE_WORD_MODEL_PATH, configure via setup, or ensure the default model exists.")
+                sys.exit(1)
+            vc_args['engine_type'] = "openwakeword"
+            vc_args['openwakeword_model_path'] = default_oww_model_path
+            # If chosen_wake_word_engine was 'openwakeword' but model_path was None, this ensures it uses the env/default.
+
+        try:
+            self.core = VoiceCore(**vc_args)
+        except ValueError as ve:
+            print(f"CRITICAL: Failed to initialize VoiceCore: {ve}. Please check your configuration and environment variables.")
+            sys.exit(1)
+        except Exception as e_vc:
+            print(f"CRITICAL: An unexpected error occurred during VoiceCore initialization: {e_vc}")
+            sys.exit(1)
 
     def _load_modules(self):
         """Dynamically loads all intent modules from the 'modules' directory."""
@@ -42,7 +114,7 @@ class Assistant:
         print(f"Total intents loaded: {len(self.intents)}")
 
     def handle_wake_word(self):
-        """Called by the core when 'Hey Jimmy' is detected."""
+        """Called by the core when the wake word is detected."""
         print("\nAssistant: Wake word acknowledged. Listening for command...")
         speak("Yes?")
 
@@ -73,8 +145,8 @@ class Assistant:
             print("\nShutting down assistant...")
             speak("Goodbye!")
             # Gracefully stop the core engines
-            tts_engine.stop()
-            self.core.stop()
+            if hasattr(tts_engine, 'stop'): tts_engine.stop() # Ensure tts_engine has stop
+            if hasattr(self.core, 'stop'): self.core.stop()   # Ensure core has stop
 
 
 if __name__ == "__main__":
