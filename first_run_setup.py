@@ -90,7 +90,6 @@ def match_choice_from_text(transcribed_text: str, options: list[dict], key: str 
     Returns:
         int: The index of the matched option, or -1 if no match found.
     """
-    import re
     if not transcribed_text:
         return -1
     text = transcribed_text.strip().lower()
