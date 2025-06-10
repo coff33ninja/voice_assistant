@@ -11,7 +11,8 @@ DEFAULT_CONFIG = {
     "first_run_complete": False,
     "chosen_wake_word_engine": None, # e.g., "openwakeword" or "picovoice"
     "chosen_wake_word_model_path": None, # Path to .onnx for openwakeword or .ppn for picovoice
-    "picovoice_access_key_is_set_env": False # Tracks if user confirmed env var is set
+    "picovoice_access_key_is_set_env": False, # Tracks if user confirmed env var is set
+    "chosen_tts_voice_id": None, # ID of the selected pyttsx3 voice
     # Add other future user-specific settings here
 }
 

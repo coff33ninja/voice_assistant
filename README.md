@@ -88,7 +88,12 @@ When you run the application for the first time, a setup script (`first_run_setu
     *   **Retry Logic**: If your speech isn't clearly understood or doesn't match an option, you'll be asked to try again a few times.
     *   **Typed Fallback**: If voice input fails after these retries, or if there's an issue with audio capture/transcription, the script will automatically fall back to asking you to type the number corresponding to your choice.
 4.  Once selected, the script will save your choice to `user_settings.json` in the project directory.
-5.  You will then be prompted to **restart the main application** for the new wake word to take effect.
+5.  **TTS Voice Selection**: After setting up your wake word, you'll be guided to choose a Text-to-Speech (TTS) voice for the assistant.
+    *   Available voices (which depend on your system's TTS engines) will be listed.
+    *   You can select a voice using voice input (e.g., saying the voice name or option number) or by typing the corresponding number if voice input isn't clear.
+    *   Your chosen voice ID will be saved in `user_settings.json`.
+    *   The script will attempt to use this new voice for its final messages.
+6.  You will then be prompted to **restart the main application** for the new wake word and TTS voice to take effect.
 
 **Note**: If the `PICOVOICE_ACCESS_KEY` is not set, the setup script will instruct you to set it and exit. The main application will not run fully until setup is complete.
 
@@ -208,6 +213,10 @@ Users will then see these new options during the first-time setup.
 
 ### User Configuration File (`user_settings.json`)
 User preferences, including the chosen wake word engine and model path, are stored in `user_settings.json` in the project root. This file is managed by `core/user_config.py`. Modifying it manually is possible but generally not recommended unless you know what you're doing.
+    *   `chosen_wake_word_engine`: e.g., "openwakeword" or "picovoice".
+    *   `chosen_wake_word_model_path`: Path to the wake word model file (e.g., .onnx or .ppn).
+    *   `picovoice_access_key_is_set_env`: Confirms if the environment variable was detected during setup.
+    *   `chosen_tts_voice_id`: The ID of the TTS voice selected by the user during setup.
 
 ### Future Plans for Custom Wake Words (Developer Note)
 The current system uses pre-generated wake word models chosen by the user during setup. Future development aims to explore more dynamic custom wake word creation, potentially allowing users to:

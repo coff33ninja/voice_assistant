@@ -31,7 +31,20 @@ class Assistant:
                     print("First run setup script completed. Please restart the application.")
             except Exception as e_setup:
                 print(f"ERROR: Failed to run first_run_setup.py: {e_setup}")
-            sys.exit(0)
+            sys.exit(0) # Exit after attempting setup, user needs to restart
+
+        # --- Apply chosen TTS voice ---
+        chosen_tts_voice_id = self.config.get("chosen_tts_voice_id")
+        if chosen_tts_voice_id:
+            print(f"INFO: Applying chosen TTS voice ID: {chosen_tts_voice_id}")
+            # tts_engine is globally imported from core.tts
+            if 'tts_engine' in globals() and hasattr(tts_engine, 'set_voice'):
+                if not tts_engine.set_voice(chosen_tts_voice_id):
+                    print(f"WARN: Failed to set chosen TTS voice ID '{chosen_tts_voice_id}'. Default will be used.")
+            else:
+                print("WARN: tts_engine not available or does not have set_voice method.")
+        else:
+            print("INFO: No chosen TTS voice ID found in config. Using default TTS voice.")
 
         self.picovoice_access_key = os.environ.get("PICOVOICE_ACCESS_KEY")
         if not self.picovoice_access_key:
