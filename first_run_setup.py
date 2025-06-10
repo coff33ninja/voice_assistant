@@ -167,7 +167,14 @@ def run_first_time_setup():
         # Minimal test: try to initialize Picovoice engine with the model
         try:
             from core.engine import VoiceCore  # Import here to avoid unused import warning
-            test_core = VoiceCore(engine_type="picovoice", picovoice_keyword_paths=[model_path])
+            picovoice_access_key = os.environ.get("PICOVOICE_ACCESS_KEY")
+            if not picovoice_access_key:
+                raise RuntimeError("Picovoice access key not found in environment. Please set PICOVOICE_ACCESS_KEY in your .env file or environment variables.")
+            test_core = VoiceCore(
+                engine_type="picovoice",
+                picovoice_keyword_paths=[model_path],
+                picovoice_access_key=picovoice_access_key
+            )
             print("Picovoice engine initialized successfully with your model.")
             speak("Wake word model loaded successfully. If you hear this, your model works.")
             test_core.stop()
