@@ -64,22 +64,6 @@ def transcribe_audio_with_whisper(whisper_model, audio_bytes) -> str:
         print(f"Error during Whisper transcription: {e}")
         return ""
 
-def transcribe_tts_voice_choice(whisper_model, audio_data: bytes) -> str:
-    """
-    Transcribes the user's TTS voice choice from audio data using the provided Whisper model.
-    Args:
-        whisper_model: The Whisper model instance for transcription.
-        audio_data (bytes): The audio data to transcribe.
-    Returns:
-        str: The transcribed text, or an empty string if transcription fails.
-    """
-    try:
-        result = whisper_model.transcribe(audio_data)
-        return result.get('text', '').strip()
-    except Exception as e:
-        print(f"Error during TTS voice transcription: {e}")
-        return ""
-
 def match_choice_from_text(transcribed_text: str, options: list[dict], key: str = "name") -> int:
     """
     Attempts to match a user's transcribed input to an option index by name or number.
@@ -344,7 +328,7 @@ def run_first_time_setup():
                         full_audio_data_tts = b''.join(recorded_audio_frames_tts)
                         if hasattr(temp_stt_voice_core, 'whisper_model') and temp_stt_voice_core.whisper_model:
                             print("Transcribing TTS voice choice...")
-                            transcribed_text_tts = transcribe_tts_voice_choice(temp_stt_voice_core.whisper_model, full_audio_data_tts)
+                            transcribed_text_tts = transcribe_audio_with_whisper(temp_stt_voice_core.whisper_model, full_audio_data_tts)
                             if transcribed_text_tts:
                                 print(f"Whisper transcribed TTS choice as: '{transcribed_text_tts}'")
                         else:
