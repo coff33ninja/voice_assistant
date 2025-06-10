@@ -256,7 +256,7 @@ The current system uses pre-generated wake word models chosen by the user during
 1.  Speak a brand new, never-before-heard phrase, and have the system attempt to create a wake word model for it on the fly (highly complex, research-level task).
 2.  Type their desired wake word during setup, with the system then attempting to configure itself to use it, possibly by guiding the user through a service like Picovoice Console for model generation and placement (complex integration task).
 These are significant undertakings and are noted here for future consideration.
-
+2
 ## Setting the Picovoice Access Key (Windows, PowerShell)
 
 Before running the setup or main application, you must set your Picovoice Access Key as an environment variable. This is required for wake word functionality using Picovoice.
