@@ -75,7 +75,8 @@ def download_openwakeword_models():
                 urllib.request.urlretrieve(url, path)
                 print(f"Downloaded: {path}")
             except Exception as e:
-                print(f"Failed to download {url}: {e}")
+                print(f"Unable to download {url}: {e}")
+                print(f"Please download the ONNX model for '{model['name']}' manually from {url} and place it at {path}.")
         else:
             print(f"Model already exists: {path}")
 
@@ -122,6 +123,20 @@ def match_choice_from_text(transcribed_text: str, options: list[dict], key: str 
         if i < len(number_words) and number_words[i] in text:
             return i
     return -1
+
+# --- Wake Word Engine Selection ---
+def select_wake_word_engine():
+    print("\nChoose your wake word engine:")
+    print("1. Picovoice Porcupine (.ppn, requires Access Key, high accuracy, closed-source)")
+    print("2. OpenWakeWord (.onnx, open-source, no key required)")
+    while True:
+        choice = input("Enter 1 for Picovoice or 2 for OpenWakeWord: ").strip()
+        if choice == '1':
+            return 'picovoice'
+        elif choice == '2':
+            return 'openwakeword'
+        else:
+            print("Invalid input. Please enter 1 or 2.")
 
 def run_first_time_setup():
     speak("Welcome! It looks like this is your first time running the voice assistant, or your setup wasn't completed.")
@@ -423,25 +438,4 @@ def run_first_time_setup():
 
 if __name__ == "__main__":
     download_openwakeword_models()
-    # Create dummy wakeword_models directory and files for standalone testing if they don't exist
-    # In actual use, the developer provides these.
-    if not os.path.exists("wakeword_models"):
-        os.makedirs("wakeword_models")
-        print("Created dummy 'wakeword_models/' directory for testing.")
-    for ww in AVAILABLE_WAKE_WORDS:
-        if not os.path.exists(ww["model_file"]):
-            try:
-                with open(ww["model_file"], "w") as f: # Create dummy files
-                    f.write("This is a dummy Picovoice model file.\n")
-                print(f"Created dummy model file: {ww['model_file']}")
-            except Exception as e_file:
-                print(f"Could not create dummy model file {ww['model_file']}: {e_file}")
-                print("Please ensure the 'wakeword_models' directory is writable or create the files manually for testing.")
-
-    # For standalone testing, ensure PICOVOICE_ACCESS_KEY is set, or mock it.
-    if not os.environ.get("PICOVOICE_ACCESS_KEY"):
-        print("WARNING: PICOVOICE_ACCESS_KEY environment variable not set for testing.")
-        print("The script might exit if it requires it. For full test, please set it.")
-        # os.environ["PICOVOICE_ACCESS_KEY"] = "TEST_KEY_ONLY_FOR_LOCAL_RUN" # Uncomment to mock for test
-
     run_first_time_setup()
