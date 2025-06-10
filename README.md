@@ -230,11 +230,26 @@ The voice assistant uses Picovoice Porcupine for wake word detection when config
 Users will then see these new options during the first-time setup.
 
 ### User Configuration File (`user_settings.json`)
-User preferences, including the chosen wake word engine and model path, are stored in `user_settings.json` in the project root. This file is managed by `core/user_config.py`. Modifying it manually is possible but generally not recommended unless you know what you're doing.
-    *   `chosen_wake_word_engine`: e.g., "openwakeword" or "picovoice".
-    *   `chosen_wake_word_model_path`: Path to the wake word model file (e.g., .onnx or .ppn).
-    *   `picovoice_access_key_is_set_env`: Confirms if the environment variable was detected during setup.
-    *   `chosen_tts_voice_id`: The ID of the TTS voice selected by the user during setup.
+User preferences, including the chosen wake word engine and model path, are stored in `user_settings.json`. This file is managed by `core/user_config.py` and is now located in your Windows user profile at `%APPDATA%/voice_assistant/user_settings.json` (not the project root).
+
+**Configuration keys:**
+- `first_run_complete`: Whether the initial setup has been completed.
+- `chosen_wake_word_engine`: e.g., "openwakeword" or "picovoice".
+- `chosen_wake_word_model_path`: Path to the wake word model file (e.g., .onnx or .ppn).
+- `picovoice_access_key_is_set_env`: Confirms if the environment variable was detected during setup.
+- `chosen_tts_voice_id`: The ID of the TTS voice selected by the user during setup.
+- `api_keys`: Dictionary for storing API keys for integrations (e.g., weather).
+- `language`: User language preference (e.g., "en").
+
+**How the config works:**
+- The config file is created automatically on first run if it does not exist.
+- All changes to user preferences are saved through the application; manual editing is possible but not recommended.
+- Before overwriting, a backup is created at `%APPDATA%/voice_assistant/user_settings_backup.json`.
+- If the config is missing keys, defaults are filled in automatically.
+
+**Advanced:**
+- You can safely delete or reset the config file to restore defaults; the app will recreate it.
+- Sensitive data (like API keys) is never logged.
 
 ### Future Plans for Custom Wake Words (Developer Note)
 The current system uses pre-generated wake word models chosen by the user during setup. Future development aims to explore more dynamic custom wake word creation, potentially allowing users to:

@@ -1,17 +1,24 @@
-# voice_assistant/modules/server.py
+"""
+Module: server.py
+Provides functions to boot and verify servers using Wake-on-LAN and ping.
+"""
+
 import os
 import logging
 import time
+from typing import Optional
 from core.tts import speak
 from modules.wol import load_systems_config, send_wol_packet
-from modules.ping import ping_target # For verifying server status after boot
+from modules.ping import ping_target
 
-# Path relative to project root, assuming script is run from project root
 CONFIG_PATH = os.path.join("modules", "configs", "systems_config.json")
 
-
-def boot_system(system_name):
-    """Boot a system using Wake-on-LAN."""
+def boot_system(system_name: str) -> None:
+    """
+    Boot a system using Wake-on-LAN.
+    Args:
+        system_name (str): Name of the system to boot.
+    """
     systems = load_systems_config(CONFIG_PATH)
     if system_name not in systems:
         response = f"System '{system_name}' not found in configuration."
@@ -31,24 +38,23 @@ def boot_system(system_name):
     speak(response_start)
 
     success = send_wol_packet(mac_address)
-    response_end = (
-        f"Boot command {'successful' if success else 'failed'} for '{system_name}'."
-    )
+    response_end = f"Boot command {'successful' if success else 'failed'} for '{system_name}'."
     logging.info(response_end)
     speak(response_end)
 
-def start_server(server_name=None):
+def start_server(server_name: Optional[str] = None) -> None:
     """
-    Starts a server by sending a Wake-on-LAN packet and then attempts to ping it
-    to verify if it has come online.
+    Starts a server by sending a Wake-on-LAN packet and then attempts to ping it to verify if it has come online.
+    Args:
+        server_name (str, optional): Name of the server to start.
     """
     if not server_name:
         speak_msg = "Please specify which server you want to start. For example, say 'start server MyServerName'."
-        logging.info("INFO: 'start_server' called without server_name.")
+        logging.info("'start_server' called without server_name.")
         speak(speak_msg)
         return
 
-    logging.info(f"ACTION: Received request to start and verify server: {server_name}.")
+    logging.info(f"Received request to start and verify server: {server_name}.")
     speak(f"Attempting to start and verify server {server_name}.")
 
     systems = load_systems_config(CONFIG_PATH)
@@ -74,38 +80,26 @@ def start_server(server_name=None):
     if wol_success:
         speak(f"Wake-on-LAN packet sent to {server_name}.")
         if ip_address:
-            # Wait for the server to boot up before pinging
-            # TODO: This delay could be configurable per system in systems_config.json
-            boot_wait_time = 60 # seconds
+            boot_wait_time = 60  # seconds
             logging.info(f"Waiting {boot_wait_time} seconds for {server_name} to boot before pinging.")
             speak(f"I'll wait about a minute for {server_name} to boot, then I'll try to ping it.")
             time.sleep(boot_wait_time)
-
             logging.info(f"Attempting to ping {server_name} at {ip_address}.")
-            # ping_target will speak its own results
-            ping_target(server_name) # ping_target can resolve name to IP from config
+            ping_target(server_name)
         else:
             no_ip_response = f"{server_name} has been sent a boot command, but I cannot verify its status as its IP address is not configured."
-            logging.warning(f"WARN: {no_ip_response}")
+            logging.warning(no_ip_response)
             speak(no_ip_response)
     else:
         response = f"Failed to send Wake-on-LAN packet to {server_name}."
         logging.error(response)
         speak(response)
 
-# TODO: Add a 'stop_server(server_name)' function.
-# This would require remote command execution (e.g., SSH) to gracefully shut down a server.
-# This is a significant feature and out of scope for simple WOL/ping.
-def register_intents():
-    """Returns a dictionary of intents to register with the main application."""
-    intents = {
-        "start server": start_server,
-        "start the server": start_server,
-        # Intents that expect a system_name argument passed by main.py
+def register_intents() -> dict:
+    """
+    Returns a dictionary of intents to register with the main application.
+    """
+    return {
         "boot system": boot_system,
-        "turn on": boot_system,
-        "wake": boot_system, # Short alias
+        "start server": start_server,
     }
-    # Note: The handle_command in main.py now supports extracting the argument after these phrases.
-    # For example, "boot system MyPC" will call boot_system("MyPC").
-    return intents

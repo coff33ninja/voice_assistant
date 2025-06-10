@@ -1,3 +1,8 @@
+"""
+Module: system_info.py
+Provides system information such as CPU, memory, and disk usage via TTS.
+"""
+
 import psutil
 import os
 import platform
@@ -5,21 +10,24 @@ import datetime
 import time # For boot_time
 import logging
 from core.tts import speak
+from typing import Optional
 
-# Helper function to format bytes into GB for easier reading
-def bytes_to_gb(bytes_val):
+def bytes_to_gb(bytes_val: int) -> str:
+    """
+    Convert bytes to a human-readable GB string.
+    """
     gb_val = bytes_val / (1024**3)
     return f"{gb_val:.2f} GB"
 
-# Helper function to format uptime from seconds to D H M S string
-def format_uptime(seconds):
+def format_uptime(seconds: int) -> str:
+    """
+    Format uptime in seconds to a human-readable string.
+    """
     days = int(seconds // (24 * 3600))
     seconds %= (24 * 3600)
     hours = int(seconds // 3600)
     seconds %= 3600
     minutes = int(seconds // 60)
-    # seconds %= 60 # We probably don't need seconds precision for spoken uptime
-
     parts = []
     if days > 0:
         parts.append(f"{days} day{'s' if days != 1 else ''}")
@@ -27,20 +35,20 @@ def format_uptime(seconds):
         parts.append(f"{hours} hour{'s' if hours != 1 else ''}")
     if minutes > 0:
         parts.append(f"{minutes} minute{'s' if minutes != 1 else ''}")
-
-    if not parts: # If uptime is less than a minute
+    if not parts:
         return "less than a minute"
     elif len(parts) == 1:
         return parts[0]
     elif len(parts) == 2:
         return " and ".join(parts)
-    else: # days, hours, and minutes
+    else:
         return ", ".join(parts[:-1]) + ", and " + parts[-1]
 
-def get_cpu_usage_speak():
-    """Gets current CPU utilization and speaks it."""
+def get_cpu_usage_speak() -> None:
+    """
+    Gets current CPU utilization and speaks it.
+    """
     try:
-        # interval=1 makes it a blocking call for 1 sec, giving a more stable reading
         cpu_percent = psutil.cpu_percent(interval=1)
         if cpu_percent is not None:
             speak(f"Current CPU usage is {cpu_percent:.1f} percent.")
@@ -52,25 +60,29 @@ def get_cpu_usage_speak():
         logging.error(f"Error getting CPU usage: {e}", exc_info=True)
         speak("Sorry, I encountered an error while trying to get CPU usage.")
 
-def get_memory_usage_speak():
-    """Gets current memory usage and speaks it."""
+def get_memory_usage_speak() -> None:
+    """
+    Gets current memory usage and speaks it.
+    """
     try:
         mem = psutil.virtual_memory()
         total_mem = bytes_to_gb(mem.total)
         used_mem = bytes_to_gb(mem.used)
         mem_percent = mem.percent
-
         speak(f"Memory usage is {mem_percent:.1f} percent. Total: {total_mem}, Used: {used_mem}.")
         logging.info(f"Memory Usage: {mem_percent:.1f}% (Total: {total_mem}, Used: {used_mem}, Available: {bytes_to_gb(mem.available)})")
     except Exception as e:
         logging.error(f"Error getting memory usage: {e}", exc_info=True)
         speak("Sorry, I encountered an error while trying to get memory usage.")
 
-def get_disk_usage_speak(path_argument=None):
-    """Gets disk usage for a given path (or default root) and speaks it."""
+def get_disk_usage_speak(path_argument: Optional[str] = None) -> None:
+    """
+    Gets disk usage for a given path (or default root) and speaks it.
+    Args:
+        path_argument (str, optional): Path to check disk usage for.
+    """
     target_path = path_argument
     path_display_name = "the main drive"
-
     if not target_path:
         if platform.system().lower() == "windows":
             target_path = "C:\\"
@@ -80,33 +92,21 @@ def get_disk_usage_speak(path_argument=None):
             path_display_name = "the root filesystem"
         logging.info(f"No path specified for disk usage, defaulting to '{target_path}'.")
     else:
-        # If a path argument is given, use it directly.
-        # main.py's argument parser passes the string after "disk space for "
         path_display_name = f"the path {target_path}"
         logging.info(f"Checking disk usage for specified path: '{target_path}'")
-
-
     try:
         if not os.path.exists(target_path):
-            # This check is important as psutil.disk_usage might not fail clearly for some invalid paths
-            # or might give info for a parent mount point, which could be confusing.
             speak(f"Sorry, I could not find the path {path_display_name} to check its disk space.")
             logging.error(f"Path '{target_path}' for disk usage check does not exist.")
             return
-
         disk = psutil.disk_usage(target_path)
         total_disk = bytes_to_gb(disk.total)
         free_disk = bytes_to_gb(disk.free)
         disk_percent = disk.percent
-
-        speak(f"Disk usage for {path_display_name} is {disk_percent:.1f} percent. Total space: {total_disk}, Free space: {free_disk}.")
-        logging.info(f"Disk Usage for '{target_path}': {disk_percent:.1f}% (Total: {total_disk}, Used: {bytes_to_gb(disk.used)}, Free: {free_disk})")
-
-    except FileNotFoundError: # Should be caught by os.path.exists, but as safeguard for psutil call
-        speak(f"Sorry, the path {path_display_name} was not found for checking disk space.")
-        logging.error(f"Path '{target_path}' for disk usage check caused FileNotFoundError with psutil.")
+        speak(f"Disk usage for {path_display_name}: {disk_percent:.1f} percent used. Total: {total_disk}, Free: {free_disk}.")
+        logging.info(f"Disk Usage for {target_path}: {disk_percent:.1f}% (Total: {total_disk}, Free: {free_disk})")
     except Exception as e:
-        logging.error(f"Error getting disk usage for '{target_path}': {e}", exc_info=True)
+        logging.error(f"Error getting disk usage for {target_path}: {e}", exc_info=True)
         speak(f"Sorry, I encountered an error while trying to get disk usage for {path_display_name}.")
 
 def get_system_uptime_speak():
@@ -116,7 +116,6 @@ def get_system_uptime_speak():
         current_timestamp = time.time()
         uptime_seconds = current_timestamp - boot_timestamp
         uptime_str = format_uptime(int(uptime_seconds))
-
         speak(f"The system has been running for {uptime_str}.")
         logging.info(f"System Uptime: {uptime_str} (since {datetime.datetime.fromtimestamp(boot_timestamp).strftime('%Y-%m-%d %H:%M:%S')})")
     except Exception as e:
@@ -133,30 +132,34 @@ def get_system_summary_speak():
         cpu_percent = psutil.cpu_percent(interval=0.5) # Shorter interval for summary
         if cpu_percent is not None:
             summary_parts.append(f"CPU at {cpu_percent:.1f} percent")
-    except Exception: pass # Ignore individual errors for summary, just skip part
+    except Exception:
+        pass # Ignore individual errors for summary, just skip part
 
     try:
         mem = psutil.virtual_memory()
         summary_parts.append(f"memory at {mem.percent:.1f} percent")
-    except Exception: pass
+    except Exception:
+        pass
 
     try:
         default_disk_path = "C:\\" if platform.system().lower() == "windows" else "/"
         if os.path.exists(default_disk_path): # Check existence before calling psutil.disk_usage
              disk = psutil.disk_usage(default_disk_path)
              summary_parts.append(f"main disk at {disk.percent:.1f} percent")
-    except Exception: pass
+    except Exception:
+        pass
 
     try:
         boot_timestamp = psutil.boot_time()
         uptime_seconds = time.time() - boot_timestamp
         uptime_str = format_uptime(int(uptime_seconds))
         summary_parts.append(f"uptime is {uptime_str}")
-    except Exception: pass
+    except Exception:
+        pass
 
     if summary_parts:
         speak("System status: " + ", ".join(summary_parts) + ".")
-        logging.info(f"System Summary: {', '.join(summary_parts)}.")
+        logging.info("System Summary: %s.", ", ".join(summary_parts))
     else:
         speak("Sorry, I couldn't retrieve any system status information.")
         logging.error("Failed to retrieve any parts for system summary.")

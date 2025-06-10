@@ -6,7 +6,7 @@ import importlib.util
 import subprocess
 from core.engine import VoiceCore
 from core.tts import tts_engine, speak
-from core.user_config import load_config, DEFAULT_CONFIG
+from core.user_config import load_config
 
 
 class Assistant:
@@ -78,17 +78,15 @@ class Assistant:
             elif engine_to_use is None: # No configuration set yet
                 print("INFO: No wake word engine configured yet. Defaulting to OpenWakeWord.")
             else: # Configured to something else (e.g. openwakeword explicitly)
-                print(f"INFO: Using configured OpenWakeWord engine.")
+                print("INFO: Using configured OpenWakeWord engine.")
 
             # Fallback to OpenWakeWord
             # WAKE_WORD_MODEL_PATH env var is the primary source for OpenWakeWord if not set by user config.
             # The previous VoiceCore init used "./hey_jimmy.onnx" as a hardcoded default if env var wasn't set.
             # We maintain that behavior for OpenWakeWord default.
-            default_oww_model_path = self.config.get("chosen_wake_word_model_path") \
-                                     if engine_to_use == "openwakeword" and self.config.get("chosen_wake_word_model_path") \
-                                     else os.environ.get("WAKE_WORD_MODEL_PATH", "./hey_jimmy.onnx")
-
-            if not os.path.exists(default_oww_model_path):
+            config_model_path = self.config.get("chosen_wake_word_model_path")
+            default_oww_model_path = config_model_path if engine_to_use == "openwakeword" and config_model_path else os.environ.get("WAKE_WORD_MODEL_PATH", "./hey_jimmy.onnx")
+            if not default_oww_model_path or not isinstance(default_oww_model_path, str) or not os.path.exists(default_oww_model_path):
                 print(f"CRITICAL: OpenWakeWord model '{default_oww_model_path}' not found. Please set WAKE_WORD_MODEL_PATH, configure via setup, or ensure the default model exists.")
                 sys.exit(1)
             vc_args['engine_type'] = "openwakeword"
@@ -115,9 +113,14 @@ class Assistant:
                     spec = importlib.util.spec_from_file_location(
                         module_name, os.path.join(modules_dir, filename)
                     )
+                    if spec is None:
+                        print(f"  - FAILED to load '{filename}': Could not create module spec.")
+                        continue
                     module = importlib.util.module_from_spec(spec)
+                    if spec.loader is None:
+                        print(f"  - FAILED to load '{filename}': No loader in module spec.")
+                        continue
                     spec.loader.exec_module(module)
-
                     if hasattr(module, "register_intents"):
                         intents_from_module = module.register_intents()
                         self.intents.update(intents_from_module)
@@ -194,8 +197,10 @@ class Assistant:
             print("\nShutting down assistant...")
             speak("Goodbye!")
             # Gracefully stop the core engines
-            if hasattr(tts_engine, 'stop'): tts_engine.stop() # Ensure tts_engine has stop
-            if hasattr(self.core, 'stop'): self.core.stop()   # Ensure core has stop
+            if hasattr(tts_engine, 'stop'):
+                tts_engine.stop() # Ensure tts_engine has stop
+            if hasattr(self.core, 'stop'):
+                self.core.stop()   # Ensure core has stop
 
 
 if __name__ == "__main__":
