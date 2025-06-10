@@ -1,6 +1,21 @@
+"""
+first_run_setup.py
+
+Guides the user through initial configuration of the voice assistant, including:
+- Picovoice Access Key setup
+- Wake word selection (voice or typed)
+- Wake word model file verification
+- TTS voice selection (voice or typed)
+- Configuration saving
+
+This script is intended to be run as a standalone setup utility.
+"""
+
 import os
 import sys
 import time # For small delays
+import re  # For text matching
+import numpy as np
 
 # Ensure core modules can be imported if script is run directly from root
 # This might be needed if first_run_setup.py is run as a separate process
@@ -16,8 +31,6 @@ try:
     from core.tts import speak, tts_engine # Import tts_engine to stop it later
     from core.user_config import load_config, save_config, DEFAULT_CONFIG
     from core.engine import VoiceCore # For STT
-    import re # For text matching
-    import numpy as np
 except ImportError as e:
     print(f"Error: Could not import core modules: {e}")
     print("Please ensure that the script is run from the project's root directory,")
@@ -33,6 +46,67 @@ AVAILABLE_WAKE_WORDS = [
     {"name": "Assistant", "model_file": "wakeword_models/Assistant.ppn"} # Example, replace .ppn
 ]
 # --- End Placeholder Wake Word Data ---
+
+def transcribe_audio_with_whisper(whisper_model, audio_bytes) -> str:
+    """
+    Transcribes audio bytes using a Whisper model.
+    Returns the transcribed text as a lowercase string, or an empty string on failure.
+    """
+    try:
+        audio_int16 = np.frombuffer(audio_bytes, dtype=np.int16)
+        audio_float32 = audio_int16.astype(np.float32) / 32768.0
+        result = whisper_model.transcribe(audio_float32, fp16=False)
+        transcribed_text = result['text']
+        if isinstance(transcribed_text, list):
+            transcribed_text = " ".join(str(x) for x in transcribed_text)
+        return transcribed_text.strip().lower() if transcribed_text else ""
+    except Exception as e:
+        print(f"Error during Whisper transcription: {e}")
+        return ""
+
+def transcribe_tts_voice_choice(whisper_model, audio_data: bytes) -> str:
+    """
+    Transcribes the user's TTS voice choice from audio data using the provided Whisper model.
+    Args:
+        whisper_model: The Whisper model instance for transcription.
+        audio_data (bytes): The audio data to transcribe.
+    Returns:
+        str: The transcribed text, or an empty string if transcription fails.
+    """
+    try:
+        result = whisper_model.transcribe(audio_data)
+        return result.get('text', '').strip()
+    except Exception as e:
+        print(f"Error during TTS voice transcription: {e}")
+        return ""
+
+def match_choice_from_text(transcribed_text: str, options: list[dict], key: str = "name") -> int:
+    """
+    Attempts to match a user's transcribed input to an option index by name or number.
+    Args:
+        transcribed_text (str): The user's spoken or typed input.
+        options (list[dict]): List of option dicts, each with a 'name' key (or as specified).
+        key (str): The key in each option dict to match against (default: 'name').
+    Returns:
+        int: The index of the matched option, or -1 if no match found.
+    """
+    import re
+    if not transcribed_text:
+        return -1
+    text = transcribed_text.strip().lower()
+    for i, opt in enumerate(options):
+        # Match by name (case-insensitive, substring)
+        if opt[key].lower() in text:
+            return i
+        # Match by number (e.g., "number one", "option 1", "1")
+        if re.search(r'(number|option|#)?\s*' + str(i + 1) + r'\b', text, re.IGNORECASE) or text == str(i + 1):
+            return i
+    # Also try matching number words (e.g., "one", "two")
+    number_words = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"]
+    for i, opt in enumerate(options):
+        if i < len(number_words) and number_words[i] in text:
+            return i
+    return -1
 
 def run_first_time_setup():
     speak("Welcome! It looks like this is your first time running the voice assistant, or your setup wasn't completed.")
@@ -96,71 +170,26 @@ def run_first_time_setup():
 
             recorded_audio_frames = []
             try:
-                # temp_voice_core should be initialized before this loop from previous step's logic
                 if temp_voice_core and hasattr(temp_voice_core, 'stream') and temp_voice_core.stream and not temp_voice_core.stream.is_stopped():
-                    # PyAudio stream parameters from VoiceCore: CHANNELS=1, RATE=16000, FRAMES_PER_BUFFER=1280
-                    # Record for approx 3 seconds: (16000 rate / 1280 frames_per_buffer) * 3 seconds = approx 37.5 reads
-                    for _ in range(int(16000 / 1280 * 3)): # Approx 3 seconds of audio
+                    for _ in range(int(16000 / 1280 * 3)):
                         try:
                             audio_chunk = temp_voice_core.stream.read(1280, exception_on_overflow=False)
                             recorded_audio_frames.append(audio_chunk)
                         except IOError as e_read:
                             print(f"Error reading audio stream during setup: {e_read}")
-                            break # Stop recording on error
+                            break
                     print("Finished recording.")
 
                     if recorded_audio_frames:
                         full_audio_data = b''.join(recorded_audio_frames)
                         if hasattr(temp_voice_core, 'whisper_model') and temp_voice_core.whisper_model:
                             print("Transcribing your choice...")
-                            # Whisper expects a NumPy array or file path. Convert bytes to NumPy array.
-                            # This requires numpy. For now, this part is also a simplification.
-                            # VoiceCore._process_command() has the full conversion and transcription logic.
-                            # Replicating it here is complex. A direct STT method in VoiceCore is better.
-                            # For this subtask, we'll assume temp_voice_core can provide transcription directly.
-                            # This is a known simplification and will need a VoiceCore.transcribe(audio_bytes) method.
-                            try:
-                                # ---- This is the Idealized Call (requires VoiceCore modification) ----
-                                # transcribed_text = temp_voice_core.transcribe_audio_bytes(full_audio_data)
-                                # ---- Fallback: Manual Whisper call (if numpy is available and model loaded) ----
-                                # import numpy as np # Would need to be added to imports
-                                # audio_np = np.frombuffer(full_audio_data, dtype=np.int16).astype(np.float32) / 32768.0
-                                # result = temp_voice_core.whisper_model.transcribe(audio_np, fp16=False) # fp16 might need check
-                                # transcribed_text = result['text'].strip().lower() if result else ''
-                                # ---- Actual STT using Whisper ---
-                                print("Transcribing your choice using Whisper... This may take a moment.")
-                                try:
-                                    # Convert audio bytes to NumPy array suitable for Whisper
-                                    # Whisper expects 16kHz mono audio, float32, normalized to [-1.0, 1.0]
-                                    audio_int16 = np.frombuffer(full_audio_data, dtype=np.int16)
-                                    audio_float32 = audio_int16.astype(np.float32) / 32768.0
-
-                                    # Transcribe using the whisper_model from the temporary VoiceCore instance
-                                    # Ensure whisper_model was loaded: check 'hasattr(temp_voice_core, 'whisper_model') and temp_voice_core.whisper_model'
-                                    # This was checked before this block in the original structure.
-                                    result = temp_voice_core.whisper_model.transcribe(audio_float32, fp16=False) # fp16=False for broader CPU compatibility
-                                    transcribed_text = result['text']
-                                    if isinstance(transcribed_text, list):
-                                        transcribed_text = " ".join(str(x) for x in transcribed_text)
-                                    transcribed_text = transcribed_text.strip().lower() if transcribed_text else ""
-                                    if transcribed_text:
-                                        print(f"Whisper transcribed: '{transcribed_text}'")
-                                    else:
-                                        print("Whisper could not transcribe the audio or returned empty text.")
-                                        speak("I couldn't understand what you said.")
-                                except AttributeError as ae:
-                                    # This might happen if temp_voice_core or whisper_model is None
-                                    print(f"STT Error: Whisper model not available or not loaded correctly in temp_voice_core: {ae}")
-                                    speak("I had an issue with my speech recognition setup.")
-                                    transcribed_text = "" # Ensure it's empty on error
-                                except Exception as e_stt:
-                                    print(f"Error during Whisper transcription: {e_stt}")
-                                    speak("I had trouble processing your speech for transcription.")
-                                    transcribed_text = "" # Ensure it's empty on error
-                                # --- End Actual STT ---
-                            except Exception as e_transcribe: # This outer try-except was for the simulated block, might need adjustment
-                                print(f"Error during transcription block: {e_transcribe}") # Changed from "Error during transcription"
-                                speak("I had trouble processing your speech.")
+                            transcribed_text = transcribe_audio_with_whisper(temp_voice_core.whisper_model, full_audio_data)
+                            if transcribed_text:
+                                print(f"Whisper transcribed: '{transcribed_text}'")
+                            else:
+                                print("Whisper could not transcribe the audio or returned empty text.")
+                                speak("I couldn't understand what you said.")
                         else:
                             print("Whisper model not available in temporary VoiceCore instance.")
                     else:
@@ -175,25 +204,9 @@ def run_first_time_setup():
 
             if transcribed_text:
                 print(f"I heard: {transcribed_text}")
-                # Try to match transcribed_text to AVAILABLE_WAKE_WORDS
-                for i, ww_data in enumerate(AVAILABLE_WAKE_WORDS):
-                    # Match by name (case-insensitive)
-                    if ww_data['name'].lower() in transcribed_text:
-                        chosen_index = i
-                        break
-                    # Match by number (e.g., "number one", "one", "1")
-                    # Using re.search for more flexible number matching, e.g., "option 1", "number one"
-                    # Ensure transcribed_text is always a string before using re.search
-                    if isinstance(transcribed_text, list):
-                        transcribed_text = " ".join(str(x) for x in transcribed_text)
-                    transcribed_text = transcribed_text.strip().lower() if transcribed_text else ""
-                    # Now safe to use in re.search
-                    if re.search(r'(number|option|#)\s*' + str(i + 1) + r'\b', transcribed_text, re.IGNORECASE) or \
-                       transcribed_text == str(i + 1):
-                        chosen_index = i
-                        break
+                chosen_index = match_choice_from_text(transcribed_text, AVAILABLE_WAKE_WORDS, key="name")
                 if chosen_index != -1:
-                    break # Found a match by name or number pattern
+                    break  # Found a match by name or number pattern
 
             if chosen_index != -1:
                 break # Break from voice_attempt loop
@@ -332,26 +345,13 @@ def run_first_time_setup():
                         full_audio_data_tts = b''.join(recorded_audio_frames_tts)
                         if hasattr(temp_stt_voice_core, 'whisper_model') and temp_stt_voice_core.whisper_model:
                             print("Transcribing TTS voice choice...")
-                            try:
-                                audio_int16_tts = np.frombuffer(full_audio_data_tts, dtype=np.int16)
-                                audio_float32_tts = audio_int16_tts.astype(np.float32) / 32768.0
-                                result_tts = temp_stt_voice_core.whisper_model.transcribe(audio_float32_tts, fp16=False)
-                                transcribed_text_tts = result_tts['text']
-                                if isinstance(transcribed_text_tts, list):
-                                    transcribed_text_tts = " ".join(str(x) for x in transcribed_text_tts)
-                                transcribed_text_tts = transcribed_text_tts.strip().lower() if transcribed_text_tts else ""
-                                if transcribed_text_tts:
-                                    print(f"Whisper transcribed TTS choice as: '{transcribed_text_tts}'")
-                            except Exception as e_transcribe_tts:
-                                print(f"Error during TTS choice transcription: {e_transcribe_tts}")
+                            transcribed_text_tts = transcribe_tts_voice_choice(temp_stt_voice_core.whisper_model, full_audio_data_tts)
+                            if transcribed_text_tts:
+                                print(f"Whisper transcribed TTS choice as: '{transcribed_text_tts}'")
+                        else:
+                            print("Whisper model not available in temporary VoiceCore instance.")
                 if transcribed_text_tts:
-                    for i, voice_data in enumerate(available_tts_voices):
-                        if voice_data['name'].lower() in transcribed_text_tts:
-                            chosen_voice_obj_idx = i
-                            break
-                        if f"number {i + 1}" in transcribed_text_tts or f"option {i + 1}" in transcribed_text_tts or transcribed_text_tts == str(i + 1):
-                            chosen_voice_obj_idx = i
-                            break
+                    chosen_voice_obj_idx = match_choice_from_text(transcribed_text_tts, available_tts_voices, key="name")
                     if chosen_voice_obj_idx != -1:
                         break
                 speak("I didn't quite catch your voice selection.")
