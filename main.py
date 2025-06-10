@@ -1,6 +1,7 @@
 # voice_assistant/main.py
 import time
 import os
+import sys
 import importlib.util
 from core.engine import VoiceCore
 from core.tts import tts_engine, speak  # Import speak for unrecognized commands

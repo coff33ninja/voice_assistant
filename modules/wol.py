@@ -1,6 +1,7 @@
 # voice_assistant/modules/wol.py
 import json
 import socket
+import logging
 
 
 def load_systems_config(config_path):
@@ -10,10 +11,10 @@ def load_systems_config(config_path):
             systems = json.load(file)
         return systems
     except FileNotFoundError:
-        print("ERROR: Configuration file not found.")
+        logging.error("Configuration file not found at path: %s", config_path)
         return {}
     except json.JSONDecodeError:
-        print("ERROR: Invalid JSON format.")
+        logging.error("Invalid JSON format in configuration file: %s", config_path)
         return {}
 
 

@@ -10,7 +10,14 @@ from collections import deque
 
 
 class VoiceCore:
-    def __init__(self, wake_word_model_path, on_wake_word=None, on_command=None):
+    def __init__(
+        self,
+        wake_word_model_path,
+        on_wake_word=None,
+        on_command=None,
+        whisper_model_name="base.en",
+        silence_threshold=500,
+    ):
         """
         Initializes the Voice Core.
 
@@ -22,6 +29,7 @@ class VoiceCore:
         self.wake_word_model_path = wake_word_model_path
         self.on_wake_word = on_wake_word
         self.on_command = on_command
+        self.silence_threshold = silence_threshold
 
         # --- Initialize Audio Stream (PyAudio) ---
         self.p = pyaudio.PyAudio()
@@ -83,7 +91,7 @@ class VoiceCore:
 
             if self.is_listening_for_command:
                 self.command_audio.append(audio_chunk)
-                if self._is_silent(audio_chunk, threshold=500):
+                if self._is_silent(audio_chunk, threshold=self.silence_threshold):
                     self._process_command()
             else:
                 self.audio_buffer.append(audio_chunk)
