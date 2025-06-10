@@ -139,14 +139,50 @@ class Assistant:
         print(f"Assistant: Received command -> '{command}'")
         command = command.lower().strip()
 
+        matched_intent = False # Flag to track if any intent matched
+        # Priority 1: Exact match (typically for no-argument commands)
         for intent_phrase, action in self.intents.items():
-            if intent_phrase in command:
-                print(f"Assistant: Matched intent '{intent_phrase}'. Executing action.")
-                action()
-                return
+            if command == intent_phrase:
+                print(f"Assistant: Matched exact intent '{intent_phrase}'. Executing action.")
+                try:
+                    action() # Call with no arguments
+                except TypeError as te:
+                    # This happens if 'action' expected an argument but intent was registered as exact phrase.
+                    print(f"ERROR: Action for '{intent_phrase}' likely expected an argument but received none: {te}")
+                    speak("There was a configuration error for that command.")
+                except Exception as e_action:
+                    print(f"ERROR: Exception during action for '{intent_phrase}': {e_action}")
+                    speak("Sorry, I encountered an error trying to do that.")
+                matched_intent = True
+                return # Exit once an exact match is handled
 
-        print("Assistant: Command not recognized.")
-        speak("Sorry, I don't know how to do that yet.")
+        # Priority 2: Starts-with match (for commands expecting one argument after the phrase)
+        # Ensure intent_phrase is not empty to avoid issues with startswith(" ") if intent_phrase was ""
+        if not matched_intent: # Only proceed if no exact match was found
+            for intent_phrase, action in self.intents.items():
+                if intent_phrase and command.startswith(intent_phrase + " "):
+                    argument = command[len(intent_phrase):].strip() # Extract argument
+                    if argument: # Ensure there is an actual argument, not just whitespace
+                        print(f"Assistant: Matched keyword intent '{intent_phrase}' with argument '{argument}'. Executing action.")
+                        try:
+                            action(argument) # Call with one argument
+                        except TypeError as te:
+                            # This happens if 'action' did not expect an argument, or wrong number of args.
+                            print(f"ERROR: Action for '{intent_phrase}' could not accept argument '{argument}': {te}")
+                            # Check if it was perhaps an exact match that got missed, or if it should have been no-arg
+                            # This might indicate an issue with intent registration or the command structure
+                            # For now, assume it's a configuration error for this intent.
+                            speak("There was a configuration error for that command type.")
+                        except Exception as e_action_arg:
+                            print(f"ERROR: Exception during action for '{intent_phrase}' with argument '{argument}': {e_action_arg}")
+                            speak("Sorry, I encountered an error trying to perform that action.")
+                        matched_intent = True
+                        return # Exit once a keyword match is handled
+
+        # If no intent was matched by either method
+        if not matched_intent:
+            print("Assistant: Command not recognized.")
+            speak("Sorry, I don't know how to do that yet.")
 
     def run(self):
         """Starts the core engine and keeps the application alive."""

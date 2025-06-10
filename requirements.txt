@@ -8,3 +8,4 @@ pyttsx3
 pvporcupine
 numpy
 speedtest-cli
+requests

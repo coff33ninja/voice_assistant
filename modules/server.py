@@ -45,23 +45,12 @@ def register_intents():
     intents = {
         # "start server": start_server, # Commented out as start_server is not defined
         # "start the server": start_server, # Commented out as start_server is not defined
-        # "boot system": boot_system, # TODO: Requires main.py to parse system_name from command
-        # TODO: Generic intents like 'boot system' or 'ping target' require `main.py`'s
-        #       `handle_command` to be enhanced to parse arguments (e.g., system name)
-        #       from the user's spoken command and pass them to the action function.
+
+        # Intents that expect a system_name argument passed by main.py
+        "boot system": boot_system,
+        "turn on": boot_system,
+        "wake": boot_system, # Short alias
     }
-    # For now, to avoid errors, we only register intents that have a defined function
-    # and do not require argument parsing from the command string that is not yet implemented.
-    # If boot_system is to be used, it needs argument parsing in main.py's handle_command.
-    # Example: if a user says "boot system MyPC", main.py needs to extract "MyPC".
-    # Since that's not implemented, we can't safely register "boot system" as a generic phrase.
-    # A more specific phrase that implies a direct call or a fixed target could work if needed.
-    # Or, the function could prompt for the system_name if not provided. (Not implemented here)
-
-    # Temporarily, let's add a test intent if needed or keep it empty to avoid issues.
-    # For the purpose of this subtask, we ensure it returns a dict, even if empty.
-    if 'boot_system' in globals() and callable(boot_system):
-         # intents["boot my main pc"] = lambda: boot_system("MyMainPC") # Example of a specific variant
-         pass # Not registering 'boot system' directly due to argument parsing needs.
-
+    # Note: The handle_command in main.py now supports extracting the argument after these phrases.
+    # For example, "boot system MyPC" will call boot_system("MyPC").
     return intents
