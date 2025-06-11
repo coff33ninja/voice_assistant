@@ -160,23 +160,31 @@ class VoiceCore:
                     self._restart_stream()
                     error_count = 0
                 continue
+
+            # Always append to the audio_buffer for pre-roll, regardless of current state.
             self.audio_buffer.append(audio_chunk)
-            if self.oww is not None:
-                # Convert audio_chunk (bytes) to numpy array for openwakeword
-                audio_np = np.frombuffer(audio_chunk, dtype=np.int16)
-                prediction = self.oww.predict(audio_np)
-                # openwakeword.Model.predict returns a tuple: (scores, metadata)
-                # If tuple, use first element for scores
-                if isinstance(prediction, tuple):
-                    scores = prediction[0]
-                else:
-                    scores = prediction
-                # scores is a dict mapping model name to score
-                if self.wakeword_model_name_oww and scores.get(self.wakeword_model_name_oww, 0) > 0.5:
-                    self.is_listening_for_command = True
-                    self.command_audio = list(self.audio_buffer)
-                    if self.on_wake_word:
-                        threading.Thread(target=self.on_wake_word).start()
+
+            if not self.is_listening_for_command:
+                if self.oww is not None:
+                    # Convert audio_chunk (bytes) to numpy array for openwakeword
+                    audio_np = np.frombuffer(audio_chunk, dtype=np.int16)
+                    prediction = self.oww.predict(audio_np)
+                    
+                    if isinstance(prediction, tuple): # Ensure compatibility if API changes
+                        scores = prediction[0]
+                    else:
+                        scores = prediction # Expected to be a dict
+
+                    if self.wakeword_model_name_oww and scores.get(self.wakeword_model_name_oww, 0) > 0.5:
+                        logging.info(f"Core Engine: OpenWakeWord detected keyword '{self.wakeword_model_name_oww}'.")
+                        self.is_listening_for_command = True
+                        self.command_audio = list(self.audio_buffer) # Capture pre-roll
+                        if self.on_wake_word:
+                            threading.Thread(target=self.on_wake_word).start()
+            else: # We are listening for a command
+                self.command_audio.append(audio_chunk) # Append current chunk to command audio
+                if self._is_silent(audio_chunk, self.silence_threshold):
+                    self._process_command() # This will reset is_listening_for_command
 
     def _listen_picovoice(self) -> None:
         """
@@ -196,36 +204,43 @@ class VoiceCore:
                     self._restart_stream()
                     error_count = 0
                 continue
-            try:
-                # Append to the shared audio_buffer for potential command pre-roll
-                self.audio_buffer.append(audio_chunk)
+            
+            # Always append to the audio_buffer for pre-roll.
+            self.audio_buffer.append(audio_chunk)
 
-                current_samples = list(struct.unpack_from("h" * (len(audio_chunk) // 2), audio_chunk))
-                self._picovoice_audio_buffer.extend(current_samples)
-            except struct.error as se:
-                logging.error(f"Core Engine: Failed to unpack audio chunk for Picovoice: {se}")
-                continue
-            if self.porcupine is not None:
-                while len(self._picovoice_audio_buffer) >= self.porcupine.frame_length:
-                    frame = self._picovoice_audio_buffer[:self.porcupine.frame_length]
-                    del self._picovoice_audio_buffer[:self.porcupine.frame_length]
-                    try:
-                        keyword_index = self.porcupine.process(frame)
-                        if keyword_index >= 0:
-                            logging.info(f"Core Engine: Picovoice detected keyword (index {keyword_index}).")
-                            self.is_listening_for_command = True
-                            # Use the pre-roll audio buffer, similar to OpenWakeWord
-                            self.command_audio = list(self.audio_buffer)
-                            if self.on_wake_word:
-                                threading.Thread(target=self.on_wake_word).start()
-                            self._picovoice_audio_buffer = []
-                            break
-                    except pvporcupine.PorcupineActivationRefusedError as pare:
-                        logging.warning(f"Core Engine: Picovoice Activation Refused: {pare}")
-                        time.sleep(5)
-                    except Exception as e_pv_process:
-                        logging.error(f"Core Engine: Picovoice process() error: {e_pv_process}")
-                        break
+            if not self.is_listening_for_command:
+                try:
+                    current_samples = list(struct.unpack_from("h" * (len(audio_chunk) // 2), audio_chunk))
+                    self._picovoice_audio_buffer.extend(current_samples)
+                except struct.error as se:
+                    logging.error(f"Core Engine: Failed to unpack audio chunk for Picovoice: {se}")
+                    continue # Skip this chunk for Picovoice processing if unpacking fails
+
+                if self.porcupine is not None:
+                    while len(self._picovoice_audio_buffer) >= self.porcupine.frame_length:
+                        frame_to_process = self._picovoice_audio_buffer[:self.porcupine.frame_length]
+                        del self._picovoice_audio_buffer[:self.porcupine.frame_length]
+                        try:
+                            keyword_index = self.porcupine.process(frame_to_process)
+                            if keyword_index >= 0:
+                                logging.info(f"Core Engine: Picovoice detected keyword (index {keyword_index}).")
+                                self.is_listening_for_command = True
+                                self.command_audio = list(self.audio_buffer) # Capture pre-roll
+                                if self.on_wake_word:
+                                    threading.Thread(target=self.on_wake_word).start()
+                                self._picovoice_audio_buffer = [] # Clear Picovoice buffer after WW
+                                break # Stop processing more frames from _picovoice_audio_buffer for this audio_chunk
+                        except pvporcupine.PorcupineActivationRefusedError as pare:
+                            logging.warning(f"Core Engine: Picovoice Activation Refused: {pare}")
+                            time.sleep(5) # Wait before retrying, as per Picovoice docs for this error
+                        except Exception as e_pv_process:
+                            logging.error(f"Core Engine: Picovoice process() error: {e_pv_process}")
+                            # Potentially break or continue depending on severity, for now, continue outer loop
+                            break # Break from inner while, process next audio_chunk
+            else: # We are listening for a command
+                self.command_audio.append(audio_chunk) # Append current chunk to command audio
+                if self._is_silent(audio_chunk, self.silence_threshold):
+                    self._process_command() # This will reset is_listening_for_command
 
     def _listen_stt_only(self) -> None:
         """
