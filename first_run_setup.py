@@ -333,10 +333,10 @@ def run_first_time_setup():
         # --- Wake Word Selection for OpenWakeWord only ---
         # 2. Choose a Wake Word
         speak("Please choose a wake word from the following options.")
-        print("\nAvailable Wake Words:")
-        for i, ww_data in enumerate(AVAILABLE_WAKE_WORDS):
+        print("\nAvailable OpenWakeWord Models:")
+        for i, ww_data in enumerate(OPENWAKEWORD_MODELS): # Use OPENWAKEWORD_MODELS for choices
             print(f"{i + 1}. {ww_data['name']}")
-            speak(f"Option {i + 1}: {ww_data['name']}")
+            speak(f"Option {i + 1}: {ww_data['name']}") # Speak names from OPENWAKEWORD_MODELS
             time.sleep(0.3)
 
         chosen_index = -1 # Ensure it's initialized before voice or typed input attempts
@@ -396,7 +396,7 @@ def run_first_time_setup():
 
                 if transcribed_text:
                     print(f"I heard: {transcribed_text}")
-                    chosen_index = match_choice_from_text(transcribed_text, AVAILABLE_WAKE_WORDS, key="name")
+                    chosen_index = match_choice_from_text(transcribed_text, OPENWAKEWORD_MODELS, key="name") # Match against OPENWAKEWORD_MODELS
                     if chosen_index != -1:
                         break  # Found a match by name or number pattern
 
@@ -432,13 +432,13 @@ def run_first_time_setup():
                 try:
                     user_input = input("Enter the number for your chosen wake word: ")
                     choice = int(user_input)
-                    if 1 <= choice <= len(AVAILABLE_WAKE_WORDS):
+                    if 1 <= choice <= len(OPENWAKEWORD_MODELS): # Check against length of OPENWAKEWORD_MODELS
                         chosen_index = choice - 1
                         break
                     else:
-                        speak(f"That's not a valid number. Please choose between 1 and {len(AVAILABLE_WAKE_WORDS)}.")
+                        speak(f"That's not a valid number. Please choose between 1 and {len(OPENWAKEWORD_MODELS)}.")
                 except ValueError:
-                    speak("That didn't seem like a number. Please try again.")
+                    speak("That didn't seem like a number. Please try again.") # Corrected speak message
 
                 if attempt < retries - 1:
                     speak("Let's try that again.")
@@ -448,7 +448,7 @@ def run_first_time_setup():
                         tts_engine.stop()
                     sys.exit(1)
 
-        selected_wake_word = AVAILABLE_WAKE_WORDS[chosen_index]
+        selected_wake_word = OPENWAKEWORD_MODELS[chosen_index] # Get selection from OPENWAKEWORD_MODELS
         speak(f"You've selected: {selected_wake_word['name']}. Great choice!")
         print(f"Selected wake word: {selected_wake_word['name']} (Model: {selected_wake_word['model_file']})")
         time.sleep(0.5)
@@ -458,8 +458,7 @@ def run_first_time_setup():
         model_path_to_check = selected_wake_word['model_file']
         if not os.path.exists(model_path_to_check):
             speak(f"Warning: The model file for {selected_wake_word['name']} at {model_path_to_check} was not found.")
-            print(f"WARNING: Model file '{model_path_to_check}' not found!")
-            print("Please ensure you have downloaded the .ppn file from Picovoice Console and placed it correctly.")
+            print(f"WARNING: Model file '{model_path_to_check}' not found! It should have been downloaded automatically. Please check the 'wakeword_models' directory.")
             speak("Please check the file path and run the setup again.")
             if 'tts_engine' in globals():
                 tts_engine.stop()
@@ -472,11 +471,10 @@ def run_first_time_setup():
         speak("Saving your configuration...")
         config_data = DEFAULT_CONFIG.copy() # Start with defaults
         config_data["first_run_complete"] = True
-        config_data["chosen_wake_word_engine"] = "picovoice"
+        config_data["chosen_wake_word_engine"] = "openwakeword" # Correct engine type
         config_data["chosen_wake_word_model_path"] = selected_wake_word["model_file"]
-        # We don't store the key itself, just confirm it was set in env at time of setup
-        config_data["picovoice_access_key_is_set_env"] = True
-
+        config_data["picovoice_access_key_is_set_env"] = False # Not relevant for OpenWakeWord
+        
         if save_config(config_data):
             speak("Configuration saved successfully.")
             print("Configuration saved.")
