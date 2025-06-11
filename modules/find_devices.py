@@ -7,6 +7,7 @@ import socket
 import subprocess
 import logging
 from core.tts import speak
+from modules.device_manager import list_devices
 
 def get_local_ip() -> str:
     """
@@ -72,6 +73,16 @@ def find_devices() -> None:
         logging.error(f"Failed to scan devices: {e}")
         speak("I encountered an error while scanning for devices.")
 
+def announce_known_devices() -> None:
+    """
+    Announces the list of known devices from the configuration using TTS.
+    """
+    devices = list_devices()
+    if devices:
+        speak(f"Known devices are: {', '.join(devices)}.")
+    else:
+        speak("No known devices found in the configuration.")
+
 def register_intents() -> dict:
     """
     Returns a mapping of intent phrases to the corresponding handler function.
@@ -81,4 +92,5 @@ def register_intents() -> dict:
     return {
         "find devices": find_devices,
         "scan network": find_devices,
+        "list known devices": announce_known_devices,
     }
