@@ -8,7 +8,7 @@ import logging
 import time
 from typing import Optional
 from core.tts import speak
-from modules.wol import load_systems_config, send_wol_packet
+from modules.wol import send_wol_packet
 from modules.ping import ping_target
 from modules.device_manager import get_device
 
@@ -27,7 +27,7 @@ def boot_system(system_name: str) -> None:
     response_start = f"Sending WOL packet to '{system_name}'."
     logging.info(response_start)
     speak(response_start)
-    success = send_wol_packet(device["mac_address"])
+    success = send_wol_packet(str(device["mac_address"]))
     response_end = f"Boot command {'successful' if success else 'failed'} for '{system_name}'."
     logging.info(response_end)
     speak(response_end)
@@ -56,7 +56,7 @@ def start_server(server_name: Optional[str] = None) -> None:
     ip_address = device.get("ip_address")
 
     logging.info(f"Sending WOL packet to '{server_name}' ({mac_address}).")
-    wol_success = send_wol_packet(mac_address)
+    wol_success = send_wol_packet(str(mac_address))
 
     if wol_success:
         speak(f"Wake-on-LAN packet sent to {server_name}.")

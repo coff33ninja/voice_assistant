@@ -9,7 +9,7 @@ import platform
 import os
 import logging
 from core.tts import speak
-from modules.wol import load_systems_config as load_wol_systems_config # Use the one from wol.py
+from modules.device_manager import get_device
 
 # Path relative to project root, assuming main.py is in project root
 CONFIG_PATH = os.path.join("modules", "configs", "systems_config.json")
@@ -37,46 +37,34 @@ def _is_valid_ip_format(ip_string: str) -> bool:
 def ping_target(target_identifier: str) -> None:
     """
     Attempts to ping a device specified by name or IP address, providing spoken feedback.
-    
-    If a device name is given, resolves it to an IP address using the systems configuration file.
-    Executes a platform-appropriate ping command and announces the result via speech synthesis.
-    Handles missing configuration, unknown devices, and various ping errors with appropriate user feedback.
+    Uses device_manager for config lookup.
     """
-    systems = load_wol_systems_config(CONFIG_PATH) # Use the imported function
-    if not systems: # load_wol_systems_config returns {} on error
-        # Log message already handled by load_wol_systems_config, but we can add a ping-specific one
-        logging.warning("Ping Module: Systems configuration could not be loaded or is empty. Ping by name might not work.")
-        # We can still proceed if user provides an IP directly.
     ip_to_ping = None
     display_name = str(target_identifier) # Default to using the identifier itself for messages
 
-    # Try to resolve if target_identifier is a name in config
+    # Check if target_identifier is a valid IP address format
     is_ip_address_format = _is_valid_ip_format(target_identifier)
 
-    if not is_ip_address_format and systems: # If it's not IP-like and we have systems config
-        if target_identifier in systems:
-            if "ip_address" in systems[target_identifier] and systems[target_identifier]["ip_address"]:
-                ip_to_ping = systems[target_identifier]["ip_address"]
-                display_name = f"{target_identifier} ({ip_to_ping})" # e.g. PC1 (192.168.1.100)
-                logging.info(f"Resolved '{target_identifier}' to IP '{ip_to_ping}'.")
-            else:
-                msg = f"Device '{target_identifier}' is in the configuration, but its IP address is missing."
-                logging.error(msg)
-                speak(msg)
-                return
+    if not is_ip_address_format: # If it's not IP-like
+        # Try to get device info from configuration using device_manager
+        device = get_device(target_identifier)
+        if device and "ip_address" in device and device["ip_address"]:
+            ip_to_ping = device["ip_address"]
+            display_name = f"{target_identifier} ({ip_to_ping})" # e.g. PC1 (192.168.1.100)
+            logging.info(f"Resolved '{target_identifier}' to IP '{ip_to_ping}'.")
+        elif device:
+            msg = f"Device '{target_identifier}' is in the configuration, but its IP address is missing."
+            logging.error(msg)
+            speak(msg)
+            return
         else:
             msg = f"Sorry, I don't have a device named '{target_identifier}' in my configuration to ping."
             logging.warning(msg) # Changed to warning as it's a user input issue
             speak(msg)
             return
-    elif is_ip_address_format:
+    else:
         ip_to_ping = target_identifier
         # display_name is already target_identifier
-    else: # Not IP-like and no systems config loaded or name not found (covered above)
-        msg = f"Cannot resolve '{target_identifier}'. It does not look like an IP address and system configuration is unavailable or does not contain it."
-        logging.error(msg)
-        speak(msg)
-        return
 
     if not ip_to_ping: # Should be caught by logic above, but as a safeguard
         logging.error(f"Could not determine IP address for target '{target_identifier}'.")
