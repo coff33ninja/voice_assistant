@@ -17,9 +17,10 @@ CONFIG_PATH = os.path.join("modules", "configs", "systems_config.json")
 
 def load_systems_config() -> Dict[str, Any]:
     """
-    Loads systems configuration for ping module.
+    Loads the systems configuration from the JSON file specified by CONFIG_PATH.
+    
     Returns:
-        dict: Systems configuration dictionary.
+        A dictionary containing system configuration data, or an empty dictionary if the file is missing, invalid, or cannot be loaded.
     """
     if not os.path.exists(CONFIG_PATH):
         logging.error(f"Ping Module: Configuration file not found at {CONFIG_PATH}")
@@ -37,9 +38,11 @@ def load_systems_config() -> Dict[str, Any]:
 
 def ping_target(target_identifier: str) -> None:
     """
-    Pings a device by its name (from config) or IP address and speaks the result.
-    Args:
-        target_identifier (str): Device name or IP address.
+    Attempts to ping a device specified by name or IP address, providing spoken feedback.
+    
+    If a device name is given, resolves it to an IP address using the systems configuration file.
+    Executes a platform-appropriate ping command and announces the result via speech synthesis.
+    Handles missing configuration, unknown devices, and various ping errors with appropriate user feedback.
     """
     systems = load_systems_config()
     ip_to_ping = None
@@ -111,7 +114,10 @@ ping = ping_target
 
 def register_intents() -> dict:
     """
-    Returns a dictionary of intents to register with the main application.
+    Registers and returns a mapping of intent phrases to the ping_target function.
+    
+    Returns:
+        A dictionary where each key is an intent phrase and the value is the ping_target function, enabling the main application to handle ping-related commands.
     """
     return {
         # Intents that expect an argument (target name or IP) to be passed by main.py

@@ -12,7 +12,11 @@ from core.engine import openwakeword, VoiceCore
 
 class TestCoreComponents(unittest.TestCase):
     def test_wakeword_model_exists(self):
-        """Test 1: Check if the wake word model file exists."""
+        """
+        Checks that the wake word model file exists at the expected path.
+        
+        Asserts that './hey_jimmy.onnx' is present in the file system.
+        """
         print("\nRunning Test 1: Wake Word Model Existence")
         model_path = "./hey_jimmy.onnx"
         self.assertTrue(
@@ -31,7 +35,11 @@ class TestCoreComponents(unittest.TestCase):
             self.fail(f"openWakeWord model failed to load. Error: {e}")
 
     def test_whisper_model_loads(self):
-        """Test 3: Check if Whisper can load its model."""
+        """
+        Verifies that the OpenAI Whisper model 'base.en' loads successfully.
+        
+        Fails the test if the model cannot be loaded or an exception is raised.
+        """
         print("\nRunning Test 3: Whisper Model Loading")
         try:
             whisper_model = whisper.load_model("base.en")
@@ -48,7 +56,11 @@ class TestCoreComponents(unittest.TestCase):
         print("✅ Test 4 Passed: Intent registration functions exist.")
 
     def test_load_intents_smoke(self):
-        """Smoke Test 1: Test the load_intents function."""
+        """
+        Verifies that VoiceCore.load_intents() executes without raising exceptions.
+        
+        Fails the test if an exception is raised during intent loading.
+        """
         print("\nRunning Smoke Test 1: Intent Loading")
         try:
             VoiceCore.load_intents()
@@ -59,7 +71,11 @@ class TestCoreComponents(unittest.TestCase):
 
 class TestGeneralFunctions(unittest.TestCase):
     def test_run_self_test(self):
-        """Test the run_self_test function."""
+        """
+        Runs the 'run_tests.py' script as a subprocess and fails if the script is not found.
+        
+        This test ensures that the self-test script executes without raising a FileNotFoundError.
+        """
         try:
             subprocess.run(
                 [sys.executable, "run_tests.py"], capture_output=True, text=True, check=True

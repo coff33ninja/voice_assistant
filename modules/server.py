@@ -15,9 +15,9 @@ CONFIG_PATH = os.path.join("modules", "configs", "systems_config.json")
 
 def boot_system(system_name: str) -> None:
     """
-    Boot a system using Wake-on-LAN.
-    Args:
-        system_name (str): Name of the system to boot.
+    Sends a Wake-on-LAN packet to boot the specified system.
+    
+    If the system is not found or lacks a MAC address in the configuration, notifies the user and logs an error. Announces the boot attempt and its result via text-to-speech.
     """
     systems = load_systems_config(CONFIG_PATH)
     if system_name not in systems:
@@ -44,9 +44,9 @@ def boot_system(system_name: str) -> None:
 
 def start_server(server_name: Optional[str] = None) -> None:
     """
-    Starts a server by sending a Wake-on-LAN packet and then attempts to ping it to verify if it has come online.
-    Args:
-        server_name (str, optional): Name of the server to start.
+    Starts a server using Wake-on-LAN and attempts to verify its availability via ping.
+    
+    If no server name is provided, prompts the user to specify one. Loads the server configuration, sends a Wake-on-LAN packet to the server's MAC address, and, if an IP address is available, waits for the server to boot before attempting to ping it. Provides spoken and logged feedback for all key actions and error conditions.
     """
     if not server_name:
         speak_msg = "Please specify which server you want to start. For example, say 'start server MyServerName'."
@@ -97,7 +97,9 @@ def start_server(server_name: Optional[str] = None) -> None:
 
 def stop_server() -> None:
     """
-    Dummy implementation for stopping the server. To be implemented based on requirements.
+    Announces that the server is being stopped. Placeholder for future stop logic.
+    
+    Currently, this function only provides a spoken message and does not perform any server shutdown actions.
     """
     speak("Stopping the server. This is a placeholder.")
     # Add actual stop logic here in the future
@@ -105,7 +107,9 @@ def stop_server() -> None:
 
 def register_intents() -> dict:
     """
-    Returns a dictionary of intents to register with the main application.
+    Returns a mapping of intent strings to their corresponding handler functions.
+    
+    This dictionary enables the main application to associate user intents with the appropriate server control functions.
     """
     return {
         "start server": start_server,
