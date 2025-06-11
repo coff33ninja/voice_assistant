@@ -1,0 +1,11 @@
+/tests/__pycache__
+/modules/__pycache__
+/core/__pycache__
+/__pycache__
+/.vscode
+/.venv
+# Ignore environment variable and secret files
+.env
+.env.*
+PICOVOICE_ACCESS_KEY.txt
+# End sensitive data ignore

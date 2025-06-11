@@ -3,16 +3,14 @@ import unittest
 import os
 import whisper
 import subprocess
-
-# This is a bit of a trick to import from the parent directory
 import sys
 
+# This is a bit of a trick to import from the parent directory
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-from core.engine import openwakeword
+from core.engine import openwakeword, VoiceCore
 
 
 class TestCoreComponents(unittest.TestCase):
-
     def test_wakeword_model_exists(self):
         """Test 1: Check if the wake word model file exists."""
         print("\nRunning Test 1: Wake Word Model Existence")
@@ -41,6 +39,22 @@ class TestCoreComponents(unittest.TestCase):
             print("✅ Test 3 Passed: OpenAI Whisper model loaded successfully.")
         except Exception as e:
             self.fail(f"Whisper model failed to load. Error: {e}")
+
+    def test_register_intents_exists(self):
+        """Test 4: Check if the engine has a load_intents function."""
+        print("\nRunning Test 4: Intent Registration Existence")
+        self.assertTrue(hasattr(VoiceCore, "load_intents"), "Engine has no attribute 'load_intents'")
+        self.assertTrue(callable(VoiceCore.load_intents), "'load_intents' is not callable")
+        print("✅ Test 4 Passed: Intent registration functions exist.")
+
+    def test_load_intents_smoke(self):
+        """Smoke Test 1: Test the load_intents function."""
+        print("\nRunning Smoke Test 1: Intent Loading")
+        try:
+            VoiceCore.load_intents()
+            print("✅ Smoke Test 1 Passed: Intents loaded successfully.")
+        except Exception:
+            self.fail("load_intents() raised an exception")
 
 
 class TestGeneralFunctions(unittest.TestCase):
