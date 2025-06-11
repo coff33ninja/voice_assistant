@@ -154,6 +154,67 @@ def select_wake_word_engine():
         else:
             print("Invalid input. Please enter 1 or 2.")
 
+def _get_choice_via_voice_input(prompt_context: str, options: list[dict], key: str = "name", attempts: int = 3, listen_duration_sec: int = 3) -> int:
+    """
+    Handles getting a user's choice from a list of options via voice input.
+
+    Args:
+        prompt_context: A string describing what the user is choosing (e.g., "Wake Word", "TTS Voice").
+        options: The list of dictionary options to choose from.
+        key: The dictionary key in `options` to use for matching (default "name").
+        attempts: Maximum number of voice input attempts.
+        listen_duration_sec: Duration in seconds to listen for each attempt.
+
+    Returns:
+        The index of the chosen option in the `options` list, or -1 if no choice was successfully made.
+    """
+    chosen_index = -1
+    temp_voice_core = None
+    try:
+        print(f"INFO: Initializing temporary VoiceCore for STT ({prompt_context} selection)...")
+        from core.engine import VoiceCore # Import here to ensure it's available
+        temp_voice_core = VoiceCore(engine_type="openwakeword", openwakeword_model_path=None) # STT-only mode
+
+        for attempt_num in range(attempts):
+            speak(f"{prompt_context} Choice Attempt {attempt_num + 1}. Please speak now.")
+            print(f"Listening for {prompt_context.lower()} choice ({listen_duration_sec} seconds)...")
+            time.sleep(0.5) # Brief pause for user readiness
+
+            recorded_audio_frames = []
+            transcribed_text = ""
+
+            if temp_voice_core and hasattr(temp_voice_core, 'stream') and temp_voice_core.stream and not temp_voice_core.stream.is_stopped():
+                # VoiceCore stream is hardcoded to 1280 frames_per_buffer, 16000 Hz
+                for _ in range(int(16000 / 1280 * listen_duration_sec)):
+                    try:
+                        audio_chunk = temp_voice_core.stream.read(1280, exception_on_overflow=False)
+                        recorded_audio_frames.append(audio_chunk)
+                    except IOError as e_read:
+                        print(f"Error reading audio stream during {prompt_context} selection: {e_read}")
+                        break # Stop trying to read for this attempt
+                print(f"{prompt_context} choice recording finished.")
+
+                if recorded_audio_frames:
+                    full_audio_data = b''.join(recorded_audio_frames)
+                    if hasattr(temp_voice_core, 'whisper_model') and temp_voice_core.whisper_model:
+                        print(f"Transcribing {prompt_context.lower()} choice...")
+                        transcribed_text = transcribe_audio_with_whisper(temp_voice_core.whisper_model, full_audio_data)
+                        if transcribed_text:
+                            print(f"Whisper transcribed {prompt_context.lower()} choice as: '{transcribed_text}'")
+            if transcribed_text:
+                chosen_index = match_choice_from_text(transcribed_text, options, key=key)
+                if chosen_index != -1:
+                    speak(f"Okay, I understood your {prompt_context.lower()} choice by voice!")
+                    break # Successfully matched
+            
+            if chosen_index == -1 and attempt_num < attempts - 1: # If not matched and not the last attempt
+                speak(f"I didn't quite catch your {prompt_context.lower()} selection.")
+    finally:
+        if temp_voice_core:
+            print(f"INFO: Stopping temporary VoiceCore for STT ({prompt_context} selection)...")
+            temp_voice_core.stop()
+    return chosen_index
+
 def _select_and_configure_tts_voice():
     """
     Handles the TTS voice selection process, including voice/typed input and configuration saving.
@@ -185,46 +246,15 @@ def _select_and_configure_tts_voice():
 
     speak("You can say the name or number of the voice you'd like.")
     time.sleep(0.5)
-    temp_stt_voice_core = None
-    try:
-        print("INFO: Initializing temporary VoiceCore for STT during TTS voice selection...")
-        from core.engine import VoiceCore # Import here to ensure it's available
-        temp_stt_voice_core = VoiceCore(engine_type="openwakeword", openwakeword_model_path=None) # STT-only mode
-
-        for voice_attempt_tts in range(3):
-            speak(f"TTS Voice Choice Attempt {voice_attempt_tts + 1}. Please speak now.")
-            print("Listening for TTS voice choice (3 seconds)...")
-            time.sleep(0.5)
-            recorded_audio_frames_tts = []
-            transcribed_text_tts = ""
-            if temp_stt_voice_core and hasattr(temp_stt_voice_core, 'stream') and temp_stt_voice_core.stream and not temp_stt_voice_core.stream.is_stopped():
-                for _ in range(int(16000 / 1280 * 3)): # Approx 3 seconds of audio
-                    try:
-                        audio_chunk_tts = temp_stt_voice_core.stream.read(1280, exception_on_overflow=False)
-                        recorded_audio_frames_tts.append(audio_chunk_tts)
-                    except IOError:
-                        break
-                print("TTS voice choice recording finished.")
-                if recorded_audio_frames_tts:
-                    full_audio_data_tts = b''.join(recorded_audio_frames_tts)
-                    if hasattr(temp_stt_voice_core, 'whisper_model') and temp_stt_voice_core.whisper_model:
-                        print("Transcribing TTS voice choice...")
-                        transcribed_text_tts = transcribe_audio_with_whisper(temp_stt_voice_core.whisper_model, full_audio_data_tts)
-                        if transcribed_text_tts:
-                            print(f"Whisper transcribed TTS choice as: '{transcribed_text_tts}'")
-                    else:
-                        print("Whisper model not available in temporary VoiceCore instance.")
-            if transcribed_text_tts:
-                chosen_voice_obj_idx = match_choice_from_text(transcribed_text_tts, available_tts_voices, key="name")
-                if chosen_voice_obj_idx != -1:
-                    break
-            speak("I didn't quite catch your voice selection.")
-    finally:
-        if temp_stt_voice_core:
-            print("INFO: Stopping temporary VoiceCore for STT (TTS choice)...")
-            temp_stt_voice_core.stop()
+    
+    chosen_voice_obj_idx = _get_choice_via_voice_input(
+        prompt_context="TTS Voice",
+        options=available_tts_voices,
+        key="name"
+    )
 
     if chosen_voice_obj_idx == -1: # Fallback to typed input
+        speak("I'm having a bit of trouble understanding your voice choice for TTS. Let's try with typed input.")
         speak("Let's try selecting the voice with typed input.")
         for tts_attempt_typed in range(3):
             speak("Please type the number of your chosen voice.")
@@ -355,86 +385,16 @@ def run_first_time_setup():
         chosen_index = -1 # Ensure it's initialized before voice or typed input attempts
 
         # --- Voice Input for Wake Word Selection ---
-        speak("You can say the name of the wake word, or its number.")
+        speak("You can say the name of the wake word, or its number from the list.")
         time.sleep(0.5)
-        temp_voice_core = None # Define before try block
-        try:
-            print("INFO: Initializing temporary VoiceCore for STT during setup...")
-            from core.engine import VoiceCore
-            temp_voice_core = VoiceCore(engine_type="openwakeword", openwakeword_model_path=None)
-
-            for voice_attempt in range(3): # Max 3 voice attempts
-                speak(f"Attempt {voice_attempt + 1}. Please say your choice now.")
-                print("Listening for your choice... (Speak now)")
-                # Manually simulate command listening for STT part of VoiceCore
-                # This is a HACK and relies on internal VoiceCore behavior/structure.
-                # A proper VoiceCore.transcribe_once() method would be much better.
-
-                # --- Actual Voice Input Capture & Transcribe ---
-                transcribed_text = "" # Ensure it's defined
-                speak("Please say your choice clearly after the beep... (beep sound not implemented yet)")
-                print("Listening for 3 seconds...")
-                time.sleep(0.5) # Brief pause for user to prepare
-
-                recorded_audio_frames = []
-                try:
-                    if temp_voice_core and hasattr(temp_voice_core, 'stream') and temp_voice_core.stream and not temp_voice_core.stream.is_stopped():
-                        for _ in range(int(16000 / 1280 * 3)):
-                            try:
-                                audio_chunk = temp_voice_core.stream.read(1280, exception_on_overflow=False)
-                                recorded_audio_frames.append(audio_chunk)
-                            except IOError as e_read:
-                                print(f"Error reading audio stream during setup: {e_read}")
-                                break
-                        print("Finished recording.")
-
-                        if recorded_audio_frames:
-                            full_audio_data = b''.join(recorded_audio_frames)
-                            if hasattr(temp_voice_core, 'whisper_model') and temp_voice_core.whisper_model:
-                                print("Transcribing your choice...")
-                                transcribed_text = transcribe_audio_with_whisper(temp_voice_core.whisper_model, full_audio_data)
-                                if transcribed_text:
-                                    print(f"Whisper transcribed: '{transcribed_text}'")
-                            else:
-                                print("Whisper model not available in temporary VoiceCore instance.")
-                        else:
-                            speak("I didn't capture any audio.")
-                    else:
-                        print("Temporary VoiceCore stream not available for recording.")
-                        speak("Sorry, I couldn't access the microphone for voice input.")
-                except Exception as e_voice_record:
-                    print(f"An error occurred during voice capture: {e_voice_record}")
-                    speak("An unexpected error occurred with voice input.")
-                # --- End Actual Voice Input ---
-
-                if transcribed_text:
-                    print(f"I heard: {transcribed_text}")
-                    chosen_index = match_choice_from_text(transcribed_text, OPENWAKEWORD_MODELS, key="name") # Match against OPENWAKEWORD_MODELS
-                    if chosen_index != -1:
-                        break  # Found a match by name or number pattern
-
-                if chosen_index != -1:
-                    break # Break from voice_attempt loop
-                speak("I didn't quite catch that.")
-            if chosen_index != -1:
-                speak("Okay, I got your choice by voice!")
-            else:
+        
+        chosen_index = _get_choice_via_voice_input(
+            prompt_context="Wake Word",
+            options=OPENWAKEWORD_MODELS,
+            key="name"
+        )
+        if chosen_index == -1: # If voice input failed
                 speak("I'm having a bit of trouble understanding your voice choice. Let's try with typed input.")
-        except Exception as e_voice_init:
-            print(f"Error during temporary VoiceCore init/STT for setup: {e_voice_init}")
-            speak("There was an issue setting up voice input. We'll use typed input instead.")
-        finally:
-            if temp_voice_core:
-                # Attempt to clean up VoiceCore resources if it was initialized
-                # VoiceCore.stop() should handle PyAudio, threads, etc.
-                # This is important if VoiceCore started its PyAudio stream.
-                # The current hacky VoiceCore init with openwakeword_model_path=None might not fully start it,
-                # but calling stop() should be safe if it's implemented robustly.
-                try:
-                    print("INFO: Stopping temporary VoiceCore for STT...")
-                    temp_voice_core.stop()
-                except Exception as e_stop_temp_vc:
-                    print(f"Error stopping temporary VoiceCore: {e_stop_temp_vc}")
         # --- End Voice Input Logic ---
 
         retries = 3
