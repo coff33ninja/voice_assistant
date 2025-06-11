@@ -15,6 +15,26 @@ from modules.wol import load_systems_config as load_wol_systems_config # Use the
 # Path relative to project root, assuming main.py is in project root
 CONFIG_PATH = os.path.join("modules", "configs", "systems_config.json")
 
+def _is_valid_ip_format(ip_string: str) -> bool:
+    """
+    Validates if the given string has a basic IPv4 format.
+    Does not guarantee the IP is reachable or a valid public/private IP,
+    only that it matches the X.X.X.X pattern with numbers in range.
+    """
+    parts = ip_string.split('.')
+    if len(parts) != 4:
+        return False
+    for item in parts:
+        if not item.isdigit():
+            return False
+        # Convert to int and check range
+        try:
+            if not 0 <= int(item) <= 255:
+                return False
+        except ValueError: # Should be caught by isdigit, but as a safeguard
+            return False
+    return True
+
 def ping_target(target_identifier: str) -> None:
     """
     Attempts to ping a device specified by name or IP address, providing spoken feedback.
@@ -32,10 +52,9 @@ def ping_target(target_identifier: str) -> None:
     display_name = str(target_identifier) # Default to using the identifier itself for messages
 
     # Try to resolve if target_identifier is a name in config
-    # Basic IP address regex (very simplified) - does not validate all cases.
-    is_ip_like = all(c.isdigit() or c == '.' for c in target_identifier) and target_identifier.count('.') == 3
+    is_ip_address_format = _is_valid_ip_format(target_identifier)
 
-    if not is_ip_like and systems: # If it's not IP-like and we have systems config
+    if not is_ip_address_format and systems: # If it's not IP-like and we have systems config
         if target_identifier in systems:
             if "ip_address" in systems[target_identifier] and systems[target_identifier]["ip_address"]:
                 ip_to_ping = systems[target_identifier]["ip_address"]
@@ -51,7 +70,7 @@ def ping_target(target_identifier: str) -> None:
             logging.warning(msg) # Changed to warning as it's a user input issue
             speak(msg)
             return
-    elif is_ip_like:
+    elif is_ip_address_format:
         ip_to_ping = target_identifier
         # display_name is already target_identifier
     else: # Not IP-like and no systems config loaded or name not found (covered above)
