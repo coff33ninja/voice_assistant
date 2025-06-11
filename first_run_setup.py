@@ -306,22 +306,55 @@ def run_first_time_setup():
     engine_choice = select_wake_word_engine()
     if engine_choice == 'picovoice':
         speak("You selected Picovoice Porcupine. Please download your .ppn model from the Picovoice Console for your platform (Windows). Place it in the 'wakeword_models/' directory in your project root.")
+        speak("Ensure the model files listed correspond to what you have placed in the 'wakeword_models' directory.")
         print("\n[Picovoice Setup]")
         print("- Download your .ppn model from https://console.picovoice.ai/")
         print("- Place the downloaded .ppn file in the 'wakeword_models/' directory in your project root.")
-        while True:
-            model_filename = input("Enter the exact filename of your .ppn model (e.g., Jarvis.ppn): ").strip()
-            model_path = os.path.join("wakeword_models", model_filename)
-            if os.path.exists(model_path):
-                print(f"Model file found at: {model_path}")
-                speak(f"Model file {model_filename} found. Ready to test.")
-                break
-            else:
-                print(f"Model file '{model_path}' not found. Please ensure you have placed it in the 'wakeword_models/' directory.")
-                speak(f"Model file {model_filename} not found. Please try again.")
+        print("\nAvailable Picovoice Wake Words (ensure corresponding .ppn files are in 'wakeword_models/'):")
+        for i, ww_data in enumerate(AVAILABLE_WAKE_WORDS):
+            print(f"{i + 1}. {ww_data['name']} (expects: {ww_data['model_file']})")
+            if i < 5: # Speak first few
+                speak(f"Option {i + 1}: {ww_data['name']}")
+                time.sleep(0.3)
+
+        chosen_picovoice_index = -1
+        speak("You can say the name or number of the Picovoice wake word you have prepared.")
+        time.sleep(0.5)
+
+        chosen_picovoice_index = _get_choice_via_voice_input(
+            prompt_context="Picovoice Wake Word",
+            options=AVAILABLE_WAKE_WORDS,
+            key="name"
+        )
+
+        if chosen_picovoice_index == -1: # Fallback to typed input
+            speak("I'm having trouble understanding your Picovoice wake word choice. Let's try with typed input.")
+            for attempt in range(3):
+                speak("Please type the number of your chosen Picovoice wake word.")
+                try:
+                    user_input = input("Enter the number for your chosen Picovoice wake word: ")
+                    choice = int(user_input)
+                    if 1 <= choice <= len(AVAILABLE_WAKE_WORDS):
+                        chosen_picovoice_index = choice - 1
+                        break
+                    else:
+                        speak(f"That's not a valid number. Please choose between 1 and {len(AVAILABLE_WAKE_WORDS)}.")
+                except ValueError:
+                    speak("That didn't seem like a number. Please try again.")
+                if attempt == 2 and chosen_picovoice_index == -1:
+                    speak("Sorry, I couldn't understand your choice. Please try running the setup again.")
+                    if 'tts_engine' in globals():
+                        tts_engine.stop()
+                    sys.exit(1)
+        
+        selected_picovoice_model_data = AVAILABLE_WAKE_WORDS[chosen_picovoice_index]
+        model_path = selected_picovoice_model_data['model_file']
+        model_filename = os.path.basename(model_path) # Get filename for messages
+        speak(f"You've selected {selected_picovoice_model_data['name']}. I will check for the file {model_filename}.")
+
         # Ask user to test the wake word
-        print("\nLet's test your wake word model before continuing.")
-        speak("Let's test your wake word model. Please say your wake word now.")
+        print(f"\nVerifying and testing your chosen Picovoice model: {model_filename}")
+        speak(f"Now, I'll try to load and test the {selected_picovoice_model_data['name']} wake word model.")
         # Minimal test: try to initialize Picovoice engine with the model
         try:
             from core.engine import VoiceCore  # Import here to avoid unused import warning
@@ -334,14 +367,14 @@ def run_first_time_setup():
                 picovoice_access_key=picovoice_access_key
             )
             print("Picovoice engine initialized successfully with your model.")
-            speak("Wake word model loaded successfully. If you hear this, your model works.")
+            speak(f"The {selected_picovoice_model_data['name']} model loaded successfully.")
             test_core.stop()
         except Exception as e:
             print(f"Failed to initialize Picovoice engine with your model: {e}")
-            speak("There was a problem loading your wake word model. Please check the file and try again.")
+            speak(f"There was a problem loading the {selected_picovoice_model_data['name']} model. Please ensure the file '{model_filename}' is correctly placed in 'wakeword_models/' and your Picovoice Access Key is valid. Then, try the setup again.")
             sys.exit(1)
         # Set up the config for Picovoice
-        selected_wake_word = {"name": os.path.splitext(model_filename)[0], "model_file": model_path}
+        selected_wake_word = selected_picovoice_model_data # Contains 'name' and 'model_file'
         # Save configuration and skip generic wake word selection
         speak("Saving your configuration...")
         config_data = DEFAULT_CONFIG.copy() # Start with defaults
