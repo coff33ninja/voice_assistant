@@ -7,6 +7,7 @@ import subprocess
 from core.engine import VoiceCore
 from core.tts import tts_engine, speak
 from core.user_config import load_config
+from modules.shutdown import AssistantExitSignal # Import the custom signal
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -222,7 +223,9 @@ class Assistant:
                         f"ERROR: Action for '{intent_phrase}' likely expected an argument but received none: {te}"
                     )
                     speak("There was a configuration error for that command.")
-                except Exception as e_action:
+                except AssistantExitSignal: # Catch and re-raise to be handled by run()
+                    raise
+                except Exception as e_action: # Catch other exceptions
                     print(
                         f"ERROR: Exception during action for '{intent_phrase}': {e_action}"
                     )
@@ -263,6 +266,8 @@ class Assistant:
                             speak(
                                 "There was a configuration error for that command type."
                             )
+                        except AssistantExitSignal: # Catch and re-raise
+                            raise
                         except Exception as e_action_arg:
                             print(
                                 f"ERROR: Exception during action for '{intent_phrase}' with argument '{argument}': {e_action_arg}"
@@ -278,24 +283,45 @@ class Assistant:
             print("Assistant: Command not recognized.")
             speak("Sorry, I don't know how to do that yet.")
 
+    def _perform_cleanup(self):
+        """Helper method to stop engines gracefully."""
+        print("Performing final cleanup...")
+        if hasattr(tts_engine, "stop"):
+            print("Stopping TTS engine...")
+            tts_engine.stop()
+        if hasattr(self.core, "stop"):
+            print("Stopping VoiceCore engine...")
+            self.core.stop()
+        print("Assistant shutdown complete.")
+
     def run(self):
         """
         Starts the voice assistant core engine and enters a persistent run loop.
-
-        Keeps the application running until interrupted. On keyboard interrupt, announces shutdown, says "Goodbye!", and attempts to gracefully stop the TTS engine and core if supported.
+        Handles KeyboardInterrupt and AssistantExitSignal for graceful shutdown.
         """
         self.core.start()
         try:
             while True:
                 time.sleep(1)
+        except AssistantExitSignal:
+            # This is raised by request_assistant_exit in shutdown.py
+            # The "Goodbye! Shutting down the assistant." message is spoken by that function.
+            print("\nShutting down assistant as requested by command...")
         except KeyboardInterrupt:
-            print("\nShutting down assistant...")
-            speak("Goodbye!")
-            # Gracefully stop the core engines
-            if hasattr(tts_engine, "stop"):
-                tts_engine.stop()  # Ensure tts_engine has stop
-            if hasattr(self.core, "stop"):
-                self.core.stop()  # Ensure core has stop
+            print("\nShutting down assistant due to KeyboardInterrupt...")
+            speak("Shutting down.") # Generic message for Ctrl+C
+        except Exception as e_main_loop:
+            print(f"CRITICAL ERROR in main run loop: {e_main_loop}")
+            speak("An unexpected error occurred. Shutting down.")
+            self._perform_cleanup()
+            sys.exit(1) # Exit with error status
+        finally:
+            # This block executes for AssistantExitSignal and KeyboardInterrupt
+            # before sys.exit(0) is called below.
+            self._perform_cleanup()
+        
+        print("Exiting application.")
+        sys.exit(0) # Normal exit after handling AssistantExitSignal or KeyboardInterrupt
 
 
 if __name__ == "__main__":

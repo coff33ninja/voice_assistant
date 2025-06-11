@@ -9,7 +9,6 @@ import platform
 import os
 import logging
 from core.tts import speak
-from typing import Dict, Any
 from modules.wol import load_systems_config as load_wol_systems_config # Use the one from wol.py
 
 # Path relative to project root, assuming main.py is in project root

@@ -100,8 +100,8 @@ def get_disk_usage_speak(path_argument: Optional[str] = None) -> None:
     target_path = path_argument
     path_display_name = "the main drive"
     if not target_path:
-        if platform.system().lower() == "windows":
-            target_path = r"C:\\"
+        if platform.system().lower() == "windows": # Corrected line
+            target_path = "C:\\"
             path_display_name = "drive C"
         else:
             target_path = "/" # Root for Linux/macOS
@@ -168,7 +168,7 @@ def get_system_summary_speak():
         pass
 
     try:
-        default_disk_path = r"C:\\" if platform.system().lower() == "windows" else "/"
+        default_disk_path = "C:\\" if platform.system().lower() == "windows" else "/"
         if os.path.exists(default_disk_path): # Check existence before calling psutil.disk_usage
              disk = psutil.disk_usage(default_disk_path)
              summary_parts.append(f"main disk at {disk.percent:.1f} percent")

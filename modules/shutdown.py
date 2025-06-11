@@ -10,6 +10,11 @@ import time
 from core.tts import speak
 from typing import Optional
 
+class AssistantExitSignal(Exception):
+    """Custom exception to signal the assistant to shut down."""
+    pass
+
+
 def _perform_shutdown() -> None:
     """
     Actually executes the system shutdown command after confirmation.
@@ -54,6 +59,16 @@ def request_shutdown_confirmation(argument: Optional[str] = None) -> None:
     logging.info(f"Shutdown requested (argument: {argument}). Asking for confirmation.")
     speak("Are you sure you want to shut down the computer? To confirm, please say 'yes confirm shutdown'.")
 
+def request_assistant_exit() -> None:
+    """
+    Handles the command to shut down the voice assistant script itself.
+    Speaks a goodbye message and raises a signal to terminate the application.
+    """
+    logging.info("Assistant exit requested by user.")
+    speak("Goodbye! Shutting down the assistant.")
+    # This signal will be caught by the main loop to perform graceful shutdown
+    raise AssistantExitSignal()
+
 def register_intents() -> dict:
     """
     Registers intents for initiating and confirming system shutdown.
@@ -67,4 +82,9 @@ def register_intents() -> dict:
         "turn off computer": request_shutdown_confirmation,
         "turn off the computer": request_shutdown_confirmation,
         "yes confirm shutdown": _perform_shutdown,  # This intent triggers the actual shutdown
+
+        # Intents to shut down the assistant script itself
+        "goodbye": request_assistant_exit,
+        "exit assistant": request_assistant_exit,
+        "shut down assistant": request_assistant_exit,
     }
