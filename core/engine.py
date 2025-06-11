@@ -12,6 +12,7 @@ from collections import deque
 import logging
 from typing import Optional, List
 import numpy as np
+import os # Added for os.path
 
 
 class VoiceCore:
@@ -60,7 +61,8 @@ class VoiceCore:
             else:
                 try:
                     self.oww = openwakeword.Model(wakeword_models=[self.openwakeword_model_path])
-                    self.wakeword_model_name_oww = self.openwakeword_model_path.split('/')[-1].replace('.onnx', '')
+                    model_basename = os.path.basename(self.openwakeword_model_path)
+                    self.wakeword_model_name_oww = os.path.splitext(model_basename)[0]
                     logging.info(f"Core Engine: openWakeWord initialized with model: {self.openwakeword_model_path}")
                 except Exception as e:
                     logging.error(f"Core Engine Error: Failed to initialize openWakeWord: {e}")
@@ -195,6 +197,9 @@ class VoiceCore:
                     error_count = 0
                 continue
             try:
+                # Append to the shared audio_buffer for potential command pre-roll
+                self.audio_buffer.append(audio_chunk)
+
                 current_samples = list(struct.unpack_from("h" * (len(audio_chunk) // 2), audio_chunk))
                 self._picovoice_audio_buffer.extend(current_samples)
             except struct.error as se:
@@ -209,7 +214,8 @@ class VoiceCore:
                         if keyword_index >= 0:
                             logging.info(f"Core Engine: Picovoice detected keyword (index {keyword_index}).")
                             self.is_listening_for_command = True
-                            self.command_audio = [audio_chunk]
+                            # Use the pre-roll audio buffer, similar to OpenWakeWord
+                            self.command_audio = list(self.audio_buffer)
                             if self.on_wake_word:
                                 threading.Thread(target=self.on_wake_word).start()
                             self._picovoice_audio_buffer = []
@@ -299,37 +305,6 @@ class VoiceCore:
         logging.info("Core Engine: Listening for wake word...")
         if self.on_command and command_text:
             threading.Thread(target=self.on_command, args=(command_text,)).start()
-
-    @staticmethod
-    def load_intents() -> dict:
-        """
-        Dynamically loads and aggregates registered intents from Python modules in the 'modules' directory.
-        
-        Returns:
-            A dictionary containing all intents registered by modules that define a `register_intents` function.
-        """
-        import os
-        import importlib.util
-        intents = {}
-        modules_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "modules")
-        for filename in os.listdir(modules_dir):
-            if filename.endswith(".py") and not filename.startswith("__"):
-                module_name = filename[:-3]
-                try:
-                    spec = importlib.util.spec_from_file_location(
-                        module_name, os.path.join(modules_dir, filename)
-                    )
-                    if spec is not None and spec.loader is not None:
-                        module = importlib.util.module_from_spec(spec)
-                        spec.loader.exec_module(module)
-                        if hasattr(module, "register_intents"):
-                            intents_from_module = module.register_intents()
-                            intents.update(intents_from_module)
-                    else:
-                        logging.error(f"Failed to load spec or loader for '{filename}'")
-                except Exception as e:
-                    logging.error(f"Failed to load intents from '{filename}': {e}")
-        return intents
 
     # For future: support multiple wake words and engine plugins
     # def add_wakeword_model(self, model_path: str):
