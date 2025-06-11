@@ -300,27 +300,26 @@ class VoiceCore:
         
         The method writes the accumulated audio to a temporary WAV file, performs speech-to-text transcription, cleans up the temporary file, and triggers the `on_command` callback asynchronously if transcription yields non-empty text.
         """
-        import tempfile
-        import os
         logging.info("Core Engine: Processing command...")
-        # Save audio to a temporary file for Whisper
-        with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as tmp:
-            tmp.write(b''.join(self.command_audio))
-            tmp_path = tmp.name
-        try:
-            result = self.whisper_model.transcribe(tmp_path, fp16=False)
+        
+        command_text = ""
+        if self.command_audio:
+            full_audio_data = b''.join(self.command_audio)
+            # Convert raw audio bytes to a float32 NumPy array as expected by Whisper
+            audio_int16 = np.frombuffer(full_audio_data, dtype=np.int16)
+            audio_float32 = audio_int16.astype(np.float32) / 32768.0
+            
+            result = self.whisper_model.transcribe(audio_float32, fp16=False)
             command_text = result["text"]
             if isinstance(command_text, list):
                 command_text = " ".join(str(x) for x in command_text)
             command_text = command_text.strip()
-        finally:
-            os.remove(tmp_path)
+
         self.command_audio = []
         self.is_listening_for_command = False
         logging.info("Core Engine: Listening for wake word...")
         if self.on_command and command_text:
             threading.Thread(target=self.on_command, args=(command_text,)).start()
-
     # For future: support multiple wake words and engine plugins
     # def add_wakeword_model(self, model_path: str):
     #     """Add a new wake word model at runtime."""
