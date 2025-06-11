@@ -10,6 +10,7 @@ import re
 import os
 from typing import Dict, Any
 from core.tts import speak
+from modules.device_manager import get_device
 
 # Default config path for consistency with other modules
 CONFIG_PATH = os.path.join("modules", "configs", "systems_config.json")
@@ -77,13 +78,18 @@ def send_wol_packet(mac_address: str, tts: bool = True) -> bool:
         return False
 
 
-def wake_on_lan(mac_address: str) -> None:
+def wake_on_lan(device_name: str) -> None:
     """
-    Sends a Wake-on-LAN magic packet to the specified MAC address and provides spoken feedback.
+    Looks up a device by name and sends a Wake-on-LAN magic packet to its MAC address, with spoken feedback.
     Args:
-        mac_address: The MAC address of the device to wake, in the format 'XX:XX:XX:XX:XX:XX' or 'XX-XX-XX-XX-XX-XX'.
+        device_name: The name of the device as defined in the config.
     """
-    send_wol_packet(mac_address, tts=True)
+    device = get_device(device_name)
+    if not device or "mac_address" not in device:
+        speak(f"MAC address for {device_name} not found in configuration.")
+        logging.error(f"MAC address for {device_name} not found in configuration.")
+        return
+    send_wol_packet(device["mac_address"], tts=True)
 
 
 def register_intents() -> dict:
