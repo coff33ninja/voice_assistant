@@ -35,10 +35,39 @@ def find_devices() -> None:
     speak(f"Your local IP address is {local_ip}. Scanning for devices on the network.")
     try:
         result = subprocess.run(["arp", "-a"], capture_output=True, text=True, check=True)
-        devices = result.stdout.splitlines()
-        for device in devices:
-            logging.info(device)
-        speak(f"Found {len(devices)} devices on the network.")
+        lines = result.stdout.splitlines()
+        device_entries = 0
+        parsed_devices_info = [] # For logging more structured info
+
+        for line in lines:
+            line = line.strip()
+            if not line: # Skip empty lines
+                continue
+            
+            # Basic filtering to avoid interface headers or invalid entries.
+            # This is heuristic and might need adjustment based on OS output.
+            if "Interface:" in line or "Internet Address" in line or not line.split() or "incomplete" in line.lower():
+                logging.debug(f"Skipping ARP line: {line}")
+                continue
+
+            parts = line.split()
+            # A common pattern is IP address followed by MAC address.
+            # We are looking for lines that seem to contain at least an IP and a MAC.
+            if len(parts) >= 2: 
+                ip_candidate = parts[0]
+                # A very basic check to see if it looks like an IP and not the local IP
+                # and not a broadcast/multicast address.
+                if ip_candidate != local_ip and \
+                   not ip_candidate.startswith("224.") and \
+                   not ip_candidate.endswith(".255") and \
+                   ip_candidate.count('.') == 3: # Simple IP format check
+                    device_entries += 1
+                    parsed_devices_info.append(f"Potential device: {' '.join(parts)}")
+
+        for info in parsed_devices_info:
+            logging.info(info)
+        
+        speak(f"Found approximately {device_entries} other devices on the network.")
     except Exception as e:
         logging.error(f"Failed to scan devices: {e}")
         speak("I encountered an error while scanning for devices.")

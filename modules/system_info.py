@@ -156,13 +156,15 @@ def get_system_summary_speak():
         cpu_percent = psutil.cpu_percent(interval=0.5) # Shorter interval for summary
         if cpu_percent is not None:
             summary_parts.append(f"CPU at {cpu_percent:.1f} percent")
-    except Exception:
+    except Exception as e_cpu:
+        logging.debug(f"System Summary: Failed to get CPU info: {e_cpu}")
         pass # Ignore individual errors for summary, just skip part
 
     try:
         mem = psutil.virtual_memory()
         summary_parts.append(f"memory at {mem.percent:.1f} percent")
-    except Exception:
+    except Exception as e_mem:
+        logging.debug(f"System Summary: Failed to get Memory info: {e_mem}")
         pass
 
     try:
@@ -170,7 +172,8 @@ def get_system_summary_speak():
         if os.path.exists(default_disk_path): # Check existence before calling psutil.disk_usage
              disk = psutil.disk_usage(default_disk_path)
              summary_parts.append(f"main disk at {disk.percent:.1f} percent")
-    except Exception:
+    except Exception as e_disk:
+        logging.debug(f"System Summary: Failed to get Disk info: {e_disk}")
         pass
 
     try:
@@ -178,7 +181,8 @@ def get_system_summary_speak():
         uptime_seconds = time.time() - boot_timestamp
         uptime_str = format_uptime(int(uptime_seconds))
         summary_parts.append(f"uptime is {uptime_str}")
-    except Exception:
+    except Exception as e_uptime:
+        logging.debug(f"System Summary: Failed to get Uptime info: {e_uptime}")
         pass
 
     if summary_parts:
