@@ -14,11 +14,11 @@ class TestCoreComponents(unittest.TestCase):
     def test_wakeword_model_exists(self):
         """
         Checks that the wake word model file exists at the expected path.
-        
+
         Asserts that './hey_jimmy.onnx' is present in the file system.
         """
         print("\nRunning Test 1: Wake Word Model Existence")
-        model_path = "./hey_jimmy.onnx"
+        model_path = "./hey_jimmy.pnn"
         self.assertTrue(
             os.path.exists(model_path), f"Wake word model not found at {model_path}"
         )
@@ -28,7 +28,7 @@ class TestCoreComponents(unittest.TestCase):
         """Test 2: Check if openWakeWord can load the model."""
         print("\nRunning Test 2: Wake Word Model Loading")
         try:
-            oww_model = openwakeword.Model(wakeword_models=["./hey_jimmy.onnx"])
+            oww_model = openwakeword.Model(wakeword_models=["./hey_jimmy.pnn"])
             self.assertIsNotNone(oww_model, "Model loading returned None.")
             print("✅ Test 2 Passed: openWakeWord model loaded successfully.")
         except Exception as e:
@@ -37,7 +37,7 @@ class TestCoreComponents(unittest.TestCase):
     def test_whisper_model_loads(self):
         """
         Verifies that the OpenAI Whisper model 'base.en' loads successfully.
-        
+
         Fails the test if the model cannot be loaded or an exception is raised.
         """
         print("\nRunning Test 3: Whisper Model Loading")
@@ -58,7 +58,7 @@ class TestCoreComponents(unittest.TestCase):
     def test_load_intents_smoke(self):
         """
         Verifies that VoiceCore.load_intents() executes without raising exceptions.
-        
+
         Fails the test if an exception is raised during intent loading.
         """
         print("\nRunning Smoke Test 1: Intent Loading")
@@ -73,7 +73,7 @@ class TestGeneralFunctions(unittest.TestCase):
     def test_run_self_test(self):
         """
         Runs the 'run_tests.py' script as a subprocess and fails if the script is not found.
-        
+
         This test ensures that the self-test script executes without raising a FileNotFoundError.
         """
         try:
