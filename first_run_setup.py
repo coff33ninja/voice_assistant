@@ -500,29 +500,38 @@ def run_first_time_setup():
     
     This interactive setup process assists the user in selecting and verifying a wake word engine (Picovoice Porcupine or OpenWakeWord), configuring the appropriate wake word model, and choosing a text-to-speech (TTS) voice. The function handles both voice and typed input for selections, verifies model files, saves configuration settings, and provides spoken and printed feedback throughout. On completion or critical failure, the function exits the script after cleanup.
     """
+    # Initial speak calls are outside the try/finally as they are introductory
+    # and tts_engine should be running for them.
     speak("Welcome! It looks like this is your first time running the voice assistant, or your setup wasn't completed.")
     time.sleep(0.5)
     speak("Let's get a few things configured.")
     time.sleep(0.5)
 
-    engine_setup_successful = False
-    engine_choice = select_wake_word_engine()
+    try:
+        engine_setup_successful = False
+        engine_choice = select_wake_word_engine()
 
-    if engine_choice == 'picovoice':
-        engine_setup_successful = _setup_picovoice_engine()
-    elif engine_choice == 'openwakeword': # Explicitly check for 'openwakeword'
-        engine_setup_successful = _setup_openwakeword_engine()
-    
-    if engine_setup_successful:
-        _select_and_configure_tts_voice()
-        time.sleep(0.5)
-        speak("Setup is complete! Please restart the main application for the changes to take effect.")
-        print("\nSetup complete. Please restart the main application.")
-    else: # Should not be reached if sub-functions sys.exit() on critical failure, but as a fallback
-        speak("Wake word engine setup was not completed. Please try running the setup again.")
-
-        # Gracefully stop TTS engine
+        if engine_choice == 'picovoice':
+            engine_setup_successful = _setup_picovoice_engine()
+        elif engine_choice == 'openwakeword': # Explicitly check for 'openwakeword'
+            engine_setup_successful = _setup_openwakeword_engine()
+        
+        if engine_setup_successful:
+            _select_and_configure_tts_voice()
+            time.sleep(0.5)
+            speak("Setup is complete! Please restart the main application for the changes to take effect.")
+            print("\nSetup complete. Please restart the main application.")
+            # Normal successful completion will lead to the finally block
+        else: 
+            # This 'else' might not be strictly necessary if sub-functions always sys.exit on failure.
+            # However, it's a good fallback message if a sub-function returned False without exiting.
+            speak("Wake word engine setup was not completed. Please try running the setup again.")
+            # This path will also lead to the finally block
+    finally:
+        # This block will execute before the script terminates,
+        # whether due to normal completion or an unhandled SystemExit from sys.exit().
         if 'tts_engine' in globals():
+            print("INFO: Ensuring TTS engine is stopped before exiting setup script.")
             tts_engine.stop()
 
 if __name__ == "__main__":

@@ -7,34 +7,13 @@ Provides functions to ping devices by name or IP, using configuration for known 
 import subprocess
 import platform
 import os
-import json
 import logging
 from core.tts import speak
 from typing import Dict, Any
+from modules.wol import load_systems_config as load_wol_systems_config # Use the one from wol.py
 
 # Path relative to project root, assuming main.py is in project root
 CONFIG_PATH = os.path.join("modules", "configs", "systems_config.json")
-
-def load_systems_config() -> Dict[str, Any]:
-    """
-    Loads the systems configuration from the JSON file specified by CONFIG_PATH.
-    
-    Returns:
-        A dictionary containing system configuration data, or an empty dictionary if the file is missing, invalid, or cannot be loaded.
-    """
-    if not os.path.exists(CONFIG_PATH):
-        logging.error(f"Ping Module: Configuration file not found at {CONFIG_PATH}")
-        return {}
-    try:
-        with open(CONFIG_PATH, "r") as file:
-            systems = json.load(file)
-        return systems
-    except json.JSONDecodeError:
-        logging.error(f"Ping Module: Invalid JSON format in {CONFIG_PATH}")
-        return {}
-    except Exception as e:
-        logging.error(f"Ping Module: Error loading {CONFIG_PATH}: {e}")
-        return {}
 
 def ping_target(target_identifier: str) -> None:
     """
@@ -44,7 +23,11 @@ def ping_target(target_identifier: str) -> None:
     Executes a platform-appropriate ping command and announces the result via speech synthesis.
     Handles missing configuration, unknown devices, and various ping errors with appropriate user feedback.
     """
-    systems = load_systems_config()
+    systems = load_wol_systems_config(CONFIG_PATH) # Use the imported function
+    if not systems: # load_wol_systems_config returns {} on error
+        # Log message already handled by load_wol_systems_config, but we can add a ping-specific one
+        logging.warning("Ping Module: Systems configuration could not be loaded or is empty. Ping by name might not work.")
+        # We can still proceed if user provides an IP directly.
     ip_to_ping = None
     display_name = str(target_identifier) # Default to using the identifier itself for messages
 
