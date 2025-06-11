@@ -3,19 +3,31 @@ from core import tts
 
 class TestTTSEngine(unittest.TestCase):
     def setUp(self):
+        """
+        Initializes a new TTSEngine instance before each test case.
+        """
         self.engine = tts.TTSEngine()
 
     def test_speak_and_interrupt(self):
         # Should not raise
+        """
+        Tests that the speak and interrupt methods execute without raising exceptions.
+        """
         self.engine.speak("Hello, world!")
         self.engine.interrupt()
         self.assertTrue(True)  # If no exception, pass
 
     def test_set_voice_invalid(self):
+        """
+        Tests that setting an invalid voice ID returns False.
+        """
         result = self.engine.set_voice("nonexistent_voice_id")
         self.assertFalse(result)
 
     def test_get_available_voices(self):
+        """
+        Tests that get_available_voices returns a non-empty list of voice dictionaries containing an 'id' key.
+        """
         voices = self.engine.get_available_voices()
         self.assertIsInstance(voices, list)
         self.assertGreater(len(voices), 0)
@@ -23,6 +35,9 @@ class TestTTSEngine(unittest.TestCase):
 
     def test_stop(self):
         # Should stop gracefully
+        """
+        Tests that the TTS engine's stop method completes without raising exceptions.
+        """
         self.engine.stop()
         self.assertTrue(True)
 

@@ -13,9 +13,10 @@ class TTSEngine:
     """
     def __init__(self, voice_id: Optional[str] = None):
         """
-        Initialize the TTS engine.
+        Initializes the TTS engine with optional voice selection and starts the speech processing thread.
+        
         Args:
-            voice_id (str, optional): The ID of the voice to use. Defaults to None (system default).
+            voice_id: Optional; the ID of the voice to use. If not provided, the system default voice is used.
         """
         self._engine = pyttsx3.init()
         self._lock = threading.Lock()
@@ -33,8 +34,7 @@ class TTSEngine:
 
     def _process_queue(self):
         """
-        Processes the speech queue in a dedicated thread with retry logic.
-        Retries up to 3 times on error before skipping text.
+        Continuously processes queued text for speech synthesis in a worker thread, retrying up to three times on failure before skipping each text item.
         """
         while True:
             text_to_speak = self._speech_queue.get()
@@ -54,17 +54,16 @@ class TTSEngine:
 
     def speak(self, text: str) -> None:
         """
-        Adds text to the speech queue to be spoken by the TTS engine.
-        This method is non-blocking.
-        Args:
-            text (str): The text to speak.
+        Enqueues text to be spoken asynchronously by the TTS engine.
+        
+        If the provided text is non-empty, it is added to the speech queue for processing by the background worker thread.
         """
         if text:
             self._speech_queue.put(text)
 
     def interrupt(self) -> None:
         """
-        Interrupts ongoing speech and clears the queue.
+        Immediately stops any ongoing speech and removes all pending texts from the speech queue.
         """
         with self._lock:
             self._engine.stop()
@@ -74,7 +73,7 @@ class TTSEngine:
 
     def stop(self) -> None:
         """
-        Stops the TTS worker thread gracefully and interrupts speech.
+        Stops the TTS engine, interrupts any ongoing speech, and shuts down the worker thread gracefully.
         """
         self.interrupt()
         self._speech_queue.put(None)
@@ -82,10 +81,13 @@ class TTSEngine:
 
     def get_available_voices(self) -> list:
         """
-        Returns a list of available TTS voices.
-        Each voice in the list is a dictionary with 'id', 'name', and 'languages'.
+        Retrieves and returns a list of available TTS voices.
+        
+        Each voice is represented as a dictionary containing its 'id', 'name', and 'languages'.
+        The result is cached after the first retrieval for efficiency.
+        
         Returns:
-            list: List of available voices.
+            list: A list of dictionaries, each describing an available voice.
         """
         if self._voice_cache is not None:
             return self._voice_cache
@@ -106,11 +108,10 @@ class TTSEngine:
 
     def set_voice(self, voice_id: str) -> bool:
         """
-        Sets the TTS voice by its ID.
-        Args:
-            voice_id (str): The ID of the voice to set.
+        Sets the TTS engine's voice to the specified voice ID.
+        
         Returns:
-            bool: True if voice was set successfully, False otherwise.
+            True if the voice was set and tested successfully; False if the voice ID is not found or an error occurs.
         """
         try:
             current_voices = self.get_available_voices()
@@ -135,15 +136,16 @@ tts_engine = TTSEngine()
 # A simple function that modules can import.
 def speak(text: str) -> None:
     """
-    Convenience function for modules to call TTS.
+    Enqueues text to be spoken asynchronously using the global TTS engine.
+    
     Args:
-        text (str): The text to speak.
+        text: The text to be converted to speech.
     """
     tts_engine.speak(text)
 
 def stop_speech() -> None:
     """
-    Interrupts ongoing speech and clears the queue.
+    Stops any ongoing speech and clears all pending speech requests from the queue.
     """
     tts_engine.interrupt()
 
@@ -153,11 +155,23 @@ class TTSEngineInterface:
     Interface for TTS engines. For future multi-engine support.
     """
     def say(self, text: str):
-        """Speak the given text."""
+        """
+        Speaks the provided text using the TTS engine.
+        
+        Args:
+            text: The text to be spoken aloud.
+        """
         pass
     def run_and_wait(self):
-        """Block until speaking is finished."""
+        """
+        Blocks execution until all queued speech has been spoken.
+        """
         pass
     def set_voice(self, voice_id: str):
-        """Set the voice by ID."""
+        """
+        Sets the TTS engine's voice to the specified voice ID.
+        
+        Args:
+            voice_id: The unique identifier of the desired voice.
+        """
         pass

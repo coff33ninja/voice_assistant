@@ -12,7 +12,11 @@ from core.engine import openwakeword, VoiceCore
 
 class TestCoreComponents(unittest.TestCase):
     def test_wakeword_model_exists(self):
-        """Test 1: Check if the wake word model file exists."""
+        """
+        Checks that the wake word model file exists at the expected path.
+        
+        Fails the test if the model file is missing.
+        """
         print("\nRunning Test 1: Wake Word Model Existence")
         model_path = "./hey_jimmy.onnx"
         self.assertTrue(
@@ -31,7 +35,11 @@ class TestCoreComponents(unittest.TestCase):
             self.fail(f"openWakeWord model failed to load. Error: {e}")
 
     def test_whisper_model_loads(self):
-        """Test 3: Check if Whisper can load its model."""
+        """
+        Tests that the OpenAI Whisper speech recognition model loads successfully.
+        
+        Fails if the model cannot be loaded or if an exception is raised during loading.
+        """
         print("\nRunning Test 3: Whisper Model Loading")
         try:
             whisper_model = whisper.load_model("base.en")
@@ -41,14 +49,20 @@ class TestCoreComponents(unittest.TestCase):
             self.fail(f"Whisper model failed to load. Error: {e}")
 
     def test_register_intents_exists(self):
-        """Test 4: Check if the engine has a load_intents function."""
+        """
+        Checks that the VoiceCore class has a callable load_intents method.
+        
+        Asserts that the VoiceCore engine includes an attribute named 'load_intents' and that it is callable, ensuring intent registration functionality is present.
+        """
         print("\nRunning Test 4: Intent Registration Existence")
         self.assertTrue(hasattr(VoiceCore, "load_intents"), "Engine has no attribute 'load_intents'")
         self.assertTrue(callable(VoiceCore.load_intents), "'load_intents' is not callable")
         print("✅ Test 4 Passed: Intent registration functions exist.")
 
     def test_load_intents_smoke(self):
-        """Smoke Test 1: Test the load_intents function."""
+        """
+        Smoke tests the VoiceCore.load_intents() method to ensure it executes without raising exceptions.
+        """
         print("\nRunning Smoke Test 1: Intent Loading")
         try:
             VoiceCore.load_intents()
@@ -59,7 +73,11 @@ class TestCoreComponents(unittest.TestCase):
 
 class TestGeneralFunctions(unittest.TestCase):
     def test_run_self_test(self):
-        """Test the run_self_test function."""
+        """
+        Runs the external 'run_tests.py' script and fails if the script is not found.
+        
+        This test ensures that the self-test script executes successfully using the current Python interpreter.
+        """
         try:
             subprocess.run(
                 [sys.executable, "run_tests.py"], capture_output=True, text=True, check=True

@@ -11,13 +11,15 @@ from typing import Dict, Any
 
 def load_systems_config(config_path: str) -> Dict[str, Any]:
     """
-    Load systems configuration from a JSON file.
-
+    Loads a systems configuration from a JSON file.
+    
+    Attempts to read and parse the specified file as JSON. If the file does not exist or contains invalid JSON, logs an error and returns an empty dictionary.
+    
     Args:
-        config_path (str): Path to the configuration file.
-
+        config_path: Path to the JSON configuration file.
+    
     Returns:
-        dict: Systems configuration dictionary.
+        A dictionary representing the systems configuration, or an empty dictionary on error.
     """
     try:
         with open(config_path, "r") as file:
@@ -33,13 +35,13 @@ def load_systems_config(config_path: str) -> Dict[str, Any]:
 
 def send_wol_packet(mac_address: str) -> bool:
     """
-    Send a Wake-on-LAN packet to the specified MAC address.
-
+    Sends a Wake-on-LAN magic packet to the specified MAC address.
+    
     Args:
-        mac_address (str): MAC address in format 'XX:XX:XX:XX:XX:XX'.
-
+        mac_address: The target device's MAC address in the format 'XX:XX:XX:XX:XX:XX'.
+    
     Returns:
-        bool: True if packet sent successfully, False otherwise.
+        True if the magic packet was sent successfully, False otherwise.
     """
     if len(mac_address) != 17:
         logging.error("Invalid MAC address format.")
@@ -59,14 +61,24 @@ def send_wol_packet(mac_address: str) -> bool:
 
 def wake_on_lan(mac_address: str) -> bool:
     """
-    Alias for send_wol_packet for backward compatibility with tests and other modules.
+    Sends a Wake-on-LAN magic packet to the specified MAC address.
+    
+    This function is an alias for `send_wol_packet`, provided for backward compatibility.
+    
+    Args:
+        mac_address: The MAC address of the device to wake, in the format XX:XX:XX:XX:XX:XX.
+    
+    Returns:
+        True if the magic packet was sent successfully, False otherwise.
     """
     return send_wol_packet(mac_address)
 
 
 def register_intents() -> dict:
     """
-    Returns a dictionary of intents to register with the main application.
+    Returns a mapping of intent strings to the wake-on-LAN handler function.
+    
+    This dictionary can be used to integrate Wake-on-LAN functionality with an application's intent handling system.
     """
     return {
         "wake on lan": wake_on_lan,

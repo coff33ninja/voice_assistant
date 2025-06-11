@@ -15,14 +15,25 @@ def test_format_uptime():
 
 # The following tests are smoke tests to ensure no exceptions are raised.
 def test_get_cpu_usage_speak(monkeypatch):
+    """
+    Tests that get_cpu_usage_speak executes without raising exceptions by monkeypatching the speak function.
+    """
     monkeypatch.setattr(system_info, "speak", lambda msg: None)
     system_info.get_cpu_usage_speak()
 
 def test_get_memory_usage_speak(monkeypatch):
+    """
+    Tests that get_memory_usage_speak executes without raising exceptions by monkeypatching the speak function.
+    """
     monkeypatch.setattr(system_info, "speak", lambda msg: None)
     system_info.get_memory_usage_speak()
 
 def test_get_disk_usage_speak(monkeypatch):
+    """
+    Tests that get_disk_usage_speak executes without raising exceptions for default, valid, and invalid paths.
+    
+    Monkeypatches the speak function to suppress output and verifies robustness of disk usage reporting under different path scenarios.
+    """
     monkeypatch.setattr(system_info, "speak", lambda msg: None)
     # Test with default path
     system_info.get_disk_usage_speak()
@@ -32,18 +43,30 @@ def test_get_disk_usage_speak(monkeypatch):
     system_info.get_disk_usage_speak("/invalid/path/for/test")
 
 def test_get_system_uptime_speak(monkeypatch):
+    """
+    Tests that get_system_uptime_speak executes without raising exceptions by monkeypatching the speak function.
+    """
     monkeypatch.setattr(system_info, "speak", lambda msg: None)
     system_info.get_system_uptime_speak()
 
 def test_get_system_summary_speak(monkeypatch):
+    """
+    Tests that get_system_summary_speak executes without raising exceptions by monkeypatching the speak function.
+    """
     monkeypatch.setattr(system_info, "speak", lambda msg: None)
     system_info.get_system_summary_speak()
 
 def test_get_cpu_load_speak(monkeypatch):
+    """
+    Tests that get_cpu_load_speak executes without raising exceptions when speak is monkeypatched.
+    """
     monkeypatch.setattr(system_info, "speak", lambda msg: None)
     system_info.get_cpu_load_speak()
 
 def test_register_intents():
+    """
+    Tests that the register_intents function returns a dictionary with a callable 'system status' intent.
+    """
     intents = system_info.register_intents()
     assert isinstance(intents, dict)
     assert "system status" in intents

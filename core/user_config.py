@@ -20,13 +20,12 @@ DEFAULT_CONFIG: Dict[str, Any] = {
 
 def validate_config(config: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Ensure all required config keys are present, filling in defaults as needed.
-
-    Args:
-        config (dict): The config dictionary to validate.
-
+    Validates and completes a configuration dictionary with required default keys.
+    
+    Ensures all keys defined in the default configuration are present in the provided config. Missing keys are added with their default values.
+    	
     Returns:
-        dict: The validated config dictionary.
+        The validated configuration dictionary with all required keys.
     """
     for key in DEFAULT_CONFIG.keys():
         if key not in config:
@@ -36,14 +35,9 @@ def validate_config(config: Dict[str, Any]) -> Dict[str, Any]:
 
 def load_config() -> Dict[str, Any]:
     """
-    Loads the user configuration from CONFIG_FILE_PATH.
-
-    Returns a dictionary with configuration data.
-    Returns DEFAULT_CONFIG if the file doesn't exist or is invalid.
-    Also auto-saves default config if missing.
-
-    Returns:
-        dict: The loaded or default config.
+    Loads the user configuration from disk, returning a validated configuration dictionary.
+    
+    If the configuration file does not exist or is invalid, saves and returns a copy of the default configuration.
     """
     if not os.path.exists(CONFIG_FILE_PATH):
         save_config(DEFAULT_CONFIG)
@@ -65,14 +59,15 @@ def load_config() -> Dict[str, Any]:
 
 def save_config(data: Dict[str, Any]) -> bool:
     """
-    Saves the given data dictionary to the configuration file.
-    Creates a backup before overwriting.
-
+    Saves the provided configuration dictionary to the user settings file.
+    
+    Creates a backup of the existing configuration file before overwriting. Returns True if the save operation succeeds, or False if an error occurs.
+     
     Args:
-        data (dict): The configuration data to save.
-
+        data: The configuration data to be saved.
+    
     Returns:
-        bool: True if successful, False otherwise.
+        True if the configuration was saved successfully, False otherwise.
     """
     try:
         os.makedirs(CONFIG_DIR, exist_ok=True)
@@ -94,10 +89,7 @@ def save_config(data: Dict[str, Any]) -> bool:
 
 def get_config_path() -> str:
     """
-    Returns the path to the user configuration file.
-
-    Returns:
-        str: The config file path.
+    Returns the full path to the user configuration file.
     """
     return CONFIG_FILE_PATH
 

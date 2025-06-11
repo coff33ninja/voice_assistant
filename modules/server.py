@@ -15,9 +15,9 @@ CONFIG_PATH = os.path.join("modules", "configs", "systems_config.json")
 
 def boot_system(system_name: str) -> None:
     """
-    Boot a system using Wake-on-LAN.
-    Args:
-        system_name (str): Name of the system to boot.
+    Sends a Wake-on-LAN packet to boot the specified system.
+    
+    If the system or its MAC address is not found in the configuration, notifies the user and aborts the operation.
     """
     systems = load_systems_config(CONFIG_PATH)
     if system_name not in systems:
@@ -44,9 +44,9 @@ def boot_system(system_name: str) -> None:
 
 def start_server(server_name: Optional[str] = None) -> None:
     """
-    Starts a server by sending a Wake-on-LAN packet and then attempts to ping it to verify if it has come online.
-    Args:
-        server_name (str, optional): Name of the server to start.
+    Starts a server using Wake-on-LAN and verifies its availability via ping.
+    
+    If the server name is not provided or not found in the configuration, notifies the user. Sends a Wake-on-LAN packet to the server's MAC address and, if successful and an IP address is configured, waits for the server to boot before attempting to ping it for verification.
     """
     if not server_name:
         speak_msg = "Please specify which server you want to start. For example, say 'start server MyServerName'."
@@ -97,7 +97,9 @@ def start_server(server_name: Optional[str] = None) -> None:
 
 def stop_server() -> None:
     """
-    Dummy implementation for stopping the server. To be implemented based on requirements.
+    Announces that the server is being stopped.
+    
+    This is a placeholder function; actual server stop logic is not implemented.
     """
     speak("Stopping the server. This is a placeholder.")
     # Add actual stop logic here in the future
@@ -105,7 +107,9 @@ def stop_server() -> None:
 
 def register_intents() -> dict:
     """
-    Returns a dictionary of intents to register with the main application.
+    Returns a mapping of intent names to their corresponding handler functions for server control.
+    
+    The returned dictionary can be used to register available server-related intents with the main application.
     """
     return {
         "start server": start_server,

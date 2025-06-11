@@ -14,14 +14,24 @@ from typing import Optional
 
 def bytes_to_gb(bytes_val: int) -> str:
     """
-    Convert bytes to a human-readable GB string.
+    Converts a byte value to a string representing gigabytes with two decimal places.
+    
+    Args:
+        bytes_val: The value in bytes to convert.
+    
+    Returns:
+        A string representing the equivalent value in gigabytes, formatted to two decimal places.
     """
     gb_val = bytes_val / (1024**3)
     return f"{gb_val:.2f} GB"
 
 def format_uptime(seconds: int) -> str:
     """
-    Format uptime in seconds to a human-readable string.
+    Converts a duration in seconds into a human-readable string with days, hours, and minutes.
+    
+    Returns:
+        A string expressing the duration with proper pluralization and conjunctions, or
+        "less than a minute" if the duration is under one minute.
     """
     days = int(seconds // (24 * 3600))
     seconds %= (24 * 3600)
@@ -46,7 +56,9 @@ def format_uptime(seconds: int) -> str:
 
 def get_cpu_usage_speak() -> None:
     """
-    Gets current CPU utilization and speaks it.
+    Retrieves the current CPU utilization percentage and announces it via text-to-speech.
+    
+    If CPU usage cannot be determined or an error occurs, an appropriate spoken message is provided.
     """
     try:
         cpu_percent = psutil.cpu_percent(interval=1)
@@ -62,7 +74,9 @@ def get_cpu_usage_speak() -> None:
 
 def get_memory_usage_speak() -> None:
     """
-    Gets current memory usage and speaks it.
+    Retrieves current memory usage statistics and announces them via text-to-speech.
+    
+    Obtains total and used memory in gigabytes and the percentage of memory used, then speaks a summary. If retrieval fails, an error message is spoken.
     """
     try:
         mem = psutil.virtual_memory()
@@ -77,9 +91,9 @@ def get_memory_usage_speak() -> None:
 
 def get_disk_usage_speak(path_argument: Optional[str] = None) -> None:
     """
-    Gets disk usage for a given path (or default root) and speaks it.
-    Args:
-        path_argument (str, optional): Path to check disk usage for.
+    Speaks the disk usage statistics for a specified path or the default system drive.
+    
+    If no path is provided, checks the main drive (C:\ on Windows, / on Linux/macOS). Announces the percentage used, total, and free space. If the path does not exist or an error occurs, informs the user accordingly.
     """
     target_path = path_argument
     path_display_name = "the main drive"
@@ -110,7 +124,11 @@ def get_disk_usage_speak(path_argument: Optional[str] = None) -> None:
         speak(f"Sorry, I encountered an error while trying to get disk usage for {path_display_name}.")
 
 def get_system_uptime_speak():
-    """Gets system uptime and speaks it."""
+    """
+    Speaks the current system uptime in a human-readable format.
+    
+    Calculates the duration since the last system boot and announces it using text-to-speech. If an error occurs during retrieval, an apology message is spoken.
+    """
     try:
         boot_timestamp = psutil.boot_time()
         current_timestamp = time.time()
@@ -123,7 +141,11 @@ def get_system_uptime_speak():
         speak("Sorry, I encountered an error while trying to get system uptime.")
 
 def get_system_summary_speak():
-    """Provides a summary of system status (CPU, Memory, Disk for root, Uptime) and speaks it."""
+    """
+    Speaks a summary of the system's CPU usage, memory usage, main disk usage, and uptime.
+    
+    Attempts to retrieve each metric independently, providing a spoken summary of available information. If no metrics can be retrieved, informs the user accordingly.
+    """
     speak("Getting system status summary.")
     logging.info("ACTION: Getting system status summary...")
 
@@ -166,7 +188,11 @@ def get_system_summary_speak():
 
 
 def get_cpu_load_speak(): # Renamed from get_cpu_load to avoid conflict if old one existed and for consistency
-    """Gets system load average (1, 5, 15 min) and speaks it. More relevant for Linux/macOS."""
+    """
+    Retrieves and speaks the system load averages for 1, 5, and 15 minutes if supported.
+    
+    If the operating system does not support load averages (such as Windows), informs the user accordingly.
+    """
     if hasattr(psutil, "getloadavg"): # Check if function exists (not on Windows)
         try:
             load_avg = psutil.getloadavg() # Returns a tuple (1min, 5min, 15min)
@@ -186,7 +212,11 @@ def get_cpu_load_speak(): # Renamed from get_cpu_load to avoid conflict if old o
 
 
 def register_intents():
-    """Returns a dictionary of intents to register with the main application."""
+    """
+    Returns a mapping of voice command phrases to their corresponding system information functions.
+    
+    The returned dictionary enables integration with a voice assistant framework by associating various user intents and their aliases with functions that provide spoken system metrics such as CPU usage, memory usage, disk usage, uptime, and load averages.
+    """
     intents = {
         "system status": get_system_summary_speak,
         "tell me system status": get_system_summary_speak,

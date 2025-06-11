@@ -10,7 +10,9 @@ from core.tts import speak
 
 def get_local_ip() -> str:
     """
-    Returns the local IP address of the current machine.
+    Determines and returns the local IP address of the current machine.
+    
+    Attempts to establish a UDP connection to a public DNS server to infer the local IP address. Returns "Unknown" if the address cannot be determined.
     """
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -24,7 +26,9 @@ def get_local_ip() -> str:
 
 def find_devices() -> None:
     """
-    Scans the local network for active devices and speaks the result.
+    Scans the local network for active devices and announces the results via speech.
+    
+    Retrieves the local IP address, announces it, scans the network using ARP, logs each detected device, and provides spoken feedback on the number of devices found or any errors encountered.
     """
     local_ip = get_local_ip()
     logging.info(f"Local IP address: {local_ip}")
@@ -41,7 +45,9 @@ def find_devices() -> None:
 
 def register_intents() -> dict:
     """
-    Returns a dictionary of intents to register with the main application.
+    Returns a mapping of intent phrases to the corresponding handler function.
+    
+    The returned dictionary enables integration of the "find devices" and "scan network" intents with the main application's intent handling system.
     """
     return {
         "find devices": find_devices,
