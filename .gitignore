@@ -9,3 +9,4 @@
 .env.*
 PICOVOICE_ACCESS_KEY.txt
 # End sensitive data ignore
+pytest_output.txt
