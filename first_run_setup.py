@@ -154,6 +154,113 @@ def select_wake_word_engine():
         else:
             print("Invalid input. Please enter 1 or 2.")
 
+def _select_and_configure_tts_voice():
+    """
+    Handles the TTS voice selection process, including voice/typed input and configuration saving.
+    """
+    speak("Next, let's choose a voice for me to speak with.")
+    time.sleep(0.5)
+    available_tts_voices = []
+    if 'tts_engine' in globals() and hasattr(tts_engine, 'get_available_voices'):
+        available_tts_voices = tts_engine.get_available_voices()
+
+    if not available_tts_voices:
+        speak("I couldn't find any specific voices to choose from right now, so we'll stick with the default.")
+        print("INFO: No TTS voices found or tts_engine not available for get_available_voices.")
+        return # Nothing more to do if no voices
+
+    speak("Here are the voices I can use:")
+    print("\nAvailable TTS Voices:")
+    for i, voice in enumerate(available_tts_voices):
+        voice_display_name = voice.get('name', f"Voice {i+1}")
+        print(f"{i + 1}. {voice_display_name}")
+        if i < 5: # Limit spoken options
+            speak(f"Option {i + 1}: {voice_display_name}")
+            time.sleep(0.2)
+    if len(available_tts_voices) > 5:
+        speak("There are more voices listed in the console if you'd like to see them all.")
+
+    chosen_voice_id = None
+    chosen_voice_obj_idx = -1
+
+    speak("You can say the name or number of the voice you'd like.")
+    time.sleep(0.5)
+    temp_stt_voice_core = None
+    try:
+        print("INFO: Initializing temporary VoiceCore for STT during TTS voice selection...")
+        from core.engine import VoiceCore # Import here to ensure it's available
+        temp_stt_voice_core = VoiceCore(engine_type="openwakeword", openwakeword_model_path=None) # STT-only mode
+
+        for voice_attempt_tts in range(3):
+            speak(f"TTS Voice Choice Attempt {voice_attempt_tts + 1}. Please speak now.")
+            print("Listening for TTS voice choice (3 seconds)...")
+            time.sleep(0.5)
+            recorded_audio_frames_tts = []
+            transcribed_text_tts = ""
+            if temp_stt_voice_core and hasattr(temp_stt_voice_core, 'stream') and temp_stt_voice_core.stream and not temp_stt_voice_core.stream.is_stopped():
+                for _ in range(int(16000 / 1280 * 3)): # Approx 3 seconds of audio
+                    try:
+                        audio_chunk_tts = temp_stt_voice_core.stream.read(1280, exception_on_overflow=False)
+                        recorded_audio_frames_tts.append(audio_chunk_tts)
+                    except IOError:
+                        break
+                print("TTS voice choice recording finished.")
+                if recorded_audio_frames_tts:
+                    full_audio_data_tts = b''.join(recorded_audio_frames_tts)
+                    if hasattr(temp_stt_voice_core, 'whisper_model') and temp_stt_voice_core.whisper_model:
+                        print("Transcribing TTS voice choice...")
+                        transcribed_text_tts = transcribe_audio_with_whisper(temp_stt_voice_core.whisper_model, full_audio_data_tts)
+                        if transcribed_text_tts:
+                            print(f"Whisper transcribed TTS choice as: '{transcribed_text_tts}'")
+                    else:
+                        print("Whisper model not available in temporary VoiceCore instance.")
+            if transcribed_text_tts:
+                chosen_voice_obj_idx = match_choice_from_text(transcribed_text_tts, available_tts_voices, key="name")
+                if chosen_voice_obj_idx != -1:
+                    break
+            speak("I didn't quite catch your voice selection.")
+    finally:
+        if temp_stt_voice_core:
+            print("INFO: Stopping temporary VoiceCore for STT (TTS choice)...")
+            temp_stt_voice_core.stop()
+
+    if chosen_voice_obj_idx == -1: # Fallback to typed input
+        speak("Let's try selecting the voice with typed input.")
+        for tts_attempt_typed in range(3):
+            speak("Please type the number of your chosen voice.")
+            try:
+                user_input_tts = input("Enter the number for your chosen TTS voice: ")
+                choice_tts = int(user_input_tts)
+                if 1 <= choice_tts <= len(available_tts_voices):
+                    chosen_voice_obj_idx = choice_tts - 1
+                    break
+                else:
+                    speak("That's not a valid number for voice choice.")
+            except ValueError:
+                speak("That didn't seem like a number for voice choice.")
+            if tts_attempt_typed == 2 and chosen_voice_obj_idx == -1: # Check if still not chosen after last attempt
+                speak("Skipping TTS voice selection for now.")
+
+    if chosen_voice_obj_idx != -1:
+        chosen_voice_id = available_tts_voices[chosen_voice_obj_idx]['id']
+        chosen_voice_name = available_tts_voices[chosen_voice_obj_idx]['name']
+        speak(f"You've selected {chosen_voice_name} as your voice. Nice!")
+        print(f"Selected TTS Voice: {chosen_voice_name} (ID: {chosen_voice_id})")
+        current_config = load_config() # Load potentially already saved config
+        current_config["chosen_tts_voice_id"] = chosen_voice_id
+        if save_config(current_config):
+            print("TTS Voice ID saved to configuration.")
+            if 'tts_engine' in globals() and hasattr(tts_engine, 'set_voice'):
+                if tts_engine.set_voice(chosen_voice_id):
+                    speak(f"I will now try to use the {chosen_voice_name} voice.")
+                else: # If set_voice failed or tts_engine not fully ready
+                    speak(f"I'll use the {chosen_voice_name} voice the next time you start me.")
+        else:
+            speak("There was an error saving your voice choice.")
+    else: # chosen_voice_obj_idx remained -1
+        speak("Okay, we'll stick with the default voice for now.")
+        print("INFO: Default TTS voice will be used.")
+
 def run_first_time_setup():
     """
     Guides the user through the initial configuration of the voice assistant.
@@ -222,102 +329,8 @@ def run_first_time_setup():
                 tts_engine.stop()
             sys.exit(1)
         # Proceed directly to TTS voice selection
-        # --- TTS Voice Selection ---
-        speak("Next, let's choose a voice for me to speak with.")
-        time.sleep(0.5)
-        available_tts_voices = []
-        if 'tts_engine' in globals() and hasattr(tts_engine, 'get_available_voices'):
-            available_tts_voices = tts_engine.get_available_voices()
-        if not available_tts_voices:
-            speak("I couldn't find any specific voices to choose from right now, so we'll stick with the default.")
-            print("INFO: No TTS voices found or tts_engine not available for get_available_voices.")
-        else:
-            speak("Here are the voices I can use:")
-            print("\nAvailable TTS Voices:")
-            for i, voice in enumerate(available_tts_voices):
-                voice_display_name = voice.get('name', f"Voice {i+1}")
-                print(f"{i + 1}. {voice_display_name}")
-                if i < 5: # Limit spoken options
-                    speak(f"Option {i + 1}: {voice_display_name}")
-                    time.sleep(0.2)
-            if len(available_tts_voices) > 5:
-                speak("There are more voices listed in the console if you'd like to see them all.")
-            chosen_voice_id = None
-            chosen_voice_obj_idx = -1
-            speak("You can say the name or number of the voice you'd like.")
-            time.sleep(0.5)
-            temp_stt_voice_core = None
-            try:
-                print("INFO: Initializing temporary VoiceCore for STT during TTS voice selection...")
-                from core.engine import VoiceCore
-                temp_stt_voice_core = VoiceCore(engine_type="openwakeword", openwakeword_model_path=None)
-                for voice_attempt_tts in range(3):
-                    speak(f"TTS Voice Choice Attempt {voice_attempt_tts + 1}. Please speak now.")
-                    print("Listening for TTS voice choice (3 seconds)...")
-                    time.sleep(0.5)
-                    recorded_audio_frames_tts = []
-                    transcribed_text_tts = ""
-                    if temp_stt_voice_core and hasattr(temp_stt_voice_core, 'stream') and temp_stt_voice_core.stream and not temp_stt_voice_core.stream.is_stopped():
-                        for _ in range(int(16000 / 1280 * 3)):
-                            try:
-                                audio_chunk_tts = temp_stt_voice_core.stream.read(1280, exception_on_overflow=False)
-                                recorded_audio_frames_tts.append(audio_chunk_tts)
-                            except IOError:
-                                break
-                        print("TTS voice choice recording finished.")
-                        if recorded_audio_frames_tts:
-                            full_audio_data_tts = b''.join(recorded_audio_frames_tts)
-                            if hasattr(temp_stt_voice_core, 'whisper_model') and temp_stt_voice_core.whisper_model:
-                                print("Transcribing TTS voice choice...")
-                                transcribed_text_tts = transcribe_audio_with_whisper(temp_stt_voice_core.whisper_model, full_audio_data_tts)
-                                if transcribed_text_tts:
-                                    print(f"Whisper transcribed TTS choice as: '{transcribed_text_tts}'")
-                            else:
-                                print("Whisper model not available in temporary VoiceCore instance.")
-                    if transcribed_text_tts:
-                        chosen_voice_obj_idx = match_choice_from_text(transcribed_text_tts, available_tts_voices, key="name")
-                        if chosen_voice_obj_idx != -1:
-                            break
-                    speak("I didn't quite catch your voice selection.")
-            finally:
-                if temp_stt_voice_core:
-                    print("INFO: Stopping temporary VoiceCore for STT (TTS choice)...")
-                    temp_stt_voice_core.stop()
-            if chosen_voice_obj_idx == -1:
-                speak("Let's try selecting the voice with typed input.")
-                for tts_attempt_typed in range(3):
-                    speak("Please type the number of your chosen voice.")
-                    try:
-                        user_input_tts = input("Enter the number for your chosen TTS voice: ")
-                        choice_tts = int(user_input_tts)
-                        if 1 <= choice_tts <= len(available_tts_voices):
-                            chosen_voice_obj_idx = choice_tts - 1
-                            break
-                        else:
-                            speak("That's not a valid number for voice choice.")
-                    except ValueError:
-                        speak("That didn't seem like a number for voice choice.")
-                    if tts_attempt_typed == 2:
-                        speak("Skipping TTS voice selection for now.")
-            if chosen_voice_obj_idx != -1:
-                chosen_voice_id = available_tts_voices[chosen_voice_obj_idx]['id']
-                chosen_voice_name = available_tts_voices[chosen_voice_obj_idx]['name']
-                speak(f"You've selected {chosen_voice_name} as your voice. Nice!")
-                print(f"Selected TTS Voice: {chosen_voice_name} (ID: {chosen_voice_id})")
-                current_config = load_config()
-                current_config["chosen_tts_voice_id"] = chosen_voice_id
-                if save_config(current_config):
-                    print("TTS Voice ID saved to configuration.")
-                    if 'tts_engine' in globals() and hasattr(tts_engine, 'set_voice'):
-                        if tts_engine.set_voice(chosen_voice_id):
-                            speak(f"I will now try to use the {chosen_voice_name} voice.")
-                        else:
-                            speak(f"I'll use the {chosen_voice_name} voice the next time you start me.")
-                else:
-                    speak("There was an error saving your voice choice.")
-            else:
-                speak("Okay, we'll stick with the default voice for now.")
-                print("INFO: Default TTS voice will be used.")
+        _select_and_configure_tts_voice()
+
         time.sleep(0.5)
         speak("Setup is complete! Please restart the main application for the changes to take effect.")
         print("\nSetup complete. Please restart the main application.")
@@ -486,107 +499,7 @@ def run_first_time_setup():
             sys.exit(1)
 
         # --- TTS Voice Selection ---
-        speak("Next, let's choose a voice for me to speak with.")
-        time.sleep(0.5)
-        available_tts_voices = []
-        if 'tts_engine' in globals() and hasattr(tts_engine, 'get_available_voices'):
-            available_tts_voices = tts_engine.get_available_voices()
-
-        if not available_tts_voices:
-            speak("I couldn't find any specific voices to choose from right now, so we'll stick with the default.")
-            print("INFO: No TTS voices found or tts_engine not available for get_available_voices.")
-        else:
-            speak("Here are the voices I can use:")
-            print("\nAvailable TTS Voices:")
-            for i, voice in enumerate(available_tts_voices):
-                voice_display_name = voice.get('name', f"Voice {i+1}")
-                print(f"{i + 1}. {voice_display_name}")
-                if i < 5: # Limit spoken options
-                    speak(f"Option {i + 1}: {voice_display_name}")
-                    time.sleep(0.2)
-            if len(available_tts_voices) > 5:
-                speak("There are more voices listed in the console if you'd like to see them all.")
-
-            chosen_voice_id = None
-            chosen_voice_obj_idx = -1
-
-            speak("You can say the name or number of the voice you'd like.")
-            time.sleep(0.5)
-            temp_stt_voice_core = None
-            try:
-                print("INFO: Initializing temporary VoiceCore for STT during TTS voice selection...")
-                temp_stt_voice_core = VoiceCore(engine_type="openwakeword", openwakeword_model_path=None)
-
-                for voice_attempt_tts in range(3):
-                    speak(f"TTS Voice Choice Attempt {voice_attempt_tts + 1}. Please speak now.")
-                    print("Listening for TTS voice choice (3 seconds)...")
-                    time.sleep(0.5)
-                    recorded_audio_frames_tts = []
-                    transcribed_text_tts = ""
-                    if temp_stt_voice_core and hasattr(temp_stt_voice_core, 'stream') and temp_stt_voice_core.stream and not temp_stt_voice_core.stream.is_stopped():
-                        for _ in range(int(16000 / 1280 * 3)):
-                            try:
-                                audio_chunk_tts = temp_stt_voice_core.stream.read(1280, exception_on_overflow=False)
-                                recorded_audio_frames_tts.append(audio_chunk_tts)
-                            except IOError:
-                                break
-                        print("TTS voice choice recording finished.")
-                        if recorded_audio_frames_tts:
-                            full_audio_data_tts = b''.join(recorded_audio_frames_tts)
-                            if hasattr(temp_stt_voice_core, 'whisper_model') and temp_stt_voice_core.whisper_model:
-                                print("Transcribing TTS voice choice...")
-                                transcribed_text_tts = transcribe_audio_with_whisper(temp_stt_voice_core.whisper_model, full_audio_data_tts)
-                                if transcribed_text_tts:
-                                    print(f"Whisper transcribed TTS choice as: '{transcribed_text_tts}'")
-                            else:
-                                print("Whisper model not available in temporary VoiceCore instance.")
-                    if transcribed_text_tts:
-                        chosen_voice_obj_idx = match_choice_from_text(transcribed_text_tts, available_tts_voices, key="name")
-                        if chosen_voice_obj_idx != -1:
-                            break
-                    speak("I didn't quite catch your voice selection.")
-            finally:
-                if temp_stt_voice_core:
-                    print("INFO: Stopping temporary VoiceCore for STT (TTS choice)...")
-                    temp_stt_voice_core.stop()
-
-            if chosen_voice_obj_idx == -1:
-                speak("Let's try selecting the voice with typed input.")
-                for tts_attempt_typed in range(3):
-                    speak("Please type the number of your chosen voice.")
-                    try:
-                        user_input_tts = input("Enter the number for your chosen TTS voice: ")
-                        choice_tts = int(user_input_tts)
-                        if 1 <= choice_tts <= len(available_tts_voices):
-                            chosen_voice_obj_idx = choice_tts - 1
-                            break
-                        else:
-                            speak("That's not a valid number for voice choice.")
-                    except ValueError:
-                        speak("That didn't seem like a number for voice choice.")
-                    if tts_attempt_typed == 2:
-                        speak("Skipping TTS voice selection for now.")
-
-            if chosen_voice_obj_idx != -1:
-                chosen_voice_id = available_tts_voices[chosen_voice_obj_idx]['id']
-                chosen_voice_name = available_tts_voices[chosen_voice_obj_idx]['name']
-                speak(f"You've selected {chosen_voice_name} as your voice. Nice!")
-                print(f"Selected TTS Voice: {chosen_voice_name} (ID: {chosen_voice_id})")
-                current_config = load_config()
-                current_config["chosen_tts_voice_id"] = chosen_voice_id
-                if save_config(current_config):
-                    print("TTS Voice ID saved to configuration.")
-                    if 'tts_engine' in globals() and hasattr(tts_engine, 'set_voice'):
-                        if tts_engine.set_voice(chosen_voice_id):
-                            speak(f"I will now try to use the {chosen_voice_name} voice.")
-                        else:
-                            speak(f"I'll use the {chosen_voice_name} voice the next time you start me.")
-                else:
-                    speak("There was an error saving your voice choice.")
-            else:
-                speak("Okay, we'll stick with the default voice for now.")
-                print("INFO: Default TTS voice will be used.")
-        # --- End TTS Voice Selection ---
+        _select_and_configure_tts_voice()
 
         time.sleep(0.5)
         speak("Setup is complete! Please restart the main application for the changes to take effect.")
