@@ -12,7 +12,9 @@ import logging
 
 def tell_time() -> None:
     """
-    States the current time using TTS.
+    Announces the current system time using text-to-speech.
+    
+    Retrieves the current time in hours and minutes with AM/PM, logs the information, and speaks it aloud.
     """
     current_time = time.strftime("%I:%M %p")
     response = f"The current time is {current_time}."
@@ -22,7 +24,9 @@ def tell_time() -> None:
 
 def run_self_test() -> None:
     """
-    Runs the test suite and speaks the result.
+    Runs the system self-test by executing the external test script.
+    
+    Initiates the 'run_tests.py' script as a subprocess, logs the output, and announces the start of the test. If the script fails or is not found, logs the error and announces the failure using text-to-speech.
     """
     log_and_speak("Running system self test now.")
     logging.info("Running self test...")
@@ -43,11 +47,11 @@ def run_self_test() -> None:
 
 def log_and_speak(message: str, level: str = "info") -> None:
     """
-    Logs a message and speaks it.
-
+    Logs a message at the specified level and speaks it aloud.
+    
     Args:
-        message (str): The message to log and speak.
-        level (str): Logging level ('info' or 'error').
+        message: The message to log and speak.
+        level: The logging level to use ('info' or 'error').
     """
     if level == "info":
         logging.info(message)
@@ -57,14 +61,20 @@ def log_and_speak(message: str, level: str = "info") -> None:
 
 
 def hello() -> None:
-    """Simple hello intent for testing."""
+    """
+    Speaks a greeting message and prints a confirmation for the hello intent.
+    
+    Intended as a simple handler for greeting or testing purposes.
+    """
     speak("Hello! How can I help you?")
     print("ACTION: Hello intent triggered.")
 
 
 def register_intents() -> dict:
     """
-    Returns a dictionary of intents to register with the main application.
+    Returns a mapping of intent strings to their corresponding handler functions.
+    
+    The returned dictionary enables the main application to associate user intents with the appropriate functions for handling greetings, time inquiries, and self-test commands.
     """
     return {
         "hello": hello,

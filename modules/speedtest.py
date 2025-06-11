@@ -8,7 +8,9 @@ from core.tts import speak
 
 def run_speedtest() -> None:
     """
-    Runs a speed test to measure internet speed and speaks the results.
+    Runs an internet speed test and announces the results using text-to-speech.
+    
+    Measures download and upload speeds in Mbps, logs the results, and speaks them aloud. If an error occurs during the test, notifies the user via text-to-speech.
     """
     logging.info("Running speed test...")
     speak("Running a speed test.")
@@ -27,7 +29,10 @@ def run_speedtest() -> None:
 
 def register_intents() -> dict:
     """
-    Returns a dictionary of intents to register with the main application.
+    Maps intent strings to the corresponding handler functions for speed test actions.
+    
+    Returns:
+        A dictionary where each key is an intent phrase and each value is the function to handle that intent.
     """
     return {
         "run speed test": run_speedtest,

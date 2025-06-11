@@ -48,16 +48,17 @@ WMO_WEATHER_CODES = {
 
 def get_weather_wmo_description(code: int) -> str:
     """
-    Returns a human-readable weather description for a WMO code.
+    Returns a human-readable description for the given WMO weather code.
+    
+    If the code is not recognized, returns "an unknown weather condition".
     """
     return WMO_WEATHER_CODES.get(code, "an unknown weather condition")
 
 def get_weather(city_name: str) -> None:
     """
-    Fetches and speaks the current weather for a given city using Open-Meteo API.
-
-    Args:
-        city_name (str): Name of the city to get weather for.
+    Fetches and vocalizes the current weather for a specified city using the Open-Meteo API.
+    
+    If the city name is empty, attempts to use the default city from the environment variable `DEFAULT_WEATHER_CITY`. If no valid city is provided, prompts the user to specify one. Handles geocoding and weather data retrieval, providing spoken feedback and error messages as appropriate.
     """
     # Use environment variable as fallback if city_name is empty
     if (not city_name or not city_name.strip()) and os.environ.get("DEFAULT_WEATHER_CITY"):
@@ -139,7 +140,10 @@ def get_weather(city_name: str) -> None:
 
 def register_intents() -> dict:
     """
-    Returns a dictionary of intents to register with the main application.
+    Registers weather-related intents for integration with the main application.
+    
+    Returns:
+        A dictionary mapping intent strings to the get_weather function.
     """
     return {
         "get weather": get_weather,

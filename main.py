@@ -13,7 +13,11 @@ load_dotenv()
 
 class Assistant:
     def __init__(self):
-        """Initializes the Assistant, loads intents, and starts the core."""
+        """
+        Initializes the Assistant by loading configuration, performing first-run setup if needed, applying TTS voice preferences, loading intent modules, and initializing the voice core engine with appropriate wake word detection based on user settings.
+        
+        Exits the application if first-run setup is incomplete, required files are missing, or wake word model configuration is invalid.
+        """
         # --- First Run Setup Check ---
         self.config = load_config()
         if not self.config.get("first_run_complete", False):
@@ -105,7 +109,11 @@ class Assistant:
             sys.exit(1)
 
     def _load_modules(self):
-        """Dynamically loads all intent modules from the 'modules' directory."""
+        """
+        Dynamically loads intent modules from the 'modules' directory and registers their intents.
+        
+        For each Python file in the 'modules' directory (excluding files starting with '__'), attempts to load the module and call its `register_intents` function if present. Updates the assistant's intents dictionary with any intents returned.
+        """
         print("Loading intent modules...")
         modules_dir = os.path.join(os.path.dirname(__file__), "modules")
         for filename in os.listdir(modules_dir):
@@ -132,14 +140,17 @@ class Assistant:
         print(f"Total intents loaded: {len(self.intents)}")
 
     def handle_wake_word(self):
-        """Called by the core when the wake word is detected."""
+        """
+        Handles wake word detection by acknowledging the user and prompting for a command.
+        """
         print("\nAssistant: Wake word acknowledged. Listening for command...")
         speak("Yes?")
 
     def handle_command(self, command: str):
         """
-        Called by the core with the transcribed command.
-        Finds and executes the appropriate action from the loaded intents.
+        Processes a transcribed voice command and executes the corresponding intent action.
+        
+        Attempts to match the command exactly or as a prefix to a registered intent phrase. If an exact match is found, calls the associated action with no arguments. If a prefix match is found, passes the remainder of the command as an argument to the action. Provides spoken feedback for unrecognized commands or configuration errors.
         """
         print(f"Assistant: Received command -> '{command}'")
         command = command.lower().strip()
@@ -190,7 +201,11 @@ class Assistant:
             speak("Sorry, I don't know how to do that yet.")
 
     def run(self):
-        """Starts the core engine and keeps the application alive."""
+        """
+        Starts the voice assistant core engine and enters a persistent run loop.
+        
+        Keeps the application running until interrupted. On keyboard interrupt, announces shutdown, says "Goodbye!", and attempts to gracefully stop the TTS engine and core if supported.
+        """
         self.core.start()
         try:
             while True:

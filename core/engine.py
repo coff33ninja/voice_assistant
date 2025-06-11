@@ -22,17 +22,9 @@ class VoiceCore:
 
     def __init__(self, on_wake_word=None, on_command=None, whisper_model_name: str = "base.en", silence_threshold: int = 500, engine_type: str = "openwakeword", picovoice_access_key: Optional[str] = None, picovoice_keyword_paths: Optional[List[str]] = None, openwakeword_model_path: Optional[str] = None):
         """
-        Initializes the Voice Core.
-
-        Args:
-            on_wake_word (function): Callback for wake word detection.
-            on_command (function): Callback for transcribed command text.
-            whisper_model_name (str): Whisper model to use.
-            silence_threshold (int): RMS level for silence detection.
-            engine_type (str): 'openwakeword', 'picovoice', or 'stt_only'.
-            picovoice_access_key (str): Access key for Picovoice.
-            picovoice_keyword_paths (list): Paths to Picovoice keyword model files.
-            openwakeword_model_path (str): Path to OpenWakeWord model file.
+        Initializes the VoiceCore engine for wake word detection, audio streaming, and speech-to-text transcription.
+        
+        Configures the engine to use OpenWakeWord, Picovoice Porcupine, or STT-only mode based on the provided parameters. Sets up callbacks for wake word detection and command transcription, initializes the selected wake word engine, prepares the audio input stream, and loads the Whisper speech-to-text model. Raises a ValueError if required parameters for the selected engine are missing or invalid.
         """
         self.on_wake_word = on_wake_word
         self.on_command = on_command
@@ -100,7 +92,9 @@ class VoiceCore:
 
     def start(self) -> None:
         """
-        Starts the main listening loop in a separate thread.
+        Starts the voice assistant's listening loop in a background thread.
+        
+        If the listening loop is not already running, this method launches it in a new daemon thread, enabling wake word detection and command transcription.
         """
         if self.listen_thread is None or not self.listen_thread.is_alive():
             logging.info("Core Engine: Starting...")
@@ -111,7 +105,10 @@ class VoiceCore:
 
     def stop(self) -> None:
         """
-        Stops the listening loop and cleans up resources. Idempotent.
+        Stops the listening loop and releases all audio and engine resources.
+        
+        This method is safe to call multiple times and ensures that audio streams,
+        wake word engines, and background threads are properly terminated.
         """
         if self._stop_event.is_set():
             return
@@ -131,7 +128,9 @@ class VoiceCore:
 
     def _restart_stream(self) -> None:
         """
-        Restarts the PyAudio stream after repeated errors.
+        Restarts the audio input stream to recover from repeated read errors.
+        
+        Closes the current PyAudio stream and opens a new one with the same parameters.
         """
         try:
             self.stream.stop_stream()
@@ -143,7 +142,9 @@ class VoiceCore:
 
     def _listen_openwakeword(self) -> None:
         """
-        Main loop for OpenWakeWord engine. Handles wake word detection and error recovery.
+        Continuously reads audio from the stream and performs wake word detection using the OpenWakeWord engine.
+        
+        Handles audio input errors with retries and stream restarts. When the configured wake word is detected with a score above 0.5, sets the command listening state, buffers recent audio, and triggers the wake word callback asynchronously.
         """
         error_count = 0
         while not self._stop_event.is_set():
@@ -177,7 +178,9 @@ class VoiceCore:
 
     def _listen_picovoice(self) -> None:
         """
-        Main loop for Picovoice engine. Handles wake word detection and error recovery.
+        Continuously reads audio from the stream and performs wake word detection using the Picovoice engine.
+        
+        Handles audio read errors with retries and stream restarts, unpacks audio for Picovoice processing, and triggers the wake word callback asynchronously when a keyword is detected. Handles specific Picovoice activation refusal errors with a delay and logs unexpected processing errors.
         """
         error_count = 0
         while not self._stop_event.is_set():
@@ -220,7 +223,9 @@ class VoiceCore:
 
     def _listen_stt_only(self) -> None:
         """
-        Main loop for STT-only mode. Always listens for commands.
+        Continuously captures audio and processes speech-to-text commands when silence is detected in STT-only mode.
+        
+        This loop appends incoming audio chunks to the command buffer and triggers command transcription whenever a period of silence is detected, operating without wake word detection.
         """
         error_count = 0
         while not self._stop_event.is_set():
@@ -240,7 +245,9 @@ class VoiceCore:
 
     def _listen(self) -> None:
         """
-        Dispatches to the appropriate listening loop based on engine type.
+        Selects and runs the appropriate audio listening loop based on the configured engine type.
+        
+        Dispatches to the OpenWakeWord, Picovoice, or STT-only listening method according to initialization state. Logs an error and waits if the engine type is unknown or unsupported.
         """
         if self.engine_type == "openwakeword" and self.oww:
             self._listen_openwakeword()
@@ -255,22 +262,22 @@ class VoiceCore:
 
     def _is_silent(self, data: bytes, threshold: int) -> bool:
         """
-        Returns True if the audio chunk is below a volume threshold.
-
+        Determines whether an audio chunk is silent based on RMS volume.
+        
         Args:
-            data (bytes): Audio data.
-            threshold (int): RMS threshold.
-
+            data: Audio data in bytes.
+            threshold: RMS volume threshold for silence detection.
+        
         Returns:
-            bool: True if silent, False otherwise.
+            True if the audio chunk's RMS volume is below the threshold; otherwise, False.
         """
         return audioop.rms(data, 2) < threshold
 
     def _process_command(self) -> None:
         """
-        Transcribes the recorded audio and triggers the command callback.
-
-        Sensitive data (like API keys) is never logged.
+        Transcribes buffered command audio using Whisper and invokes the command callback with the result.
+        
+        The method writes the accumulated audio to a temporary WAV file, performs speech-to-text transcription, cleans up the temporary file, and triggers the `on_command` callback asynchronously if transcription yields non-empty text.
         """
         import tempfile
         import os
@@ -296,8 +303,10 @@ class VoiceCore:
     @staticmethod
     def load_intents() -> dict:
         """
-        Loads and returns all registered intents from modules.
-        This is a compatibility shim for test_core.py and can be expanded as needed.
+        Dynamically loads and aggregates registered intents from Python modules in the 'modules' directory.
+        
+        Returns:
+            A dictionary containing all intents registered by modules that define a `register_intents` function.
         """
         import os
         import importlib.util

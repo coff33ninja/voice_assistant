@@ -62,7 +62,9 @@ OPENWAKEWORD_MODELS = [
 
 def download_openwakeword_models():
     """
-    Download OpenWakeWord .onnx models if not present in wakeword_models/.
+    Ensures all required OpenWakeWord ONNX models are present in the wakeword_models directory.
+    
+    Downloads each model from its specified URL if it does not already exist locally. If a download fails, instructs the user to manually download the missing model.
     """
     if not os.path.exists("wakeword_models"):
         os.makedirs("wakeword_models")
@@ -82,8 +84,14 @@ def download_openwakeword_models():
 
 def transcribe_audio_with_whisper(whisper_model, audio_bytes) -> str:
     """
-    Transcribes audio bytes using a Whisper model.
-    Returns the transcribed text as a lowercase string, or an empty string on failure.
+    Transcribes raw audio bytes to text using a Whisper model.
+    
+    Args:
+        whisper_model: An instance of a Whisper speech-to-text model.
+        audio_bytes: Raw audio data in 16-bit PCM format.
+    
+    Returns:
+        The transcribed text in lowercase, or an empty string if transcription fails.
     """
     try:
         audio_int16 = np.frombuffer(audio_bytes, dtype=np.int16)
@@ -99,13 +107,15 @@ def transcribe_audio_with_whisper(whisper_model, audio_bytes) -> str:
 
 def match_choice_from_text(transcribed_text: str, options: list[dict], key: str = "name") -> int:
     """
-    Attempts to match a user's transcribed input to an option index by name or number.
+    Matches transcribed user input to an option index based on name or numeric reference.
+    
     Args:
-        transcribed_text (str): The user's spoken or typed input.
-        options (list[dict]): List of option dicts, each with a 'name' key (or as specified).
-        key (str): The key in each option dict to match against (default: 'name').
+        transcribed_text: The user's spoken or typed input to interpret.
+        options: List of option dictionaries to match against.
+        key: The dictionary key to use for name matching (default is "name").
+    
     Returns:
-        int: The index of the matched option, or -1 if no match found.
+        The index of the matched option, or -1 if no suitable match is found.
     """
     if not transcribed_text:
         return -1
@@ -126,6 +136,12 @@ def match_choice_from_text(transcribed_text: str, options: list[dict], key: str 
 
 # --- Wake Word Engine Selection ---
 def select_wake_word_engine():
+    """
+    Prompts the user to select a wake word engine and returns the chosen engine type.
+    
+    Returns:
+        The string 'picovoice' if Picovoice Porcupine is selected, or 'openwakeword' if OpenWakeWord is selected.
+    """
     print("\nChoose your wake word engine:")
     print("1. Picovoice Porcupine (.ppn, requires Access Key, high accuracy, closed-source)")
     print("2. OpenWakeWord (.onnx, open-source, no key required)")
@@ -139,6 +155,11 @@ def select_wake_word_engine():
             print("Invalid input. Please enter 1 or 2.")
 
 def run_first_time_setup():
+    """
+    Guides the user through the initial configuration of the voice assistant.
+    
+    This interactive setup process assists the user in selecting and verifying a wake word engine (Picovoice Porcupine or OpenWakeWord), configuring the appropriate wake word model, and choosing a text-to-speech (TTS) voice. The function handles both voice and typed input for selections, verifies model files, saves configuration settings, and provides spoken and printed feedback throughout. On completion or critical failure, the function exits the script after cleanup.
+    """
     speak("Welcome! It looks like this is your first time running the voice assistant, or your setup wasn't completed.")
     time.sleep(0.5)
     speak("Let's get a few things configured.")
