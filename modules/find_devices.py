@@ -7,7 +7,7 @@ import socket
 import subprocess
 import logging
 from core.tts import speak
-from modules.device_manager import list_devices
+from modules.device_manager import list_devices, load_devices
 
 def get_local_ip() -> str:
     """
@@ -83,6 +83,38 @@ def announce_known_devices() -> None:
     else:
         speak("No known devices found in the configuration.")
 
+def find_and_suggest_new_devices() -> None:
+    """
+    Scans the network, compares ARP results to known devices, and suggests adding unknown ones.
+    """
+    local_ip = get_local_ip()
+    known_devices = load_devices()
+    known_ips = {info.get("ip_address") for info in known_devices.values() if "ip_address" in info}
+    try:
+        result = subprocess.run(["arp", "-a"], capture_output=True, text=True, check=True)
+        lines = result.stdout.splitlines()
+        unknown_ips = []
+        for line in lines:
+            line = line.strip()
+            if not line or "Interface:" in line or "Internet Address" in line or not line.split() or "incomplete" in line.lower():
+                continue
+            parts = line.split()
+            if len(parts) >= 2:
+                ip_candidate = parts[0]
+                if ip_candidate != local_ip and \
+                   not ip_candidate.startswith("224.") and \
+                   not ip_candidate.endswith(".255") and \
+                   ip_candidate.count('.') == 3:
+                    if ip_candidate not in known_ips:
+                        unknown_ips.append(ip_candidate)
+        if unknown_ips:
+            speak(f"Found {len(unknown_ips)} unknown device IPs: {', '.join(unknown_ips)}. You may want to add them to your configuration.")
+        else:
+            speak("No unknown devices found on the network.")
+    except Exception as e:
+        logging.error(f"Failed to scan devices: {e}")
+        speak("I encountered an error while scanning for devices.")
+
 def register_intents() -> dict:
     """
     Returns a mapping of intent phrases to the corresponding handler function.
@@ -93,4 +125,5 @@ def register_intents() -> dict:
         "find devices": find_devices,
         "scan network": find_devices,
         "list known devices": announce_known_devices,
+        "find and suggest new devices": find_and_suggest_new_devices,
     }
