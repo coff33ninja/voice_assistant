@@ -11,3 +11,7 @@ requests
 psutil
 pytest
 python-dotenv
+tqdm
+gTTS
+pydub
+pygame

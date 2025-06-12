@@ -2,537 +2,734 @@
 first_run_setup.py
 
 Guides the user through initial configuration of the voice assistant, including:
-- Picovoice Access Key setup
-- Wake word selection (voice or typed)
-- Wake word model file verification
-- TTS voice selection (voice or typed)
+- Picovoice/OpenWakeWord selection
+- Wake word selection
+- TTS engine and voice selection
 - Configuration saving
-
-This script is intended to be run as a standalone setup utility.
 """
 
 import os
 import sys
-import time # For small delays
-import re  # For text matching
+import time
+import re
 import numpy as np
 import urllib.request
-from dotenv import load_dotenv
+import hashlib
+import logging
+import glob
+from dotenv import load_dotenv, set_key
+from tqdm import tqdm
 
-# Load environment variables from .env file
+logging.basicConfig(
+    level=logging.INFO,
+    filename="setup.log",
+    format="%(asctime)s - %(levelname)s - %(message)s",
+)
+
 load_dotenv()
 
-# Ensure core modules can be imported if script is run directly from root
-# This might be needed if first_run_setup.py is run as a separate process
-if __name__ == '__main__':
-    # Get the absolute path of the script's directory
+if __name__ == "__main__":
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    # Add the parent directory (project root) to sys.path if it's not already there
-    project_root = script_dir # Assuming script is in project root
+    project_root = script_dir
     if project_root not in sys.path:
         sys.path.insert(0, project_root)
 
 try:
-    from core.tts import speak, tts_engine # Import tts_engine to stop it later
+    from core.tts import speak, tts_engine
     from core.user_config import load_config, save_config, DEFAULT_CONFIG
-    # from core.engine import VoiceCore # For STT (moved to where needed)
 except ImportError as e:
+    logging.error(f"Could not import core modules: {e}")
     print(f"Error: Could not import core modules: {e}")
-    print("Please ensure that the script is run from the project's root directory,")
-    print("or that the project root is in your PYTHONPATH.")
     sys.exit(1)
 
-# --- Placeholder Wake Word Data ---
-# DEVELOPER: Replace these with your actual Picovoice .ppn files and desired names.
-# Ensure these .ppn files are placed in the 'wakeword_models/' directory in the project root.
 AVAILABLE_WAKE_WORDS = [
-    {"name": "Computer", "model_file": "wakeword_models/Computer.ppn"}, # Example, replace .ppn
-    {"name": "Jarvis", "model_file": "wakeword_models/Jarvis.ppn"},   # Example, replace .ppn
-    {"name": "Assistant", "model_file": "wakeword_models/Assistant.ppn"} # Example, replace .ppn
+    {"name": "Computer", "model_file": "wakeword_models/Computer.ppn"},
+    {"name": "Jarvis", "model_file": "wakeword_models/Jarvis.ppn"},
+    {"name": "Assistant", "model_file": "wakeword_models/Assistant.ppn"},
 ]
-# --- End Placeholder Wake Word Data ---
 
-# --- OpenWakeWord Model Data ---
-# List of OpenWakeWord models to download if not present
 OPENWAKEWORD_MODELS = [
-    {"name": "Computer", "url": "https://github.com/synesthesiam/openwakeword-models/raw/main/onnx/computer.onnx", "model_file": "wakeword_models/Computer.onnx"},
-    {"name": "Jarvis", "url": "https://github.com/synesthesiam/openwakeword-models/raw/main/onnx/jarvis.onnx", "model_file": "wakeword_models/Jarvis.onnx"},
-    {"name": "Assistant", "url": "https://github.com/synesthesiam/openwakeword-models/raw/main/onnx/assistant.onnx", "model_file": "wakeword_models/Assistant.onnx"},
+    {
+        "name": "Computer",
+        "url": "https://github.com/synesthesiam/openwakeword-models/raw/main/onnx/computer.onnx",
+        "model_file": "wakeword_models/Computer.onnx",
+        "checksum": "expected_sha256_hash",
+    },
+    {
+        "name": "Jarvis",
+        "url": "https://github.com/synesthesiam/openwakeword-models/raw/main/onnx/jarvis.onnx",
+        "model_file": "wakeword_models/Jarvis.onnx",
+        "checksum": "expected_sha256_hash",
+    },
+    {
+        "name": "Assistant",
+        "url": "https://github.com/synesthesiam/openwakeword-models/raw/main/onnx/assistant.onnx",
+        "model_file": "wakeword_models/Assistant.onnx",
+        "checksum": "expected_sha256_hash",
+    },
 ]
+
+AVAILABLE_TTS_ENGINES = [
+    {"name": "pyttsx3", "id": "pyttsx3", "description": "Offline TTS (pyttsx3)"},
+    {"name": "gTTS", "id": "gtts", "description": "Google Text-to-Speech (online)"},
+]
+
+
+def verify_checksum(file_path, expected_checksum):
+    try:
+        sha256 = hashlib.sha256()
+        with open(file_path, "rb") as f:
+            for chunk in iter(lambda: f.read(4096), b""):
+                sha256.update(chunk)
+        return sha256.hexdigest() == expected_checksum
+    except Exception as e:
+        logging.error(f"Checksum verification failed for {file_path}: {e}")
+        return False
+
+
+def download_with_progress(url, path):
+    try:
+        with tqdm(unit="B", unit_scale=True, desc=os.path.basename(path)) as pbar:
+
+            def report(blocknum, blocksize, totalsize):
+                pbar.total = totalsize
+                pbar.update(blocknum * blocksize - pbar.n)
+
+            urllib.request.urlretrieve(url, path, reporthook=report)
+    except Exception as e:
+        raise RuntimeError(f"Download failed: {e}")
+
 
 def download_openwakeword_models():
-    """
-    Ensures all required OpenWakeWord ONNX models are present in the wakeword_models directory.
-    
-    Downloads each model from its specified URL if it does not already exist locally. If a download fails, instructs the user to manually download the missing model.
-    """
     if not os.path.exists("wakeword_models"):
         os.makedirs("wakeword_models")
+        logging.info("Created wakeword_models directory")
+
+    local_models = [
+        {"name": os.path.basename(f).replace(".onnx", ""), "model_file": f}
+        for f in glob.glob("wakeword_models/*.onnx")
+    ]
+    for model in local_models:
+        if model["name"] not in [m["name"] for m in OPENWAKEWORD_MODELS]:
+            OPENWAKEWORD_MODELS.append(model)
+            logging.info(f"Added local model: {model['name']}")
+
     for model in OPENWAKEWORD_MODELS:
         path = model["model_file"]
-        url = model["url"]
         if not os.path.exists(path):
+            if "url" not in model:
+                print(
+                    f"No URL provided for {model['name']}. Please place the .onnx file at {path}."
+                )
+                logging.warning(f"No URL for model {model['name']}")
+                continue
+            logging.info(
+                f"Downloading OpenWakeWord model for {model['name']} from {model['url']}"
+            )
             print(f"Downloading OpenWakeWord model for {model['name']}...")
             try:
-                urllib.request.urlretrieve(url, path)
+                download_with_progress(model["url"], path)
+                if "checksum" in model and model["checksum"]:
+                    if not verify_checksum(path, model["checksum"]):
+                        print(f"Checksum mismatch for {path}. File may be corrupted.")
+                        logging.error(f"Checksum mismatch for {path}")
+                        os.remove(path)
+                        sys.exit(1)
                 print(f"Downloaded: {path}")
+                logging.info(f"Successfully downloaded {path}")
             except Exception as e:
-                print(f"Unable to download {url}: {e}")
-                print(f"Please download the ONNX model for '{model['name']}' manually from {url} and place it at {path}.")
+                print(f"Unable to download {model['url']}: {e}")
+                logging.error(f"Download failed for {model['url']}: {e}")
         else:
             print(f"Model already exists: {path}")
+            logging.info(f"Model found: {path}")
+
 
 def transcribe_audio_with_whisper(whisper_model, audio_bytes) -> str:
-    """
-    Transcribes raw audio bytes to text using a Whisper model.
-    
-    Args:
-        whisper_model: An instance of a Whisper speech-to-text model.
-        audio_bytes: Raw audio data in 16-bit PCM format.
-    
-    Returns:
-        The transcribed text in lowercase, or an empty string if transcription fails.
-    """
     try:
         audio_int16 = np.frombuffer(audio_bytes, dtype=np.int16)
         audio_float32 = audio_int16.astype(np.float32) / 32768.0
         result = whisper_model.transcribe(audio_float32, fp16=False)
-        transcribed_text = result['text']
+        transcribed_text = result["text"]
         if isinstance(transcribed_text, list):
             transcribed_text = " ".join(str(x) for x in transcribed_text)
         return transcribed_text.strip().lower() if transcribed_text else ""
     except Exception as e:
+        logging.error(f"Whisper transcription error: {e}")
         print(f"Error during Whisper transcription: {e}")
         return ""
 
-def match_choice_from_text(transcribed_text: str, options: list[dict], key: str = "name") -> int:
-    """
-    Matches transcribed user input to an option index based on name or numeric reference.
-    
-    Args:
-        transcribed_text: The user's spoken or typed input to interpret.
-        options: List of option dictionaries to match against.
-        key: The dictionary key to use for name matching (default is "name").
-    
-    Returns:
-        The index of the matched option, or -1 if no suitable match is found.
-    """
+
+def match_choice_from_text(
+    transcribed_text: str, options: list[dict], key: str = "name"
+) -> int:
     if not transcribed_text:
         return -1
     text = transcribed_text.strip().lower()
     for i, opt in enumerate(options):
-        # Match by name (case-insensitive, substring)
         if opt[key].lower() in text:
             return i
-        # Match by number (e.g., "number one", "option 1", "1")
-        if re.search(r'(number|option|#)?\s*' + str(i + 1) + r'\b', text, re.IGNORECASE) or text == str(i + 1):
+        if re.search(
+            r"(number|option|#)?\s*" + str(i + 1) + r"\b", text, re.IGNORECASE
+        ) or text == str(i + 1):
             return i
-    # Also try matching number words (e.g., "one", "two")
-    number_words = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"]
+    number_words = [
+        "zero",
+        "one",
+        "two",
+        "three",
+        "four",
+        "five",
+        "six",
+        "seven",
+        "eight",
+        "nine",
+        "ten",
+    ]
     for i, opt in enumerate(options):
         if i < len(number_words) and number_words[i] in text:
             return i
     return -1
 
-# --- Wake Word Engine Selection ---
+
 def select_wake_word_engine():
-    """
-    Prompts the user to select a wake word engine and returns the chosen engine type.
-    
-    Returns:
-        The string 'picovoice' if Picovoice Porcupine is selected, or 'openwakeword' if OpenWakeWord is selected.
-    """
     print("\nChoose your wake word engine:")
-    print("1. Picovoice Porcupine (.ppn, requires Access Key, high accuracy, closed-source)")
-    print("2. OpenWakeWord (.onnx, open-source, no key required)")
+    print(
+        "1. Picovoice Porcupine (.ppn, requires Access Key, high accuracy, closed-source)"
+    )
+    print(
+        "2. OpenWakeWord (.onnx, open-source, no key required, supports whispered wake words)"
+    )
+    logging.info("Prompting user to select wake word engine")
     while True:
         choice = input("Enter 1 for Picovoice or 2 for OpenWakeWord: ").strip()
-        if choice == '1':
-            return 'picovoice'
-        elif choice == '2':
-            return 'openwakeword'
+        if choice == "1":
+            logging.info("User selected Picovoice")
+            return "picovoice"
+        elif choice == "2":
+            logging.info("User selected OpenWakeWord")
+            return "openwakeword"
         else:
             print("Invalid input. Please enter 1 or 2.")
+            logging.warning("Invalid engine selection input")
 
-def _get_choice_via_voice_input(prompt_context: str, options: list[dict], key: str = "name", attempts: int = 3, listen_duration_sec: int = 3) -> int:
-    """
-    Handles getting a user's choice from a list of options via voice input.
 
-    Args:
-        prompt_context: A string describing what the user is choosing (e.g., "Wake Word", "TTS Voice").
-        options: The list of dictionary options to choose from.
-        key: The dictionary key in `options` to use for matching (default "name").
-        attempts: Maximum number of voice input attempts.
-        listen_duration_sec: Duration in seconds to listen for each attempt.
+def select_tts_engine():
+    print("\nChoose your TTS engine:")
+    for i, engine in enumerate(AVAILABLE_TTS_ENGINES):
+        print(f"{i + 1}. {engine['name']} ({engine['description']})")
+        speak(f"Option {i + 1}: {engine['name']}")
+        time.sleep(0.3)
+    logging.info("Prompting user to select TTS engine")
+    while True:
+        choice = input("Enter the number for your chosen TTS engine: ").strip()
+        try:
+            choice_idx = int(choice) - 1
+            if 0 <= choice_idx < len(AVAILABLE_TTS_ENGINES):
+                logging.info(
+                    f"User selected TTS engine: {AVAILABLE_TTS_ENGINES[choice_idx]['name']}"
+                )
+                return AVAILABLE_TTS_ENGINES[choice_idx]["id"]
+            else:
+                print(
+                    f"Invalid number. Please choose between 1 and {len(AVAILABLE_TTS_ENGINES)}."
+                )
+        except ValueError:
+            print("Please enter a valid number.")
+        logging.warning("Invalid TTS engine selection input")
 
-    Returns:
-        The index of the chosen option in the `options` list, or -1 if no choice was successfully made.
-    """
+
+def _get_choice_via_voice_input(
+    prompt_context: str,
+    options: list[dict],
+    key: str = "name",
+    attempts: int = 3,
+    listen_duration_sec: int = 3,
+) -> int:
     chosen_index = -1
     temp_voice_core = None
     try:
-        print(f"INFO: Initializing temporary VoiceCore for STT ({prompt_context} selection)...")
-        from core.engine import VoiceCore # Import here to ensure it's available
-        temp_voice_core = VoiceCore(engine_type="openwakeword", openwakeword_model_path=None) # STT-only mode
+        logging.info(f"Initializing VoiceCore for STT ({prompt_context} selection)")
+        print(
+            f"INFO: Initializing temporary VoiceCore for STT ({prompt_context} selection)..."
+        )
+        from core.engine import VoiceCore
 
+        temp_voice_core = VoiceCore(
+            engine_type="openwakeword", openwakeword_model_path=None
+        )
         for attempt_num in range(attempts):
-            speak(f"{prompt_context} Choice Attempt {attempt_num + 1}. Please speak now.")
-            print(f"Listening for {prompt_context.lower()} choice ({listen_duration_sec} seconds)...")
-            time.sleep(0.5) # Brief pause for user readiness
-
+            speak(
+                f"{prompt_context} Choice Attempt {attempt_num + 1}. Please speak now."
+            )
+            print(
+                f"Listening for {prompt_context.lower()} choice ({listen_duration_sec} seconds)..."
+            )
+            logging.info(
+                f"Listening for {prompt_context} choice, attempt {attempt_num + 1}"
+            )
+            time.sleep(0.5)
             recorded_audio_frames = []
             transcribed_text = ""
-
-            if temp_voice_core and hasattr(temp_voice_core, 'stream') and temp_voice_core.stream and not temp_voice_core.stream.is_stopped():
-                # VoiceCore stream is hardcoded to 1280 frames_per_buffer, 16000 Hz
+            if (
+                temp_voice_core
+                and hasattr(temp_voice_core, "stream")
+                and temp_voice_core.stream
+                and not temp_voice_core.stream.is_stopped()
+            ):
                 for _ in range(int(16000 / 1280 * listen_duration_sec)):
                     try:
-                        audio_chunk = temp_voice_core.stream.read(1280, exception_on_overflow=False)
+                        audio_chunk = temp_voice_core.stream.read(
+                            1280, exception_on_overflow=False
+                        )
                         recorded_audio_frames.append(audio_chunk)
                     except IOError as e_read:
-                        print(f"Error reading audio stream during {prompt_context} selection: {e_read}")
-                        break # Stop trying to read for this attempt
+                        logging.error(
+                            f"Audio stream read error during {prompt_context} selection: {e_read}"
+                        )
+                        print(
+                            f"Error reading audio stream during {prompt_context} selection: {e_read}"
+                        )
+                        break
+                logging.info(f"{prompt_context} choice recording finished")
                 print(f"{prompt_context} choice recording finished.")
-
                 if recorded_audio_frames:
-                    full_audio_data = b''.join(recorded_audio_frames)
-                    if hasattr(temp_voice_core, 'whisper_model') and temp_voice_core.whisper_model:
+                    full_audio_data = b"".join(recorded_audio_frames)
+                    if (
+                        hasattr(temp_voice_core, "whisper_model")
+                        and temp_voice_core.whisper_model
+                    ):
+                        logging.info(f"Transcribing {prompt_context.lower()} choice")
                         print(f"Transcribing {prompt_context.lower()} choice...")
-                        transcribed_text = transcribe_audio_with_whisper(temp_voice_core.whisper_model, full_audio_data)
+                        transcribed_text = transcribe_audio_with_whisper(
+                            temp_voice_core.whisper_model, full_audio_data
+                        )
                         if transcribed_text:
-                            print(f"Whisper transcribed {prompt_context.lower()} choice as: '{transcribed_text}'")
+                            logging.info(
+                                f"Transcribed {prompt_context.lower()} choice: '{transcribed_text}'"
+                            )
+                            print(
+                                f"Whisper transcribed {prompt_context.lower()} choice as: '{transcribed_text}'"
+                            )
             if transcribed_text:
-                chosen_index = match_choice_from_text(transcribed_text, options, key=key)
+                chosen_index = match_choice_from_text(
+                    transcribed_text, options, key=key
+                )
                 if chosen_index != -1:
-                    speak(f"Okay, I understood your {prompt_context.lower()} choice by voice!")
-                    break # Successfully matched
-            
-            if chosen_index == -1 and attempt_num < attempts - 1: # If not matched and not the last attempt
-                speak(f"I didn't quite catch your {prompt_context.lower()} selection.")
+                    speak(
+                        f"Okay, I understood your {prompt_context.lower()} choice by voice!"
+                    )
+                    logging.info(
+                        f"Voice choice for {prompt_context} successful: index {chosen_index}"
+                    )
+                    break
     finally:
         if temp_voice_core:
-            print(f"INFO: Stopping temporary VoiceCore for STT ({prompt_context} selection)...")
+            logging.info(f"Stopping VoiceCore for STT ({prompt_context} selection)")
+            print(
+                f"INFO: Stopping temporary VoiceCore for STT ({prompt_context} selection)..."
+            )
             temp_voice_core.stop()
     return chosen_index
 
-def _select_and_configure_tts_voice():
-    """
-    Handles the TTS voice selection process, including voice/typed input and configuration saving.
-    """
-    speak("Next, let's choose a voice for me to speak with.")
+
+def _select_and_configure_tts_voice(tts_engine_type: str):
+    logging.info("Starting TTS voice selection")
+    speak("Now, let's choose a voice for the TTS engine.")
     time.sleep(0.5)
     available_tts_voices = []
-    if 'tts_engine' in globals() and hasattr(tts_engine, 'get_available_voices'):
-        available_tts_voices = tts_engine.get_available_voices()
+    try:
+        from core.tts import TTSEngineFactory
 
+        temp_engine = TTSEngineFactory.create_engine(tts_engine_type)
+        available_tts_voices = temp_engine.get_available_voices()
+        temp_engine.stop()
+    except Exception as e:
+        logging.error(f"Failed to get voices for {tts_engine_type}: {e}")
+        speak("I couldn't find any voices for the selected TTS engine. Using default.")
+        return
     if not available_tts_voices:
-        speak("I couldn't find any specific voices to choose from right now, so we'll stick with the default.")
-        print("INFO: No TTS voices found or tts_engine not available for get_available_voices.")
-        return # Nothing more to do if no voices
-
-    speak("Here are the voices I can use:")
+        speak("No specific voices found. We'll use the default.")
+        logging.warning(f"No voices found for {tts_engine_type}")
+        return
+    speak("Here are the available voices:")
     print("\nAvailable TTS Voices:")
     for i, voice in enumerate(available_tts_voices):
-        voice_display_name = voice.get('name', f"Voice {i+1}")
+        voice_display_name = voice.get("name", f"Voice {i+1}")
         print(f"{i + 1}. {voice_display_name}")
-        if i < 5: # Limit spoken options
+        if i < 5:
             speak(f"Option {i + 1}: {voice_display_name}")
             time.sleep(0.2)
     if len(available_tts_voices) > 5:
-        speak("There are more voices listed in the console if you'd like to see them all.")
-
+        speak("More voices are listed in the console.")
     chosen_voice_id = None
     chosen_voice_obj_idx = -1
-
     speak("You can say the name or number of the voice you'd like.")
     time.sleep(0.5)
-    
     chosen_voice_obj_idx = _get_choice_via_voice_input(
-        prompt_context="TTS Voice",
-        options=available_tts_voices,
-        key="name"
+        prompt_context="TTS Voice", options=available_tts_voices, key="name"
     )
-
-    if chosen_voice_obj_idx == -1: # Fallback to typed input
-        speak("I'm having a bit of trouble understanding your voice choice for TTS. Let's try with typed input.")
-        speak("Let's try selecting the voice with typed input.")
-        for tts_attempt_typed in range(3):
+    if chosen_voice_obj_idx == -1:
+        speak("Trouble understanding your voice choice. Let's try typing.")
+        logging.info("Falling back to typed input for TTS voice")
+        for attempt in range(3):
             speak("Please type the number of your chosen voice.")
             try:
-                user_input_tts = input("Enter the number for your chosen TTS voice: ")
-                choice_tts = int(user_input_tts)
-                if 1 <= choice_tts <= len(available_tts_voices):
-                    chosen_voice_obj_idx = choice_tts - 1
+                user_input = input("Enter the number for your chosen TTS voice: ")
+                choice = int(user_input)
+                if 1 <= choice <= len(available_tts_voices):
+                    chosen_voice_obj_idx = choice - 1
                     break
                 else:
-                    speak("That's not a valid number for voice choice.")
+                    speak("Invalid number for voice choice.")
+                    logging.warning("Invalid TTS voice number input")
             except ValueError:
-                speak("That didn't seem like a number for voice choice.")
-            if tts_attempt_typed == 2 and chosen_voice_obj_idx == -1: # Check if still not chosen after last attempt
-                speak("Skipping TTS voice selection for now.")
-
+                speak("That wasn't a number. Try again.")
+                logging.warning("Non-numeric TTS voice input")
+            if attempt == 2:
+                speak("Skipping voice selection.")
+                logging.info("Skipped TTS voice selection")
     if chosen_voice_obj_idx != -1:
-        chosen_voice_id = available_tts_voices[chosen_voice_obj_idx]['id']
-        chosen_voice_name = available_tts_voices[chosen_voice_obj_idx]['name']
-        speak(f"You've selected {chosen_voice_name} as your voice. Nice!")
+        chosen_voice_id = available_tts_voices[chosen_voice_obj_idx]["id"]
+        chosen_voice_name = available_tts_voices[chosen_voice_obj_idx]["name"]
+        speak(f"You've selected {chosen_voice_name} as your voice.")
         print(f"Selected TTS Voice: {chosen_voice_name} (ID: {chosen_voice_id})")
-        current_config = load_config() # Load potentially already saved config
+        logging.info(f"Selected TTS voice: {chosen_voice_name} (ID: {chosen_voice_id})")
+        current_config = load_config()
         current_config["chosen_tts_voice_id"] = chosen_voice_id
+        current_config["tts_engine_type"] = tts_engine_type
         if save_config(current_config):
-            print("TTS Voice ID saved to configuration.")
-            if 'tts_engine' in globals() and hasattr(tts_engine, 'set_voice'):
-                if tts_engine.set_voice(chosen_voice_id):
-                    speak(f"I will now try to use the {chosen_voice_name} voice.")
-                else: # If set_voice failed or tts_engine not fully ready
-                    speak(f"I'll use the {chosen_voice_name} voice the next time you start me.")
+            print("TTS configuration saved.")
+            logging.info("TTS configuration saved")
+            if tts_engine.set_voice(chosen_voice_id):
+                speak(f"Now using the {chosen_voice_name} voice.")
+            else:
+                speak(f"Will use {chosen_voice_name} next time you start.")
+                logging.warning("TTS voice set failed")
         else:
-            speak("There was an error saving your voice choice.")
-    else: # chosen_voice_obj_idx remained -1
-        speak("Okay, we'll stick with the default voice for now.")
-        print("INFO: Default TTS voice will be used.")
+            speak("Error saving your voice choice.")
+            logging.error("Failed to save TTS configuration")
+    else:
+        speak("Using default voice.")
+        logging.info("Using default TTS voice")
+
 
 def _setup_picovoice_engine() -> bool:
-    """
-    Handles the setup process specific to the Picovoice engine.
-    Returns True if setup is successful and configuration is saved, False otherwise (or exits).
-    """
     try:
-        speak("You selected Picovoice Porcupine. Please download your .ppn model from the Picovoice Console for your platform (Windows). Place it in the 'wakeword_models/' directory in your project root.")
-        speak("Ensure the model files listed correspond to what you have placed in the 'wakeword_models' directory.")
+        logging.info("Starting Picovoice setup")
+        speak(
+            "You selected Picovoice Porcupine. Let's set up your Access Key and wake word model."
+        )
         print("\n[Picovoice Setup]")
-        print("- Download your .ppn model from https://console.picovoice.ai/")
-        print("- Place the downloaded .ppn file in the 'wakeword_models/' directory in your project root.")
-        print("\nAvailable Picovoice Wake Words (ensure corresponding .ppn files are in 'wakeword_models/'):")
+        print("- You need a Picovoice Access Key from https://console.picovoice.ai/.")
+        print("- Place your .ppn model files in the 'wakeword_models/' directory.")
+        picovoice_access_key = os.environ.get("PICOVOICE_ACCESS_KEY")
+        env_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
+        if not picovoice_access_key:
+            speak("No Picovoice Access Key found.")
+            print(
+                "No PICOVOICE_ACCESS_KEY found in environment variables or .env file."
+            )
+            logging.warning("No Picovoice Access Key found")
+            speak("Please enter your Picovoice Access Key from the Picovoice Console.")
+            for attempt in range(3):
+                access_key = input("Enter your Picovoice Access Key: ").strip()
+                if access_key:
+                    try:
+                        set_key(env_file, "PICOVOICE_ACCESS_KEY", access_key)
+                        os.environ["PICOVOICE_ACCESS_KEY"] = access_key
+                        print("Access Key saved to .env file.")
+                        speak("Access Key saved successfully.")
+                        logging.info("Picovoice Access Key saved to .env")
+                        picovoice_access_key = access_key
+                        break
+                    except Exception as e:
+                        print(f"Failed to save Access Key to .env file: {e}")
+                        speak("Error saving Access Key. Try again.")
+                        logging.error(f"Failed to save Picovoice Access Key: {e}")
+                else:
+                    speak("Access Key cannot be empty. Try again.")
+                    logging.warning("Empty Picovoice Access Key input")
+                if attempt == 2:
+                    speak(
+                        "Unable to set up Access Key. Set PICOVOICE_ACCESS_KEY in .env file and rerun setup."
+                    )
+                    print("ERROR: Failed to obtain valid Picovoice Access Key.")
+                    logging.error(
+                        "Failed to obtain Picovoice Access Key after max attempts"
+                    )
+                    if "tts_engine" in globals():
+                        tts_engine.stop()
+                    sys.exit(1)
+        speak(
+            "Download your .ppn model from the Picovoice Console for Windows and place it in 'wakeword_models/'."
+        )
+        print(
+            "\nAvailable Picovoice Wake Words (ensure corresponding .ppn files are in 'wakeword_models/'):"
+        )
         for i, ww_data in enumerate(AVAILABLE_WAKE_WORDS):
             print(f"{i + 1}. {ww_data['name']} (expects: {ww_data['model_file']})")
-            if i < 5: # Speak first few
+            if i < 5:
                 speak(f"Option {i + 1}: {ww_data['name']}")
                 time.sleep(0.3)
-
         chosen_picovoice_index = -1
-        speak("You can say the name or number of the Picovoice wake word you have prepared.")
+        speak("Say the name or number of the Picovoice wake word.")
         time.sleep(0.5)
-
         chosen_picovoice_index = _get_choice_via_voice_input(
             prompt_context="Picovoice Wake Word",
             options=AVAILABLE_WAKE_WORDS,
-            key="name"
+            key="name",
         )
-
-        if chosen_picovoice_index == -1: # Fallback to typed input
-            speak("I'm having trouble understanding your Picovoice wake word choice. Let's try with typed input.")
+        if chosen_picovoice_index == -1:
+            speak("Trouble understanding your wake word choice. Try typing.")
+            logging.info("Falling back to typed input for Picovoice wake word")
             for attempt in range(3):
-                speak("Please type the number of your chosen Picovoice wake word.")
+                speak("Type the number of your chosen wake word.")
                 try:
-                    user_input = input("Enter the number for your chosen Picovoice wake word: ")
+                    user_input = input(
+                        "Enter the number for your chosen Picovoice wake word: "
+                    )
                     choice = int(user_input)
                     if 1 <= choice <= len(AVAILABLE_WAKE_WORDS):
                         chosen_picovoice_index = choice - 1
                         break
                     else:
-                        speak(f"That's not a valid number. Please choose between 1 and {len(AVAILABLE_WAKE_WORDS)}.")
+                        speak(
+                            f"Invalid number. Choose between 1 and {len(AVAILABLE_WAKE_WORDS)}."
+                        )
+                        logging.warning("Invalid Picovoice wake word number input")
                 except ValueError:
-                    speak("That didn't seem like a number. Please try again.")
+                    speak("Not a number. Try again.")
+                    logging.warning("Non-numeric Picovoice wake word input")
                 if attempt == 2 and chosen_picovoice_index == -1:
-                    speak("Sorry, I couldn't understand your choice. Please try running the setup again.")
-                    if 'tts_engine' in globals():
+                    speak("Couldn't understand your choice. Try running setup again.")
+                    logging.error(
+                        "Failed to select Picovoice wake word after max attempts"
+                    )
+                    if "tts_engine" in globals():
                         tts_engine.stop()
                     sys.exit(1)
-        
         selected_picovoice_model_data = AVAILABLE_WAKE_WORDS[chosen_picovoice_index]
-        model_path = selected_picovoice_model_data['model_file']
-        model_filename = os.path.basename(model_path) # Get filename for messages
-        speak(f"You've selected {selected_picovoice_model_data['name']}. I will check for the file {model_filename}.")
-
-        # Ask user to test the wake word
+        model_path = selected_picovoice_model_data["model_file"]
+        model_filename = os.path.basename(model_path)
+        speak(
+            f"You've selected {selected_picovoice_model_data['name']}. Checking for {model_filename}."
+        )
+        logging.info(
+            f"Selected Picovoice wake word: {selected_picovoice_model_data['name']}"
+        )
         print(f"\nVerifying and testing your chosen Picovoice model: {model_filename}")
-        speak(f"Now, I'll try to load and test the {selected_picovoice_model_data['name']} wake word model.")
-        # Minimal test: try to initialize Picovoice engine with the model
+        speak(
+            f"Loading and testing the {selected_picovoice_model_data['name']} wake word model."
+        )
         try:
-            from core.engine import VoiceCore  # Import here to avoid unused import warning
-            picovoice_access_key = os.environ.get("PICOVOICE_ACCESS_KEY")
-            if not picovoice_access_key:
-                raise RuntimeError("Picovoice access key not found in environment. Please set PICOVOICE_ACCESS_KEY in your .env file or environment variables.")
+            from core.engine import VoiceCore
+
             test_core = VoiceCore(
                 engine_type="picovoice",
                 picovoice_keyword_paths=[model_path],
-                picovoice_access_key=picovoice_access_key
+                picovoice_access_key=picovoice_access_key,
             )
             print("Picovoice engine initialized successfully with your model.")
-            speak(f"The {selected_picovoice_model_data['name']} model loaded successfully.")
+            speak(
+                f"The {selected_picovoice_model_data['name']} model loaded successfully."
+            )
+            logging.info(f"Picovoice model {model_filename} loaded successfully")
             test_core.stop()
         except Exception as e:
             print(f"Failed to initialize Picovoice engine with your model: {e}")
-            speak(f"There was a problem loading the {selected_picovoice_model_data['name']} model. Please ensure the file '{model_filename}' is correctly placed in 'wakeword_models/' and your Picovoice Access Key is valid. Then, try the setup again.")
+            speak(
+                f"Problem loading {selected_picovoice_model_data['name']} model. Ensure '{model_filename}' is in 'wakeword_models/' and Access Key is valid. Try again."
+            )
+            logging.error(f"Failed to load Picovoice model {model_filename}: {e}")
             sys.exit(1)
-        # Set up the config for Picovoice
-        selected_wake_word = selected_picovoice_model_data # Contains 'name' and 'model_file'
-        # Save configuration and skip generic wake word selection
         speak("Saving your configuration...")
-        config_data = DEFAULT_CONFIG.copy() # Start with defaults
+        logging.info("Saving Picovoice configuration")
+        config_data = DEFAULT_CONFIG.copy()
         config_data["first_run_complete"] = True
         config_data["chosen_wake_word_engine"] = "picovoice"
-        config_data["chosen_wake_word_model_path"] = selected_wake_word["model_file"]
+        config_data["chosen_wake_word_model_path"] = selected_picovoice_model_data[
+            "model_file"
+        ]
         config_data["picovoice_access_key_is_set_env"] = True
         if save_config(config_data):
             speak("Configuration saved successfully.")
             print("Configuration saved.")
+            logging.info("Picovoice configuration saved")
         else:
-            speak("There was an error saving your configuration. Please try again.")
+            speak("Error saving configuration. Try again.")
             print("ERROR: Failed to save configuration.")
-            if 'tts_engine' in globals():
-                tts_engine.stop() # Ensure TTS stops before exit
+            logging.error("Failed to save Picovoice configuration")
+            if "tts_engine" in globals():
+                tts_engine.stop()
             sys.exit(1)
-        return True # Picovoice setup and config save successful
-    except Exception as e_picovoice_setup: # Catch any unexpected error during picovoice setup
-        print(f"An unexpected error occurred during Picovoice setup: {e_picovoice_setup}")
-        speak("An unexpected error occurred during the Picovoice setup. Please try again.")
-        if 'tts_engine' in globals():
+        return True
+    except Exception as e_picovoice_setup:
+        print(f"Unexpected error during Picovoice setup: {e_picovoice_setup}")
+        speak("Unexpected error during Picovoice setup. Try again.")
+        logging.error(f"Unexpected Picovoice setup error: {e_picovoice_setup}")
+        if "tts_engine" in globals():
             tts_engine.stop()
         sys.exit(1)
 
+
 def _setup_openwakeword_engine() -> bool:
-    """
-    Handles the setup process specific to the OpenWakeWord engine.
-    Returns True if setup is successful and configuration is saved, False otherwise (or exits).
-    """
     try:
-        speak("You selected OpenWakeWord. ONNX models will be downloaded automatically if possible.")
-        print("\n[OpenWakeWord Setup]")
-        print("- ONNX models will be downloaded to 'wakeword_models/'. If download fails, download manually from the URLs printed above.")
-        download_openwakeword_models()
-
-        # --- Wake Word Selection for OpenWakeWord only ---
-        # 2. Choose a Wake Word
-        speak("Please choose a wake word from the following options.")
-        print("\nAvailable OpenWakeWord Models:")
-        for i, ww_data in enumerate(OPENWAKEWORD_MODELS): # Use OPENWAKEWORD_MODELS for choices
-            print(f"{i + 1}. {ww_data['name']}")
-            speak(f"Option {i + 1}: {ww_data['name']}") # Speak names from OPENWAKEWORD_MODELS
-            time.sleep(0.3)
-
-        chosen_index = -1 # Ensure it's initialized before voice or typed input attempts
-
-        # --- Voice Input for Wake Word Selection ---
-        speak("You can say the name of the wake word, or its number from the list.")
-        time.sleep(0.5)
-        
-        chosen_index = _get_choice_via_voice_input(
-            prompt_context="Wake Word",
-            options=OPENWAKEWORD_MODELS,
-            key="name"
+        logging.info("Starting OpenWakeWord setup")
+        speak(
+            "You selected OpenWakeWord. ONNX models will be downloaded automatically. These support whispered wake words."
         )
-        if chosen_index == -1: # If voice input failed
-            speak("I'm having a bit of trouble understanding your voice choice. Let's try with typed input.")
-        # --- End Voice Input Logic ---
-
+        print("\n[OpenWakeWord Setup]")
+        print(
+            "- ONNX models will be downloaded to 'wakeword_models/'. If download fails, download manually."
+        )
+        download_openwakeword_models()
+        speak("Choose a wake word from the following options.")
+        print("\nAvailable OpenWakeWord Models:")
+        for i, ww_data in enumerate(OPENWAKEWORD_MODELS):
+            print(f"{i + 1}. {ww_data['name']}")
+            speak(f"Option {i + 1}: {ww_data['name']}")
+            time.sleep(0.3)
+        chosen_index = -1
+        speak("Say the name or number of the wake word.")
+        time.sleep(0.5)
+        chosen_index = _get_choice_via_voice_input(
+            prompt_context="Wake Word", options=OPENWAKEWORD_MODELS, key="name"
+        )
+        if chosen_index == -1:
+            speak("Trouble understanding your voice choice. Try typing.")
+            logging.info("Falling back to typed input for OpenWakeWord wake word")
         retries = 3
-        # Fallback to typed input if voice selection failed
         if chosen_index == -1:
             for attempt in range(retries):
-                speak("Please type the number of your choice.")
+                speak("Type the number of your choice.")
                 try:
                     user_input = input("Enter the number for your chosen wake word: ")
                     choice = int(user_input)
-                    if 1 <= choice <= len(OPENWAKEWORD_MODELS): # Check against length of OPENWAKEWORD_MODELS
+                    if 1 <= choice <= len(OPENWAKEWORD_MODELS):
                         chosen_index = choice - 1
                         break
                     else:
-                        speak(f"That's not a valid number. Please choose between 1 and {len(OPENWAKEWORD_MODELS)}.")
+                        speak(
+                            f"Invalid number. Choose between 1 and {len(OPENWAKEWORD_MODELS)}."
+                        )
+                        logging.warning("Invalid OpenWakeWord wake word number input")
                 except ValueError:
-                    speak("That didn't seem like a number. Please try again.") # Corrected speak message
-
+                    speak("Not a number. Try again.")
+                    logging.warning("Non-numeric OpenWakeWord wake word input")
                 if attempt < retries - 1:
-                    speak("Let's try that again.")
+                    speak("Let's try again.")
                 else:
-                    speak("Sorry, I'm having trouble understanding your choice. Please try running the setup again later.")
-                    if 'tts_engine' in globals():
-                        tts_engine.stop() # Ensure TTS stops before exit
+                    speak("Couldn't understand your choice. Try running setup again.")
+                    logging.error(
+                        "Failed to select OpenWakeWord wake word after max attempts"
+                    )
+                    if "tts_engine" in globals():
+                        tts_engine.stop()
                     sys.exit(1)
-
-        selected_wake_word = OPENWAKEWORD_MODELS[chosen_index] # Get selection from OPENWAKEWORD_MODELS
-        speak(f"You've selected: {selected_wake_word['name']}. Great choice!")
-        print(f"Selected wake word: {selected_wake_word['name']} (Model: {selected_wake_word['model_file']})")
+        selected_wake_word = OPENWAKEWORD_MODELS[chosen_index]
+        speak(
+            f"You've selected: {selected_wake_word['name']}. This model has a false accept rate below 0.5 per hour."
+        )
+        print(
+            f"Selected wake word: {selected_wake_word['name']} (Model: {selected_wake_word['model_file']})"
+        )
+        logging.info(f"Selected OpenWakeWord wake word: {selected_wake_word['name']}")
         time.sleep(0.5)
-
-        # 4. Verify model file existence (basic check)
-        # Assumes script is run from project root where wakeword_models/ is located.
-        model_path_to_check = selected_wake_word['model_file']
+        model_path_to_check = selected_wake_word["model_file"]
         if not os.path.exists(model_path_to_check):
-            speak(f"Warning: The model file for {selected_wake_word['name']} at {model_path_to_check} was not found.")
-            print(f"WARNING: Model file '{model_path_to_check}' not found! It should have been downloaded automatically. Please check the 'wakeword_models' directory.")
-            speak("Please check the file path and run the setup again.")
-            if 'tts_engine' in globals():
-                tts_engine.stop() # Ensure TTS stops before exit
+            speak(
+                f"Model file for {selected_wake_word['name']} not found at {model_path_to_check}. Download from {selected_wake_word.get('url', 'OpenWakeWord repository')}."
+            )
+            print(f"WARNING: Model file '{model_path_to_check}' not found!")
+            logging.error(f"Model file not found: {model_path_to_check}")
+            if "tts_engine" in globals():
+                tts_engine.stop()
             sys.exit(1)
         else:
             print(f"Model file found at: {model_path_to_check}")
+            logging.info(f"Model file found: {model_path_to_check}")
+        try:
+            from openwakeword.model import Model
 
-
-        # 5. Save Configuration
+            test_model = Model(wakeword_model_paths=[model_path_to_check])
+            print(
+                f"OpenWakeWord model '{selected_wake_word['name']}' loaded successfully."
+            )
+            speak(f"The {selected_wake_word['name']} model loaded successfully.")
+            logging.info(
+                f"OpenWakeWord model {model_path_to_check} loaded successfully"
+            )
+        except Exception as e:
+            print(f"Failed to load OpenWakeWord model: {e}")
+            speak(
+                f"Error loading {selected_wake_word['name']} model. Ensure file at {model_path_to_check} is valid."
+            )
+            logging.error(
+                f"Failed to load OpenWakeWord model {model_path_to_check}: {e}"
+            )
+            sys.exit(1)
         speak("Saving your configuration...")
-        config_data = DEFAULT_CONFIG.copy() # Start with defaults
+        logging.info("Saving OpenWakeWord configuration")
+        config_data = DEFAULT_CONFIG.copy()
         config_data["first_run_complete"] = True
-        config_data["chosen_wake_word_engine"] = "openwakeword" # Correct engine type
+        config_data["chosen_wake_word_engine"] = "openwakeword"
         config_data["chosen_wake_word_model_path"] = selected_wake_word["model_file"]
-        config_data["picovoice_access_key_is_set_env"] = False # Not relevant for OpenWakeWord
-        
+        config_data["picovoice_access_key_is_set_env"] = False
         if save_config(config_data):
             speak("Configuration saved successfully.")
             print("Configuration saved.")
+            logging.info("OpenWakeWord configuration saved")
         else:
-            speak("There was an error saving your configuration. Please try again.")
+            speak("Error saving configuration. Try again.")
             print("ERROR: Failed to save configuration.")
-            if 'tts_engine' in globals():
-                tts_engine.stop() # Ensure TTS stops before exit
+            logging.error("Failed to save OpenWakeWord configuration")
+            if "tts_engine" in globals():
+                tts_engine.stop()
             sys.exit(1)
-        return True # OpenWakeWord setup and config save successful
-    except Exception as e_oww_setup: # Catch any unexpected error during oww setup
-        print(f"An unexpected error occurred during OpenWakeWord setup: {e_oww_setup}")
-        speak("An unexpected error occurred during the OpenWakeWord setup. Please try again.")
-        if 'tts_engine' in globals():
+        return True
+    except Exception as e_oww_setup:
+        print(f"Unexpected error during OpenWakeWord setup: {e_oww_setup}")
+        speak("Unexpected error during OpenWakeWord setup. Try again.")
+        logging.error(f"Unexpected OpenWakeWord setup error: {e_oww_setup}")
+        if "tts_engine" in globals():
             tts_engine.stop()
         sys.exit(1)
 
-def run_first_time_setup():
-    """
-    Guides the user through the initial configuration of the voice assistant.
-    
-    This interactive setup process assists the user in selecting and verifying a wake word engine (Picovoice Porcupine or OpenWakeWord), configuring the appropriate wake word model, and choosing a text-to-speech (TTS) voice. The function handles both voice and typed input for selections, verifies model files, saves configuration settings, and provides spoken and printed feedback throughout. On completion or critical failure, the function exits the script after cleanup.
-    """
-    # Initial speak calls are outside the try/finally as they are introductory
-    # and tts_engine should be running for them.
-    speak("Welcome! It looks like this is your first time running the voice assistant, or your setup wasn't completed.")
-    time.sleep(0.5)
-    speak("Let's get a few things configured.")
-    time.sleep(0.5)
 
+def run_first_time_setup():
+    logging.info("Starting first run setup")
+    speak(
+        "Welcome! This is your first time running the voice assistant, or setup wasn't completed."
+    )
+    time.sleep(0.5)
+    speak("Let's configure a few things.")
+    time.sleep(0.5)
     try:
         engine_setup_successful = False
         engine_choice = select_wake_word_engine()
-
-        if engine_choice == 'picovoice':
+        if engine_choice == "picovoice":
+            logging.info("Proceeding with Picovoice setup, skipping OpenWakeWord")
             engine_setup_successful = _setup_picovoice_engine()
-        elif engine_choice == 'openwakeword': # Explicitly check for 'openwakeword'
+        elif engine_choice == "openwakeword":
+            logging.info("Proceeding with OpenWakeWord setup")
             engine_setup_successful = _setup_openwakeword_engine()
-        
         if engine_setup_successful:
-            _select_and_configure_tts_voice()
+            tts_engine_type = select_tts_engine()
+            _select_and_configure_tts_voice(tts_engine_type)
             time.sleep(0.5)
-            speak("Setup is complete! Please restart the main application for the changes to take effect.")
+            speak("Setup complete! Restart the application to apply changes.")
             print("\nSetup complete. Please restart the main application.")
-            # Normal successful completion will lead to the finally block
-        else: 
-            # This 'else' might not be strictly necessary if sub-functions always sys.exit on failure.
-            # However, it's a good fallback message if a sub-function returned False without exiting.
-            speak("Wake word engine setup was not completed. Please try running the setup again.")
-            # This path will also lead to the finally block
+            logging.info("Setup completed successfully")
+        else:
+            speak("Wake word engine setup incomplete. Try running setup again.")
+            logging.error("Wake word engine setup incomplete")
     finally:
-        # This block will execute before the script terminates,
-        # whether due to normal completion or an unhandled SystemExit from sys.exit().
-        if 'tts_engine' in globals():
-            print("INFO: Ensuring TTS engine is stopped before exiting setup script.")
+        if "tts_engine" in globals():
+            print("INFO: Stopping TTS engine before exiting.")
+            logging.info("Stopping TTS engine")
             tts_engine.stop()
+
 
 if __name__ == "__main__":
     run_first_time_setup()
