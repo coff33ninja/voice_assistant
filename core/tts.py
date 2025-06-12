@@ -11,7 +11,7 @@ import queue
 import time
 from typing import Optional, List, Dict
 from abc import ABC, abstractmethod
-from core.user_config import load_config, save_config_type, DEFAULT_CONFIG
+from core.user_config import load_config, save_config, DEFAULT_CONFIG
 try:
     import pyttsx3
 except ImportError:

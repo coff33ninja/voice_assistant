@@ -13,6 +13,7 @@ import sys
 import time
 import re
 import numpy as np
+import urllib.error # Added for specific network error handling
 import urllib.request
 import hashlib
 import logging
@@ -53,19 +54,19 @@ OPENWAKEWORD_MODELS = [
         "name": "Computer",
         "url": "https://github.com/synesthesiam/openwakeword-models/raw/main/onnx/computer.onnx",
         "model_file": "wakeword_models/Computer.onnx",
-        "checksum": "expected_sha256_hash",
+        "checksum": "SHA256_PLACEHOLDER_COMPUTER", # Placeholder: Replace with actual SHA256 hash
     },
     {
         "name": "Jarvis",
         "url": "https://github.com/synesthesiam/openwakeword-models/raw/main/onnx/jarvis.onnx",
         "model_file": "wakeword_models/Jarvis.onnx",
-        "checksum": "expected_sha256_hash",
+        "checksum": "SHA256_PLACEHOLDER_JARVIS", # Placeholder: Replace with actual SHA256 hash
     },
     {
         "name": "Assistant",
         "url": "https://github.com/synesthesiam/openwakeword-models/raw/main/onnx/assistant.onnx",
         "model_file": "wakeword_models/Assistant.onnx",
-        "checksum": "expected_sha256_hash",
+        "checksum": "SHA256_PLACEHOLDER_ASSISTANT", # Placeholder: Replace with actual SHA256 hash
     },
 ]
 
@@ -87,17 +88,31 @@ def verify_checksum(file_path, expected_checksum):
         return False
 
 
-def download_with_progress(url, path):
-    try:
-        with tqdm(unit="B", unit_scale=True, desc=os.path.basename(path)) as pbar:
+def download_with_progress(url, path, retries=3, delay=5):
+    """Downloads a file with progress and retries on common network errors."""
+    for attempt in range(retries):
+        try:
+            desc = os.path.basename(path)
+            if retries > 1:
+                desc += f" (Attempt {attempt + 1}/{retries})"
+            with tqdm(unit="B", unit_scale=True, desc=desc) as pbar:
+                def report(blocknum, blocksize, totalsize):
+                    pbar.total = totalsize # Set total size dynamically
+                    pbar.update(blocksize) # Increment by blocksize
 
-            def report(blocknum, blocksize, totalsize):
-                pbar.total = totalsize
-                pbar.update(blocknum * blocksize - pbar.n)
-
-            urllib.request.urlretrieve(url, path, reporthook=report)
-    except Exception as e:
-        raise RuntimeError(f"Download failed: {e}")
+                urllib.request.urlretrieve(url, path, reporthook=report)
+            return  # Success
+        except (urllib.error.URLError, ConnectionResetError, TimeoutError) as e:
+            logging.warning(f"Download attempt {attempt + 1} for {url} failed: {e}")
+            if attempt < retries - 1:
+                print(f"Download failed: {e}. Retrying in {delay} seconds...")
+                time.sleep(delay)
+            else:
+                logging.error(f"Failed to download {url} after {retries} attempts.")
+                raise RuntimeError(f"Download failed after {retries} attempts: {e}")
+        except Exception as e:  # Catch other unexpected errors during download
+            logging.error(f"Unexpected error during download of {url} (attempt {attempt + 1}): {e}")
+            raise RuntimeError(f"Unexpected download error: {e}")
 
 
 def download_openwakeword_models():
@@ -128,22 +143,48 @@ def download_openwakeword_models():
             )
             print(f"Downloading OpenWakeWord model for {model['name']}...")
             try:
-                download_with_progress(model["url"], path)
-                if "checksum" in model and model["checksum"]:
-                    if not verify_checksum(path, model["checksum"]):
-                        print(f"Checksum mismatch for {path}. File may be corrupted.")
-                        logging.error(f"Checksum mismatch for {path}")
-                        os.remove(path)
-                        sys.exit(1)
-                print(f"Downloaded: {path}")
-                logging.info(f"Successfully downloaded {path}")
-            except Exception as e:
-                print(f"Unable to download {model['url']}: {e}")
-                logging.error(f"Download failed for {model['url']}: {e}")
+                download_with_progress(model["url"], path) # This now has retries
+                download_successful = True
+            except RuntimeError as e_download: # Catch from download_with_progress if all retries fail
+                print(f"ERROR: Unable to download {model['name']} from {model['url']} after multiple attempts: {e_download}")
+                logging.error(f"Final download failed for {model['url']}: {e_download}")
+                speak(f"Failed to download the model for {model['name']}. You may need to download it manually or check your connection.")
+                download_successful = False
+            except Exception as e_unexpected_download: # Broader catch
+                print(f"ERROR: An unexpected error occurred while trying to download {model['url']}: {e_unexpected_download}")
+                logging.error(f"Unexpected download error for {model['url']}: {e_unexpected_download}")
+                download_successful = False
+
+            if download_successful and os.path.exists(path):
+                print(f"Successfully downloaded: {path}")
+                # Checksum verification only if a non-placeholder checksum is provided
+                expected_checksum = model.get("checksum")
+                is_placeholder_checksum = isinstance(expected_checksum, str) and expected_checksum.startswith("SHA256_PLACEHOLDER_")
+
+                if expected_checksum and not is_placeholder_checksum:
+                    print(f"Verifying checksum for {model['name']}...")
+                    if not verify_checksum(path, expected_checksum):
+                        print(f"ERROR: Checksum mismatch for {path}. The file might be corrupted or the expected checksum is incorrect.")
+                        logging.error(f"Checksum mismatch for {path}. Expected: {expected_checksum}, Got: <actual_hash_not_logged_here_for_brevity>")
+                        speak(f"The downloaded file for {model['name']} failed a security check. It will be removed.")
+                        try:
+                            os.remove(path)
+                            print(f"Removed potentially corrupted file: {path}")
+                        except OSError as e_del:
+                            print(f"ERROR: Could not remove file {path} after checksum failure: {e_del}")
+                            logging.error(f"Failed to remove {path} after checksum error: {e_del}")
+                    else:
+                        print(f"Checksum verified for {model['name']}.")
+                        logging.info(f"Successfully downloaded and verified {path}")
+                elif is_placeholder_checksum:
+                    print(f"INFO: Checksum for {model['name']} is a placeholder. Skipping verification. For enhanced security, please update the script with the actual SHA256 hash for this model.")
+                    logging.warning(f"Skipping checksum verification for {path} due to placeholder. Downloaded without verification.")
+                else: # No checksum provided or it's empty/None
+                    print(f"INFO: No checksum provided for {model['name']}. Skipping verification.")
+                    logging.info(f"Successfully downloaded {path} (checksum not provided/verified).")
         else:
             print(f"Model already exists: {path}")
             logging.info(f"Model found: {path}")
-
 
 def transcribe_audio_with_whisper(whisper_model, audio_bytes) -> str:
     try:
@@ -416,6 +457,14 @@ def _select_and_configure_tts_voice(tts_engine_type: str):
 
 def _setup_picovoice_engine() -> bool:
     try:
+        # Ensure wakeword_models directory exists
+        wakeword_models_dir = "wakeword_models"
+        if not os.path.exists(wakeword_models_dir):
+            os.makedirs(wakeword_models_dir)
+            logging.info(f"Created directory: {wakeword_models_dir}")
+            print(
+                f"INFO: Created directory for wake word models: {os.path.abspath(wakeword_models_dir)}"
+            )
         logging.info("Starting Picovoice setup")
         speak(
             "You selected Picovoice Porcupine. Let's set up your Access Key and wake word model."
@@ -458,8 +507,10 @@ def _setup_picovoice_engine() -> bool:
                     logging.error(
                         "Failed to obtain Picovoice Access Key after max attempts"
                     )
-                    if "tts_engine" in globals():
-                        tts_engine.stop()
+                    # Ensure tts_engine is stopped before exiting
+                    # This will be handled by the finally block in run_first_time_setup
+                    # if "tts_engine" in globals() and tts_engine:
+                    #     tts_engine.stop()
                     sys.exit(1)
         speak(
             "Download your .ppn model from the Picovoice Console for Windows and place it in 'wakeword_models/'."
@@ -472,12 +523,42 @@ def _setup_picovoice_engine() -> bool:
             if i < 5:
                 speak(f"Option {i + 1}: {ww_data['name']}")
                 time.sleep(0.3)
+
+        print(f"\nINFO: Searching for .ppn models in {os.path.abspath(wakeword_models_dir)}...")
+        found_ppn_files = glob.glob(os.path.join(wakeword_models_dir, "*.ppn"))
+
+        if not found_ppn_files:
+            speak("No .ppn model files found in the 'wakeword_models' directory. Please add your models and rerun setup.")
+            print(f"ERROR: No .ppn files found in {os.path.abspath(wakeword_models_dir)}. Please place your Picovoice model file(s) there and run setup again.")
+            logging.error(f"No .ppn files found in {wakeword_models_dir}")
+            sys.exit(1)
+
+        selectable_models = []
+        for file_path in found_ppn_files:
+            model_filename_base = os.path.splitext(os.path.basename(file_path))[0]
+            display_name = model_filename_base # Default to filename
+            # Try to use a more friendly name if it matches a predefined model
+            for predefined in AVAILABLE_WAKE_WORDS:
+                if os.path.normcase(os.path.normpath(predefined["model_file"])) == os.path.normcase(os.path.normpath(file_path)):
+                    display_name = predefined["name"]
+                    break
+            selectable_models.append({"name": display_name, "model_file": file_path})
+
+        selectable_models.sort(key=lambda x: x["name"]) # Sort for consistent display
+
+        print("\nFound Picovoice Wake Word Models (select one):")
+        for i, model_data in enumerate(selectable_models):
+            print(f"{i + 1}. {model_data['name']} (from file: {os.path.basename(model_data['model_file'])})")
+            if i < 5: # Speak only the first few options
+                speak(f"Option {i + 1}: {model_data['name']}")
+                time.sleep(0.3)
+
         chosen_picovoice_index = -1
         speak("Say the name or number of the Picovoice wake word.")
         time.sleep(0.5)
         chosen_picovoice_index = _get_choice_via_voice_input(
             prompt_context="Picovoice Wake Word",
-            options=AVAILABLE_WAKE_WORDS,
+            options=selectable_models, # Use the dynamically generated list
             key="name",
         )
         if chosen_picovoice_index == -1:
@@ -490,12 +571,12 @@ def _setup_picovoice_engine() -> bool:
                         "Enter the number for your chosen Picovoice wake word: "
                     )
                     choice = int(user_input)
-                    if 1 <= choice <= len(AVAILABLE_WAKE_WORDS):
+                    if 1 <= choice <= len(selectable_models):
                         chosen_picovoice_index = choice - 1
                         break
                     else:
                         speak(
-                            f"Invalid number. Choose between 1 and {len(AVAILABLE_WAKE_WORDS)}."
+                            f"Invalid number. Choose between 1 and {len(selectable_models)}."
                         )
                         logging.warning("Invalid Picovoice wake word number input")
                 except ValueError:
@@ -506,19 +587,40 @@ def _setup_picovoice_engine() -> bool:
                     logging.error(
                         "Failed to select Picovoice wake word after max attempts"
                     )
-                    if "tts_engine" in globals():
-                        tts_engine.stop()
+                    # Ensure tts_engine is stopped before exiting (handled by finally)
                     sys.exit(1)
-        selected_picovoice_model_data = AVAILABLE_WAKE_WORDS[chosen_picovoice_index]
+
+        selected_picovoice_model_data = selectable_models[chosen_picovoice_index]
         model_path = selected_picovoice_model_data["model_file"]
         model_filename = os.path.basename(model_path)
         speak(
-            f"You've selected {selected_picovoice_model_data['name']}. Checking for {model_filename}."
+            f"You've selected {selected_picovoice_model_data['name']}. Verifying the model file {model_filename}."
         )
         logging.info(
-            f"Selected Picovoice wake word: {selected_picovoice_model_data['name']}"
+            f"Selected Picovoice wake word: {selected_picovoice_model_data['name']}, model path: {model_path}"
         )
-        print(f"\nVerifying and testing your chosen Picovoice model: {model_filename}")
+        print(f"\nVerifying your chosen Picovoice model: {model_filename} (Path: {model_path})")
+
+        if not os.path.exists(model_path):
+            error_message_console = (
+                f"The Picovoice model file '{model_filename}' was not found at '{os.path.abspath(model_path)}'.\n"
+                f"Please ensure you have downloaded it from the Picovoice Console (https://console.picovoice.ai/)\n"
+                f"and placed it in the '{os.path.abspath(os.path.dirname(model_path))}' directory.\n"
+                f"Then, please run this setup script again."
+            )
+            error_message_speak = (
+                f"The model file {model_filename} was not found. "
+                f"Please download it from the Picovoice Console, place it in the {os.path.dirname(model_path)} directory, "
+                f"and then run this setup script again."
+            )
+            print(f"ERROR: {error_message_console}")
+            speak(error_message_speak)
+            logging.error(f"Picovoice model file not found: {model_path}. Full path checked: {os.path.abspath(model_path)}")
+            sys.exit(1) # The finally block in run_first_time_setup will handle tts_engine.stop() if needed
+        else:
+            print(f"Model file '{model_filename}' found. Proceeding with testing.")
+            logging.info(f"Picovoice model file found: {model_path}")
+
         speak(
             f"Loading and testing the {selected_picovoice_model_data['name']} wake word model."
         )
@@ -560,16 +662,14 @@ def _setup_picovoice_engine() -> bool:
             speak("Error saving configuration. Try again.")
             print("ERROR: Failed to save configuration.")
             logging.error("Failed to save Picovoice configuration")
-            if "tts_engine" in globals():
-                tts_engine.stop()
+            # Ensure tts_engine is stopped before exiting (handled by finally)
             sys.exit(1)
         return True
     except Exception as e_picovoice_setup:
         print(f"Unexpected error during Picovoice setup: {e_picovoice_setup}")
         speak("Unexpected error during Picovoice setup. Try again.")
         logging.error(f"Unexpected Picovoice setup error: {e_picovoice_setup}")
-        if "tts_engine" in globals():
-            tts_engine.stop()
+        # Ensure tts_engine is stopped before exiting (handled by finally)
         sys.exit(1)
 
 
@@ -624,8 +724,7 @@ def _setup_openwakeword_engine() -> bool:
                     logging.error(
                         "Failed to select OpenWakeWord wake word after max attempts"
                     )
-                    if "tts_engine" in globals():
-                        tts_engine.stop()
+                    # Ensure tts_engine is stopped before exiting (handled by finally)
                     sys.exit(1)
         selected_wake_word = OPENWAKEWORD_MODELS[chosen_index]
         speak(
@@ -643,8 +742,7 @@ def _setup_openwakeword_engine() -> bool:
             )
             print(f"WARNING: Model file '{model_path_to_check}' not found!")
             logging.error(f"Model file not found: {model_path_to_check}")
-            if "tts_engine" in globals():
-                tts_engine.stop()
+            # Ensure tts_engine is stopped before exiting (handled by finally)
             sys.exit(1)
         else:
             print(f"Model file found at: {model_path_to_check}")
@@ -684,16 +782,14 @@ def _setup_openwakeword_engine() -> bool:
             speak("Error saving configuration. Try again.")
             print("ERROR: Failed to save configuration.")
             logging.error("Failed to save OpenWakeWord configuration")
-            if "tts_engine" in globals():
-                tts_engine.stop()
+            # Ensure tts_engine is stopped before exiting (handled by finally)
             sys.exit(1)
         return True
     except Exception as e_oww_setup:
         print(f"Unexpected error during OpenWakeWord setup: {e_oww_setup}")
         speak("Unexpected error during OpenWakeWord setup. Try again.")
         logging.error(f"Unexpected OpenWakeWord setup error: {e_oww_setup}")
-        if "tts_engine" in globals():
-            tts_engine.stop()
+        # Ensure tts_engine is stopped before exiting (handled by finally)
         sys.exit(1)
 
 
@@ -725,7 +821,7 @@ def run_first_time_setup():
             speak("Wake word engine setup incomplete. Try running setup again.")
             logging.error("Wake word engine setup incomplete")
     finally:
-        if "tts_engine" in globals():
+        if "tts_engine" in globals() and tts_engine: # Check if tts_engine was successfully imported and initialized
             print("INFO: Stopping TTS engine before exiting.")
             logging.info("Stopping TTS engine")
             tts_engine.stop()
