@@ -4,6 +4,7 @@ openwakeword
 openai-whisper
 pyaudio
 pyttsx3
+picovoice
 pvporcupine
 numpy
 speedtest-cli

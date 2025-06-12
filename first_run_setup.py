@@ -186,6 +186,7 @@ def download_openwakeword_models():
             print(f"Model already exists: {path}")
             logging.info(f"Model found: {path}")
 
+
 def transcribe_audio_with_whisper(whisper_model, audio_bytes) -> str:
     try:
         audio_int16 = np.frombuffer(audio_bytes, dtype=np.int16)
@@ -553,117 +554,69 @@ def _setup_picovoice_engine() -> bool:
                 speak(f"Option {i + 1}: {model_data['name']}")
                 time.sleep(0.3)
 
-        chosen_picovoice_index = -1
-        speak("Say the name or number of the Picovoice wake word.")
-        time.sleep(0.5)
-        chosen_picovoice_index = _get_choice_via_voice_input(
-            prompt_context="Picovoice Wake Word",
-            options=selectable_models, # Use the dynamically generated list
-            key="name",
-        )
-        if chosen_picovoice_index == -1:
-            speak("Trouble understanding your wake word choice. Try typing.")
-            logging.info("Falling back to typed input for Picovoice wake word")
-            for attempt in range(3):
-                speak("Type the number of your chosen wake word.")
+        try:
+            # Prompt user for wake word choice
+            while True:
+                user_input = input("Enter the number for your chosen Picovoice wake word: ")
                 try:
-                    user_input = input(
-                        "Enter the number for your chosen Picovoice wake word: "
-                    )
                     choice = int(user_input)
                     if 1 <= choice <= len(selectable_models):
                         chosen_picovoice_index = choice - 1
                         break
                     else:
-                        speak(
-                            f"Invalid number. Choose between 1 and {len(selectable_models)}."
-                        )
+                        speak(f"Invalid number. Choose between 1 and {len(selectable_models)}.")
                         logging.warning("Invalid Picovoice wake word number input")
                 except ValueError:
                     speak("Not a number. Try again.")
                     logging.warning("Non-numeric Picovoice wake word input")
-                if attempt == 2 and chosen_picovoice_index == -1:
-                    speak("Couldn't understand your choice. Try running setup again.")
-                    logging.error(
-                        "Failed to select Picovoice wake word after max attempts"
-                    )
-                    # Ensure tts_engine is stopped before exiting (handled by finally)
-                    sys.exit(1)
 
-        selected_picovoice_model_data = selectable_models[chosen_picovoice_index]
-        model_path = selected_picovoice_model_data["model_file"]
-        model_filename = os.path.basename(model_path)
-        speak(
-            f"You've selected {selected_picovoice_model_data['name']}. Verifying the model file {model_filename}."
-        )
-        logging.info(
-            f"Selected Picovoice wake word: {selected_picovoice_model_data['name']}, model path: {model_path}"
-        )
-        print(f"\nVerifying your chosen Picovoice model: {model_filename} (Path: {model_path})")
+            # Retrieve selected model data
+            selected_picovoice_model_data = selectable_models[chosen_picovoice_index]
+            model_path = selected_picovoice_model_data["model_file"]
+            model_filename = os.path.basename(model_path)
 
-        if not os.path.exists(model_path):
-            error_message_console = (
-                f"The Picovoice model file '{model_filename}' was not found at '{os.path.abspath(model_path)}'.\n"
-                f"Please ensure you have downloaded it from the Picovoice Console (https://console.picovoice.ai/)\n"
-                f"and placed it in the '{os.path.abspath(os.path.dirname(model_path))}' directory.\n"
-                f"Then, please run this setup script again."
-            )
-            error_message_speak = (
-                f"The model file {model_filename} was not found. "
-                f"Please download it from the Picovoice Console, place it in the {os.path.dirname(model_path)} directory, "
-                f"and then run this setup script again."
-            )
-            print(f"ERROR: {error_message_console}")
-            speak(error_message_speak)
-            logging.error(f"Picovoice model file not found: {model_path}. Full path checked: {os.path.abspath(model_path)}")
-            sys.exit(1) # The finally block in run_first_time_setup will handle tts_engine.stop() if needed
-        else:
-            print(f"Model file '{model_filename}' found. Proceeding with testing.")
-            logging.info(f"Picovoice model file found: {model_path}")
+            # Verify model file existence
+            if not os.path.exists(model_path):
+                error_message_console = (
+                    f"Model file '{model_filename}' not found at path: {model_path}. "
+                    "Ensure the file exists and try again."
+                )
+                speak(error_message_console)
+                logging.error(error_message_console)
+                sys.exit(1)
 
-        speak(
-            f"Loading and testing the {selected_picovoice_model_data['name']} wake word model."
-        )
-        try:
-            from core.engine import VoiceCore
+            # Debugging log: Model file exists
+            logging.info(f"Model file '{model_filename}' found at path: {model_path}. Proceeding with initialization.")
 
-            test_core = VoiceCore(
-                engine_type="picovoice",
-                picovoice_keyword_paths=[model_path],
-                picovoice_access_key=picovoice_access_key,
-            )
-            print("Picovoice engine initialized successfully with your model.")
+            # Initialize Picovoice engine
             speak(
-                f"The {selected_picovoice_model_data['name']} model loaded successfully."
+                f"You've selected {selected_picovoice_model_data['name']}. Verifying the model file {model_filename}."
             )
-            logging.info(f"Picovoice model {model_filename} loaded successfully")
-            test_core.stop()
+            logging.info(
+                f"Selected Picovoice wake word: {selected_picovoice_model_data['name']}, model path: {model_path}"
+            )
+            print(f"\nVerifying your chosen Picovoice model: {model_filename} (Path: {model_path})")
+
+            try:
+                # Attempt to initialize Picovoice engine
+                picovoice_engine = initialize_picovoice_engine(model_path)
+                speak("Picovoice engine initialized successfully!")
+                logging.info("Picovoice engine initialized successfully.")
+            except PicovoiceError as e:
+                error_message = f"Failed to initialize Picovoice engine with your model: {str(e)}"
+                speak(error_message)
+                logging.error(error_message)
+                sys.exit(1)
+
+            # Debugging log: Initialization successful
+            logging.info("Picovoice engine setup completed successfully.")
+            print("Setup completed. You can now use the Picovoice wake word engine.")
+
         except Exception as e:
-            print(f"Failed to initialize Picovoice engine with your model: {e}")
-            speak(
-                f"Problem loading {selected_picovoice_model_data['name']} model. Ensure '{model_filename}' is in 'wakeword_models/' and Access Key is valid. Try again."
-            )
-            logging.error(f"Failed to load Picovoice model {model_filename}: {e}")
+            logging.error(f"Unexpected error during setup: {str(e)}")
+            speak("An unexpected error occurred. Please try again.")
             sys.exit(1)
-        speak("Saving your configuration...")
-        logging.info("Saving Picovoice configuration")
-        config_data = DEFAULT_CONFIG.copy()
-        config_data["first_run_complete"] = True
-        config_data["chosen_wake_word_engine"] = "picovoice"
-        config_data["chosen_wake_word_model_path"] = selected_picovoice_model_data[
-            "model_file"
-        ]
-        config_data["picovoice_access_key_is_set_env"] = True
-        if save_config(config_data):
-            speak("Configuration saved successfully.")
-            print("Configuration saved.")
-            logging.info("Picovoice configuration saved")
-        else:
-            speak("Error saving configuration. Try again.")
-            print("ERROR: Failed to save configuration.")
-            logging.error("Failed to save Picovoice configuration")
-            # Ensure tts_engine is stopped before exiting (handled by finally)
-            sys.exit(1)
+
         return True
     except Exception as e_picovoice_setup:
         print(f"Unexpected error during Picovoice setup: {e_picovoice_setup}")
