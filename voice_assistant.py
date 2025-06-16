@@ -6,7 +6,6 @@ from typing import Optional
 
 from wakeword_detector import run_wakeword
 
-from modules.config import GREETING_MESSAGE
 from modules.audio_utils import record_audio_async
 from modules.stt_service import initialize_stt, transcribe_audio_async
 from modules.tts_service import initialize_tts, text_to_speech_async
@@ -25,6 +24,7 @@ from modules.retrain_utils import trigger_model_retraining_async, parse_retrain_
 from modules.contractions import normalize_text
 from modules.error_handling import async_error_handler
 from typing import Callable, Dict, Awaitable
+from modules.greeting_module import get_greeting, get_goodbye
 
 # --- Modularized interaction logic ---
 
@@ -44,6 +44,7 @@ async def handle_set_reminder(normalized_transcription: str) -> str:
     # Normalize contractions and pronunciation issues
     normalized_transcription = normalize_text(normalized_transcription)
     print(f"Processing command: {normalized_transcription}")
+    await text_to_speech_async(f"Processing command: {normalized_transcription}")
     intent = await detect_intent_async(normalized_transcription)
     response = ""
     if intent == "set_reminder":
@@ -138,6 +139,7 @@ async def handle_set_reminder(normalized_transcription: str) -> str:
     weather_data = None
     if use_current_location:
         print("Fetching weather for current location...")
+        await text_to_speech_async("Fetching weather for current location...")
         weather_data = await get_weather_async(
             None
         )  # Pass None to signify current location
@@ -148,6 +150,7 @@ async def handle_set_reminder(normalized_transcription: str) -> str:
             response = "Sorry, I couldn't determine your current location or fetch the weather for it. Please check your internet connection or try specifying a city."
     elif location_name:
         print(f"Fetching weather for {location_name}...")
+        await text_to_speech_async(f"Fetching weather for {location_name}...")
         weather_data = await get_weather_async(location_name)
         if weather_data:
             response = f"The current weather in {weather_data['city']} is {weather_data['description']} with a temperature of {weather_data['temp']:.1f} degrees Celsius."
@@ -156,23 +159,48 @@ async def handle_set_reminder(normalized_transcription: str) -> str:
 
     if not response:  # Fallback if no specific response was generated
         response = "I'm not sure which location you're asking about for the weather. Please specify, like 'weather in London' or 'weather in my area'."
+    await text_to_speech_async(response)
     return response  # Added return
 
 
 @intent_handler("cancel_task")
 async def handle_cancel_task(normalized_transcription: str) -> str:
-    return "Okay, cancelling that. (Note: Advanced cancel not yet implemented.)"
+    response = "Okay, cancelling that. (Note: Advanced cancel not yet implemented.)"
+    await text_to_speech_async(response)
+    return response
 
 
 @intent_handler("calendar_query")
 async def handle_calendar_query(normalized_transcription: str) -> str:
-    return "I'm not yet connected to your calendar, but I can set reminders."
+    response = "I'm not yet connected to your calendar, but I can set reminders."
+    await text_to_speech_async(response)
+    return response
+
+
+@intent_handler("greeting")
+async def handle_greeting_intent(normalized_transcription: str) -> str:
+    response = get_greeting()
+    print(f"Assistant (greeting): {response}")
+    await text_to_speech_async(response)
+    return response
+
+
+@intent_handler("goodbye")
+async def handle_goodbye_intent(normalized_transcription: str) -> str:
+    response = get_goodbye()
+    print(f"Assistant (goodbye): {response}")
+    await text_to_speech_async(response)
+    print("Shutting down assistant as requested by user.")
+    await text_to_speech_async("Shutting down assistant as requested by user.")
+    import sys
+    sys.exit(0)
 
 
 @async_error_handler()
 async def process_command(transcription: str):
     normalized_transcription = normalize_text(transcription)
     print(f"Processing command: {normalized_transcription}")
+    await text_to_speech_async(f"Processing command: {normalized_transcription}")
     intent = await detect_intent_async(normalized_transcription)
 
     # Special handling for retrain_model as it's combined with parse_retrain_request
@@ -227,10 +255,12 @@ async def process_command(transcription: str):
 async def handle_set_reminder_intent(normalized_transcription: str) -> str:
     reminder = parse_reminder(normalized_transcription)
     if reminder:
+        response = f"Okay, I've set a reminder for '{reminder['task']}' at {reminder['time'].strftime('%I:%M %p on %A, %B %d')}"
         await save_reminder_async(reminder["task"], reminder["time"])
-        return f"Okay, I've set a reminder for '{reminder['task']}' at {reminder['time'].strftime('%I:%M %p on %A, %B %d')}"
     else:
-        return "I couldn't quite understand the reminder. Please try saying something like 'remind me to call John tomorrow at 2 pm'."
+        response = "I couldn't quite understand the reminder. Please try saying something like 'remind me to call John tomorrow at 2 pm'."
+    await text_to_speech_async(response)
+    return response
 
 
 @intent_handler("list_reminders")
@@ -240,26 +270,25 @@ async def handle_list_reminders_intent(normalized_transcription: str) -> str:
         reminders_found = await get_reminders_for_date_async(target_date)
         date_str = target_date.strftime("%A, %B %d, %Y")
         if reminders_found:
-            response_text = f"Here are your reminders for {date_str}: "
+            response = f"Here are your reminders for {date_str}: "
             for r in reminders_found:
-                response_text += f"{r['task']} at {r['time'].strftime('%I:%M %p')}. "
+                response += f"{r['task']} at {r['time'].strftime('%I:%M %p')}. "
         else:
-            response_text = f"You have no reminders scheduled for {date_str}."
-        # Show reminders in GUI
+            response = f"You have no reminders scheduled for {date_str}."
         threading.Thread(
             target=show_reminders_gui, args=(reminders_found, date_str), daemon=True
         ).start()
-        return response_text
     else:
-        return "I couldn't understand which date you want reminders for. Please specify a day like 'today', 'tomorrow', or a specific date."
+        response = "I couldn't understand which date you want reminders for. Please specify a day like 'today', 'tomorrow', or a specific date."
+    await text_to_speech_async(response)
+    return response
 
 
 @intent_handler("get_weather")
 async def handle_get_weather_intent(normalized_transcription: str) -> str:
     location_name: Optional[str] = None
     use_current_location = False
-    response_text = ""
-
+    response = ""
     my_area_phrases = [
         "my area",
         "here",
@@ -274,64 +303,55 @@ async def handle_get_weather_intent(normalized_transcription: str) -> str:
         "tell me the weather",
         "weather",
     ]
-
     location_match = re.search(
         r"(?:weather in|weather for|weather at|weather like in)\s+([A-Za-z\s]+)",
         normalized_transcription.lower(),
     )
     extracted_location = location_match.group(1).strip() if location_match else None
-
     if extracted_location:
-        # Check if the extracted location is actually a "my area" phrase
         if extracted_location.lower() in [p.lower() for p in my_area_phrases]:
             use_current_location = True
         else:
             location_name = extracted_location
     else:
-        # No specific location like "weather in X", check for general "my area" or simple queries
         transcription_lower_stripped = normalized_transcription.lower().strip()
         is_simple_query = transcription_lower_stripped in simple_weather_queries
         is_my_area_query = any(
             phrase in transcription_lower_stripped for phrase in my_area_phrases
         )
-
         if is_my_area_query or is_simple_query:
             use_current_location = True
         else:
-            # If intent is get_weather but no clear location or "my area" phrase, prompt the user
-            response_text = "Which location's weather are you interested in? For example, say 'what is the weather in London' or 'what is the weather in my area'."
-            await text_to_speech_async(response_text)
-            return ""  # Exit early as we need more information
-
-    # Now, fetch weather based on determined location_name or use_current_location
+            response = "Which location's weather are you interested in? For example, say 'what is the weather in London' or 'what is the weather in my area'."
+            await text_to_speech_async(response)
+            return response
     weather_data = None
     if use_current_location:
         print("Fetching weather for current location...")
-        weather_data = await get_weather_async(
-            None
-        )  # Pass None to signify current location
+        await text_to_speech_async("Fetching weather for current location...")
+        weather_data = await get_weather_async(None)
         if weather_data:
-            response_text = f"The current weather in {weather_data['city']} is {weather_data['description']} with a temperature of {weather_data['temp']:.1f} degrees Celsius."
-
+            response = f"The current weather in {weather_data['city']} is {weather_data['description']} with a temperature of {weather_data['temp']:.1f} degrees Celsius."
         else:
-            response_text = "Sorry, I couldn't determine your current location or fetch the weather for it. Please check your internet connection or try specifying a city."
+            response = "Sorry, I couldn't determine your current location or fetch the weather for it. Please check your internet connection or try specifying a city."
     elif location_name:
         print(f"Fetching weather for {location_name}...")
+        await text_to_speech_async(f"Fetching weather for {location_name}...")
         weather_data = await get_weather_async(location_name)
         if weather_data:
-            response_text = f"The current weather in {weather_data['city']} is {weather_data['description']} with a temperature of {weather_data['temp']:.1f} degrees Celsius."
+            response = f"The current weather in {weather_data['city']} is {weather_data['description']} with a temperature of {weather_data['temp']:.1f} degrees Celsius."
         else:
-            response_text = f"Sorry, I couldn't fetch the weather for {location_name}. Please ensure the API key is set up and the location is valid."
-
-    if not response_text:  # Fallback if no specific response was generated
-        response_text = "I'm not sure which location you're asking about for the weather. Please specify, like 'weather in London' or 'weather in my area'."
-    # Ensure function always returns a string
-    return response_text
+            response = f"Sorry, I couldn't fetch the weather for {location_name}. Please ensure the API key is set up and the location is valid."
+    if not response:
+        response = "I'm not sure which location you're asking about for the weather. Please specify, like 'weather in London' or 'weather in my area'."
+    await text_to_speech_async(response)
+    return response
 
 
 async def handle_interaction():
-    print(f"Assistant (speaking): {GREETING_MESSAGE}")
-    await text_to_speech_async(GREETING_MESSAGE)
+    greeting = get_greeting()
+    print(f"Assistant (speaking): {greeting}")
+    await text_to_speech_async(greeting)
     audio_data = await record_audio_async()
     transcription = await transcribe_audio_async(audio_data)
     if not transcription or not transcription.strip():
@@ -377,7 +397,8 @@ def run_assistant():
                 await wake_event.wait()
 
                 print("Wake word detected! Greeting user...")
-                await text_to_speech_async(GREETING_MESSAGE)
+                greeting = get_greeting()
+                await text_to_speech_async(greeting)
                 print("Greeting finished. Listening for command...")
                 audio_data = await record_audio_async()
                 transcription = await transcribe_audio_async(audio_data)

@@ -17,7 +17,10 @@ INTENT_LABELS_MAP = {
     3: "general_query",
     4: "list_reminders",
     5: "retrain_model",
-    6: "cancel_task",}
+    6: "cancel_task",
+    7: "greeting",
+    8: "goodbye",
+}
 
 CONFIDENCE_THRESHOLD = 0.70  # Minimum confidence to accept a classified intent
 
