@@ -1,5 +1,8 @@
 import os
-import torch
+from dotenv import load_dotenv
+
+# Load environment variables from .env file if present
+load_dotenv()
 
 # _SCRIPT_DIR should point to the project's root directory (e.g., 'e:\SCRIPTS\voice_assistant')
 # This assumes config.py is in a 'modules' subdirectory.
@@ -9,12 +12,18 @@ BASE_DIR = os.path.join(_PROJECT_ROOT, "models")
 
 DB_PATH = os.path.join(BASE_DIR, "reminders.db")
 MODEL_SAVE_PATH = os.path.join(BASE_DIR, "fine_tuned_distilbert")
-PICOVOICE_KEY_FILE_PATH = os.path.join(
-    BASE_DIR, "picovoice_key.txt"
-)  # Renamed for clarity
+
+# API keys now loaded from environment variables, fallback to file if not set
+def get_picovoice_key():
+    return os.getenv("PICOVOICE_KEY")
+
+def get_openweather_api_key():
+    return os.getenv("OPENWEATHER_API_KEY")
+
+PICOVOICE_KEY_FILE_PATH = os.path.join(BASE_DIR, "picovoice_key.txt")
 OPENWEATHER_API_KEY_FILE_PATH = os.path.join(BASE_DIR, "openweather_api_key.txt")
 
-ASR_DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+ASR_DEVICE = "cuda" if hasattr(__import__('torch'), 'cuda') and __import__('torch').cuda.is_available() else "cpu"
 ALIGN_LANGUAGE_CODE = "en"  # For WhisperX alignment model
 
 GREETING_MESSAGE = "How can I help you?"

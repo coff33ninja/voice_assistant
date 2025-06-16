@@ -2,7 +2,7 @@ import asyncio # noqa F401
 import aiohttp
 import os
 from typing import Optional, Tuple, Dict, Union, Any
-from .config import OPENWEATHER_API_KEY_FILE_PATH
+from .config import get_openweather_api_key, OPENWEATHER_API_KEY_FILE_PATH
 
 OPENWEATHER_API_URL = "http://api.openweathermap.org/data/2.5/weather"
 IP_GEOLOCATION_URL = "http://ip-api.com/json/"
@@ -11,16 +11,19 @@ api_key = None
 def initialize_weather_service():
     global api_key
     print("Initializing Weather service...")
-    if os.path.exists(OPENWEATHER_API_KEY_FILE_PATH):
+    api_key = get_openweather_api_key()
+    if api_key:
+        print("Weather service API key loaded from environment.")
+    elif os.path.exists(OPENWEATHER_API_KEY_FILE_PATH):
         with open(OPENWEATHER_API_KEY_FILE_PATH, "r") as f:
             api_key = f.read().strip()
         if api_key:
-            print("Weather service API key loaded.")
+            print("Weather service API key loaded from file.")
         else:
             print("Warning: OpenWeather API key file is empty.")
             api_key = None # Ensure it's None if file was empty
     else:
-        print(f"Warning: OpenWeather API key file not found at {OPENWEATHER_API_KEY_FILE_PATH}. Weather service will not work.")
+        print(f"Warning: OpenWeather API key not found in environment or at {OPENWEATHER_API_KEY_FILE_PATH}. Weather service will not work.")
         api_key = None
 
 

@@ -225,6 +225,8 @@ def install_python_dependencies():
             "accelerate==1.0.0",
             "sounddevice",
             "aiohttp",
+            "python-dotenv",
+            "nest_asyncio",
         ],
         "Failed to install core dependencies",
     )
