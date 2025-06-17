@@ -364,6 +364,16 @@ if __name__ == "__main__":
 
 # --- Auto-generated handlers for orphaned responses ---
 
+
+@intent_handler("set_reminder_success")
+async def handle_set_reminder_success(normalized_transcription: str) -> str:
+    response = get_response(
+        "set_reminder_success", task="it", time="the specified time"
+    )
+    await text_to_speech_async(response)
+    return response
+
+
 @intent_handler("set_reminder_error")
 async def handle_set_reminder_error(normalized_transcription: str) -> str:
     response = get_response("set_reminder_error")
