@@ -1,5 +1,7 @@
 import os
 import json
+import subprocess
+import sys
 from modules.install_dependencies import install_dependencies
 from modules.download_and_models import setup_tts, setup_precise
 from modules.api_key_setup import setup_api_key
@@ -33,6 +35,15 @@ SETUP_STEPS = [
     "openweather_api_key"
     ]
 
+def yes_no_prompt(prompt_text: str) -> bool:
+    while True:
+        response = input(f"{prompt_text} (yes/no): ").strip().lower()
+        if response in ["yes", "y"]:
+            return True
+        if response in ["no", "n"]:
+            return False
+        print("Invalid input. Please enter 'yes' or 'no'.")
+
 def load_checkpoints():
     if os.path.exists(SETUP_CHECKPOINTS_PATH):
         with open(SETUP_CHECKPOINTS_PATH, "r") as f:
@@ -46,46 +57,120 @@ def save_checkpoints(checkpoints):
 def main():
     print("Setting up voice assistant...")
     create_directories(BASE_DIR, MODEL_SAVE_PATH)
-    checkpoints = load_checkpoints()
-    if not checkpoints.get("dependencies", False):
-        install_dependencies()
-        checkpoints["dependencies"] = True
-        save_checkpoints(checkpoints)
-    # Always run TTS setup to allow voice model changes
-    setup_tts()
-    checkpoints["tts"] = True # Still mark as 'done' for consistency, though it's always run
-    save_checkpoints(checkpoints)
-    if not checkpoints.get("precise", False):
-        setup_precise(BASE_DIR, PRECISE_MODEL_URL)
-        checkpoints["precise"] = True
-        save_checkpoints(checkpoints)
-    if not checkpoints.get("picovoice_api_key", False):
-        setup_api_key(PICOVOICE_KEY_FILE_PATH, "Picovoice", "Enter Picovoice Access Key (or press Enter to skip): ")
-        checkpoints["picovoice_api_key"] = True
-        save_checkpoints(checkpoints)
-    if not checkpoints.get("openweather_api_key", False):
-        setup_api_key(OPENWEATHER_API_KEY_FILE_PATH, "OpenWeather", "Enter OpenWeather API Key (or press Enter to skip): ")
-        checkpoints["openweather_api_key"] = True
-        save_checkpoints(checkpoints)
-    if not checkpoints.get("whisperx", False):
-        setup_whisperx()
-        checkpoints["whisperx"] = True
-        save_checkpoints(checkpoints)
-    if not checkpoints.get("db", False):
-        setup_db(DB_PATH)
-        checkpoints["db"] = True
-        save_checkpoints(checkpoints)
-    from modules.dataset import create_dataset
-    if not checkpoints.get("dataset", False):
-        create_dataset(DATASET_PATH)
-        checkpoints["dataset"] = True
-        save_checkpoints(checkpoints)
+    
+    # Import functions here to ensure they are available for the action_map
+    from modules.dataset import create_dataset 
     from modules.model_training import fine_tune_model
-    if not checkpoints.get("model_training", False):
-        fine_tune_model(DATASET_PATH, MODEL_SAVE_PATH)
-        checkpoints["model_training"] = True
-        save_checkpoints(checkpoints)
-    print("Setup complete. Run voice_assistant.py to start the assistant.")
+
+    action_map = {
+        "dependencies": (install_dependencies, {}),
+        "tts": (setup_tts, {}),
+        "precise": (setup_precise, {"base_dir": BASE_DIR, "model_url": PRECISE_MODEL_URL}),
+        "picovoice_api_key": (setup_api_key, {"key_file_path": PICOVOICE_KEY_FILE_PATH, "service_name": "Picovoice", "prompt_message": "Enter Picovoice Access Key (or press Enter to skip): "}),
+        "openweather_api_key": (setup_api_key, {"key_file_path": OPENWEATHER_API_KEY_FILE_PATH, "service_name": "OpenWeather", "prompt_message": "Enter OpenWeather API Key (or press Enter to skip): "}),
+        "whisperx": (setup_whisperx, {}),
+        "db": (setup_db, {"DB_PATH": DB_PATH}),
+        "dataset": (create_dataset, {"dataset_path": DATASET_PATH}),
+        "model_training": (fine_tune_model, {"dataset_path": DATASET_PATH, "model_save_path": MODEL_SAVE_PATH})
+    }
+
+    while True: # Main loop for the entire setup process
+        checkpoints = load_checkpoints()
+        
+        for step_name in SETUP_STEPS:
+            print(f"\n--- Processing Step: {step_name.replace('_', ' ').title()} ---")
+            func_to_call, func_args = action_map[step_name]
+            
+            is_step_complete = checkpoints.get(step_name, False)
+            
+            # TTS is always interactive for model selection, so we run it and mark it complete for this pass.
+            if step_name == "tts":
+                try:
+                    func_to_call(**func_args)
+                    checkpoints[step_name] = True
+                except Exception as e:
+                    print(f"Error during TTS configuration: {e}")
+                    checkpoints[step_name] = False # Mark as failed
+                finally:
+                    save_checkpoints(checkpoints)
+                continue # Move to the next step in SETUP_STEPS
+
+            # For other steps:
+            run_this_step = False
+            if not is_step_complete:
+                print("This step is not yet marked as complete.")
+                run_this_step = True
+            else: # Step is marked complete
+                if yes_no_prompt("This step is marked as complete. Do you want to redo it?"):
+                    run_this_step = True
+                else:
+                    print("Skipping step.")
+            
+            if run_this_step:
+                while True: # Loop for retrying a failed step
+                    try:
+                        print(f"Running setup for {step_name.replace('_', ' ').title()}...")
+                        func_to_call(**func_args)
+                        checkpoints[step_name] = True
+                        print(f"Step '{step_name.replace('_', ' ').title()}' completed successfully.")
+                        break # Exit retry loop for this step
+                    except Exception as e:
+                        print(f"Error during step '{step_name.replace('_', ' ').title()}': {e}")
+                        checkpoints[step_name] = False
+                        
+                        retry_choice = input("Step failed. Choose action: (r)etry, (s)kip this step for now, (e)xit setup: ").strip().lower()
+                        if retry_choice == 'r':
+                            print("Retrying step...")
+                            # Continue in the retry loop
+                        elif retry_choice == 's':
+                            print("Skipping step for this pass.")
+                            break # Exit retry loop, move to next step in SETUP_STEPS
+                        elif retry_choice == 'e':
+                            print("Exiting setup process.")
+                            save_checkpoints(checkpoints)
+                            return # Exit main function
+                        else:
+                            print("Invalid choice. Skipping step for this pass.")
+                            break # Default to skip
+                    finally:
+                        save_checkpoints(checkpoints)
+        
+        # After iterating through all steps in SETUP_STEPS for one pass
+        print("\n--- Current Setup Pass Complete ---")
+        
+        all_done_this_pass = all(checkpoints.get(s, False) for s in SETUP_STEPS)
+        if all_done_this_pass:
+            print("All setup steps are currently marked as complete.")
+            if not yes_no_prompt("Do you want to review or redo any steps? (If no, setup will finish)"):
+                break # Exit main while loop, setup is finished
+        else:
+            print("Some setup steps are not yet marked as complete or may have been skipped.")
+            if not yes_no_prompt("Do you want to go through the setup steps again (incomplete/skipped steps will be attempted, completed steps will offer a redo option)? (If no, setup will finish with current state)"):
+                break # Exit main while loop
+
+        # If continuing, ask about resetting all non-TTS steps
+        if yes_no_prompt("Do you want to mark ALL non-TTS steps as incomplete and start their setup over in the next pass?"):
+            for step_name_to_reset in SETUP_STEPS:
+                if step_name_to_reset != "tts":
+                    checkpoints[step_name_to_reset] = False
+            save_checkpoints(checkpoints)
+            print("All non-TTS steps have been reset. Starting setup pass again.")
+        # The main while loop will continue for another pass if not explicitly broken.
+
+    print("\nSetup process finished!")
+    print("Well, this is the most you are supposed to do for voice assistants, who knows maybe there might be new typing areas added later.")
+    print("But let's continue, and you can finally hear my voice!")
+
+    if yes_no_prompt("Would you like to launch the voice assistant now?"):
+        print("Launching voice assistant...")
+        try:
+            subprocess.Popen([sys.executable, "voice_assistant.py"])
+            sys.exit(0) # Exit the setup script successfully
+        except Exception as e:
+            print(f"Failed to launch voice_assistant.py: {e}")
+            print("You can run it manually using: python voice_assistant.py")
+    else:
+        print("You can run the assistant later using: python voice_assistant.py")
 
 if __name__ == "__main__":
     main()
