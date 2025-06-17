@@ -37,5 +37,9 @@ def initialize_llm():
 async def get_llm_response(input_text: str) -> str:
     if llm_chain is None:
         raise RuntimeError("LLM service not initialized. Call initialize_llm() first.")
-    response = await asyncio.to_thread(llm_chain.run, input=input_text)
-    return response
+    try:
+        response = await asyncio.to_thread(llm_chain.run, input=input_text)
+        return response
+    except Exception as e:
+        print(f"[ERROR] LLM connection failed: {e}")
+        return ""

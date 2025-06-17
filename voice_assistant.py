@@ -103,7 +103,12 @@ async def process_command(transcription: str):
     else:  # Fallback to LLM
         print("Sending to LLM for general query or unhandled/low-confidence intent...")
         llm_response = await get_llm_response(input_text=normalized_transcription)
-        if (
+        if llm_response is None:
+            response_text = (
+                "I couldn't reach the language model service. "
+                "Please make sure Ollama is running, then try again."
+            )
+        elif (
             not llm_response
             or "don't understand" in llm_response.lower()
             or "sorry" in llm_response.lower()
@@ -270,22 +275,16 @@ async def handle_add_calendar_event_intent(normalized_transcription: str) -> str
 
 async def handle_interaction():
     try:
-        print("[DEBUG] handle_interaction: Getting greeting...")
         greeting = get_greeting()
         print(f"Assistant (speaking): {greeting}")
-        print("[DEBUG] handle_interaction: Speaking greeting...")
         await text_to_speech_async(greeting)
-        print("[DEBUG] handle_interaction: Recording audio...")
         audio_data = await record_audio_async()
-        print("[DEBUG] handle_interaction: Transcribing audio...")
         transcription = await transcribe_audio_async(audio_data)
-        print(f"[DEBUG] handle_interaction: Transcription result: {transcription}")
         if not transcription or not transcription.strip():
             print("No speech detected after greeting.")
             await text_to_speech_async("I didn't catch that. If you need something, please call me again.")
             return
         print(f"User said: {transcription}")
-        print("[DEBUG] handle_interaction: Processing command...")
         await process_command(transcription)
     except Exception as e:
         print(f"[ERROR] Exception in handle_interaction: {e}")
@@ -317,27 +316,17 @@ def run_assistant():
                 wake_event = asyncio.Event()
 
                 def on_wakeword_detected():
-                    print("[DEBUG] Entered on_wakeword_detected callback!")
                     if loop.is_running():
-                        print("[DEBUG] loop is running, calling wake_event.set via call_soon_threadsafe")
                         loop.call_soon_threadsafe(wake_event.set)
-                        print("[DEBUG] wake_event.set scheduled on main event loop")
-                    else:
-                        print("[DEBUG] loop is NOT running in callback!")
 
-                print("[DEBUG] Before run_wakeword_async (background task)")
                 wakeword_task = asyncio.create_task(run_wakeword_async(callback=on_wakeword_detected))
-                print("[DEBUG] After creating run_wakeword_async task, before wake_event.wait()")
                 await wake_event.wait()
-                print("[DEBUG] After wake_event.wait(), before cancelling wakeword_task")
                 wakeword_task.cancel()
                 try:
                     await wakeword_task
                 except asyncio.CancelledError:
-                    print("[DEBUG] wakeword_task cancelled after wake word detected.")
-                print("[DEBUG] After cancelling wakeword_task, before handle_interaction()")
+                    pass
                 await handle_interaction()
-                print("[DEBUG] After handle_interaction()")
 
             except Exception as e:
                 print(f"Error in main loop: {e}")
