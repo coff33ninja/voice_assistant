@@ -1,0 +1,95 @@
+text,label
+Remind me to call mom tomorrow at 2:30 pm,set_reminder
+Set a reminder for meeting at 5 pm,set_reminder
+Remind me to buy groceries in 2 hours,set_reminder
+Remind me to take medicine at 8 pm,set_reminder
+What’s on my calendar this week?,calendar_query
+Check my calendar for tomorrow,calendar_query
+Show me my schedule for Friday,calendar_query
+What's my next appointment?,calendar_query
+What’s the weather like today?,get_weather
+Tell me the weather forecast for tomorrow,get_weather
+Is it going to rain this afternoon?,get_weather
+Will it rain tomorrow?,get_weather
+What's the temperature outside?,get_weather
+Is it sunny today?,get_weather
+What are my reminders for today?,list_reminders
+Show me reminders for tomorrow,list_reminders
+List my reminders for next Monday,list_reminders
+Any reminders for July 4th?,list_reminders
+Do I have any reminders for tomorrow?,list_reminders
+What’s the capital of France?,general_query
+Who won the World Cup in 2022?,general_query
+How does photosynthesis work?,general_query
+How far is the moon?,general_query
+Who is the president of the United States?,general_query
+How tall is Mount Everest?,general_query
+What's the stock price of Apple?,general_query
+How did the stock market do today?,general_query
+Retrain the model,retrain_model
+Update my assistant,retrain_model
+Retrain intent classifier,retrain_model
+Retrain assistant,retrain_model
+Train model,retrain_model
+Update model,retrain_model
+Cancel my last request,cancel_task
+Never mind,cancel_task
+Stop that,cancel_task
+Cancel that,cancel_task
+Stop,cancel_task
+I don't need that anymore,cancel_task
+Hello,greeting
+Hi there,greeting
+Hi,greeting
+Hey,greeting
+Good morning,greeting
+Good afternoon,greeting
+Good evening,greeting
+Greetings,greeting
+Howdy,greeting
+What's up,greeting
+Hiya,greeting
+Hello assistant,greeting
+bye,goodbye
+Goodbye,goodbye
+See you,goodbye
+See you later,goodbye
+Farewell,goodbye
+Take care,goodbye
+Catch you later,goodbye
+Bye bye,goodbye
+See ya,goodbye
+Shut down,goodbye
+Tell me a joke,joke_query
+Make me laugh,joke_query
+Do you know any jokes?,joke_query
+Play some music,music_play
+Play jazz music,music_play
+Play my favorite playlist,music_play
+Pause the music,music_pause
+Stop the music,music_stop
+Next song,music_next
+Previous song,music_previous
+What's the news today?,news_query
+Tell me the latest news,news_query
+Turn on the lights,smarthome_on
+Turn off the lights,smarthome_off
+Set the thermostat to 72 degrees,smarthome_set
+Lock the front door,smarthome_lock
+Unlock the front door,smarthome_unlock
+Set an alarm for 7 am,alarm_set
+Cancel my alarm,alarm_cancel
+Snooze the alarm,alarm_snooze
+What's the traffic like?,traffic_query
+How's the traffic to downtown?,traffic_query
+Add milk to my shopping list,shopping_add
+What's on my shopping list?,shopping_list
+Remove eggs from my shopping list,shopping_remove
+Translate hello to Spanish,translate_query
+How do you say "goodbye" in French?,translate_query
+What time is it?,time_query
+What is the current time?,time_query
+Tell me the time,time_query
+What day is it?,date_query
+What's today's date?,date_query
+Tell me the date,date_query

@@ -6,7 +6,7 @@ import pandas as pd
 import os
 
 # Attempt to load greeting/goodbye phrases from the unified intent dataset
-DATASET_PATH = os.path.join(os.path.dirname(__file__), '../models/intent_dataset.csv')
+DATASET_PATH = os.path.join(os.path.dirname(__file__), '../intent_data/intent_dataset.csv')
 
 def _load_variations(label):
     try:

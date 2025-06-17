@@ -5,7 +5,7 @@ import os
 
 # Define project root and paths
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-DATASET_PATH = os.path.join(PROJECT_ROOT, "models", "intent_dataset.csv")
+DATASET_PATH = os.path.join(PROJECT_ROOT, "intent_data", "intent_dataset.csv")
 MODEL_SAVE_PATH = os.path.join(PROJECT_ROOT, "models", "fine_tuned_intent_classifier")
 MODEL_TRAINING_SCRIPT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "model_training.py")
 

@@ -13,7 +13,7 @@ intent_model = None
 intent_classifier_pipeline = None
 
 # Dynamically generate INTENT_LABELS_MAP from CSV
-CSV_PATH = os.path.join(os.path.dirname(__file__), '../models/intent_dataset.csv')
+CSV_PATH = os.path.join(os.path.dirname(__file__), '../intent_data/intent_dataset.csv')
 df = pd.read_csv(CSV_PATH)
 unique_labels = sorted(df['label'].unique())
 INTENT_LABELS_MAP = {idx: label for idx, label in enumerate(unique_labels)}
