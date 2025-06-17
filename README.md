@@ -96,6 +96,14 @@ voice_assistant/
     *   Create a sample dataset for intent classification.
     *   Fine-tune the intent classification model.
 
+4.  **Post-Setup Note (Optional but Recommended for Cleaner Output)**:
+    You might see a message from PyTorch Lightning like: `Lightning automatically upgraded your loaded checkpoint... To apply the upgrade to your files permanently, run ...`.
+    To prevent this message from appearing on subsequent runs, execute the command it suggests in your terminal (within your virtual environment). For example:
+    ```bash
+    python -m pytorch_lightning.utilities.upgrade_checkpoint path/to/your/.venv/Lib/site-packages/whisperx/assets/pytorch_model.bin
+    ```
+    (Adjust the path to `pytorch_model.bin` based on the exact message you see and your virtual environment location).
+
 ## Running the Assistant
 
 Once the setup is complete, you can run the voice assistant using:

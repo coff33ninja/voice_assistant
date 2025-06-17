@@ -2,8 +2,11 @@ import threading
 import asyncio
 import re
 import platform
-import datetime # Added for global datetime access
+import datetime  # Added for global datetime access
 from typing import Optional
+import warnings
+import logging
+
 import pandas as pd
 import os
 
@@ -26,13 +29,39 @@ from modules.gui_utils import show_reminders_gui  # type: ignore
 from modules.contractions import normalize_text
 from modules.error_handling import async_error_handler
 from typing import Callable, Dict, Awaitable, Any
-from modules.calendar_utils import add_event_to_calendar # get_calendar_file_path not used directly here yet
+from modules.calendar_utils import (
+    add_event_to_calendar,
+)  # get_calendar_file_path not used directly here yet
 
 # --- Modularized interaction logic ---
 
 # Import for validation and retraining logic
 from scripts.intent_validator import run_validation_and_retrain_async
-from modules.retrain_utils import parse_retrain_request # Still need this for parsing
+from modules.retrain_utils import parse_retrain_request  # Still need this for parsing
+
+# --- Suppress specific library warnings and configure logging ---
+
+# 1. SpeechBrain UserWarning for 'speechbrain.pretrained'
+warnings.filterwarnings(
+    "ignore",
+    category=UserWarning,
+    message="Module 'speechbrain.pretrained' was deprecated",
+)
+
+# 2. TTS (torch.load) FutureWarning
+warnings.filterwarnings(
+    "ignore",
+    category=FutureWarning,
+    message="You are using `torch.load` with `weights_only=False`",
+)
+
+# Configure logging levels for verbose libraries
+logging.getLogger("TTS").setLevel(
+    logging.WARNING
+)  # Suppress Coqui TTS INFO messages (e.g., config printout)
+logging.getLogger("pyannote.audio").setLevel(
+    logging.ERROR
+)  # Suppress pyannote.audio warnings (e.g., version mismatch)
 
 # --- Intent Handling Registry ---
 INTENT_HANDLERS: Dict[str, Callable[[str, Dict[str, Any]], Awaitable[str]]] = {}
@@ -46,10 +75,14 @@ def intent_handler(intent_name: str):
 
     return decorator
 
+
 # Load responses from CSV
-RESPONSES_PATH = os.path.join(os.path.dirname(__file__), 'intent_data', 'intent_responses.csv')
+RESPONSES_PATH = os.path.join(
+    os.path.dirname(__file__), "intent_data", "intent_responses.csv"
+)
 _responses_df = pd.read_csv(RESPONSES_PATH)
-RESPONSE_MAP = dict(zip(_responses_df['intent'], _responses_df['response']))
+RESPONSE_MAP = dict(zip(_responses_df["intent"], _responses_df["response"]))
+
 
 def get_response(intent_key, **kwargs):
     resp = RESPONSE_MAP.get(intent_key, "")
@@ -57,10 +90,14 @@ def get_response(intent_key, **kwargs):
         try:
             return resp.format(**kwargs)
         except KeyError as e:
-            print(f"Warning: Missing key {e} in response format for intent '{intent_key}'. Response: '{resp}', Kwargs: {kwargs}")
-            return resp # Return unformatted response as fallback
-        except Exception as e: # Catch other formatting errors
-            print(f"Warning: Error formatting response for intent '{intent_key}': {e}. Response: '{resp}', Kwargs: {kwargs}")
+            print(
+                f"Warning: Missing key {e} in response format for intent '{intent_key}'. Response: '{resp}', Kwargs: {kwargs}"
+            )
+            return resp  # Return unformatted response as fallback
+        except Exception as e:  # Catch other formatting errors
+            print(
+                f"Warning: Error formatting response for intent '{intent_key}': {e}. Response: '{resp}', Kwargs: {kwargs}"
+            )
             return resp
     return resp
 
@@ -84,7 +121,9 @@ async def handle_calendar_query(
 
 
 @intent_handler("greeting")
-async def handle_greeting_intent(normalized_transcription: str, entities: Dict[str, Any]) -> str:
+async def handle_greeting_intent(
+    normalized_transcription: str, entities: Dict[str, Any]
+) -> str:
     response = get_response("greeting")
     print(f"Assistant (greeting): {response}")
     await text_to_speech_async(response)
@@ -101,6 +140,7 @@ async def handle_goodbye_intent(
     print("Shutting down assistant as requested by user.")
     await text_to_speech_async("Shutting down assistant as requested by user.")
     import sys
+
     sys.exit(0)
 
 
@@ -139,7 +179,7 @@ async def process_command(transcription: str):
         return  # Exit early as speech is handled
 
     handler = INTENT_HANDLERS.get(intent)  # Check registered handlers first
-    response_text = "" # Initialize for clarity, though handlers return their own
+    response_text = ""  # Initialize for clarity, though handlers return their own
 
     if handler:
         response_text = await handler(normalized_transcription, extracted_entities)
@@ -195,32 +235,42 @@ async def handle_set_reminder_intent(
             await text_to_speech_async(response_to_speak)
             return response_to_speak
 
-    response_parts = [] # Initialize the list here
+    response_parts = []  # Initialize the list here
     if task and reminder_time_obj:
         await save_reminder_async(task, reminder_time_obj)
         add_event_to_calendar(task, reminder_time_obj)  # Add reminder to calendar
         response = get_response(
-            "reminder_set_full", # Use granular key
+            "reminder_set_full",  # Use granular key
             task=task,
             time=reminder_time_obj.strftime("%I:%M %p on %A, %B %d"),
         )
         response_parts.append(response)
-        response_parts.append(get_response("reminder_added_to_calendar")) # Add calendar confirmation part
+        response_parts.append(
+            get_response("reminder_added_to_calendar")
+        )  # Add calendar confirmation part
     elif task and not reminder_time_obj:
         response_parts.append(get_response("reminder_set_task_only", task=task))
         response_parts.append(get_response("reminder_ask_for_time"))
     elif not task and reminder_time_obj:
-        response_parts.append(get_response("reminder_set_time_only", time=reminder_time_obj.strftime('%I:%M %p on %A, %B %d')))
+        response_parts.append(
+            get_response(
+                "reminder_set_time_only",
+                time=reminder_time_obj.strftime("%I:%M %p on %A, %B %d"),
+            )
+        )
         response_parts.append(get_response("reminder_ask_for_task"))
     else:
         response = get_response("set_reminder_error")
-        response_parts.append(response) # Add the error response part
+        response_parts.append(response)  # Add the error response part
 
     response_to_speak = " ".join(filter(None, response_parts))
-    if not response_to_speak: # Fallback if no parts were added somehow
-        response_to_speak = get_response("set_reminder_success_generic") # Use generic success key
+    if not response_to_speak:  # Fallback if no parts were added somehow
+        response_to_speak = get_response(
+            "set_reminder_success_generic"
+        )  # Use generic success key
     await text_to_speech_async(response_to_speak)
     return response_to_speak
+
 
 @intent_handler("list_reminders")
 async def handle_list_reminders_intent(
@@ -234,8 +284,13 @@ async def handle_list_reminders_intent(
         reminders_found = await get_reminders_for_date_async(target_date)
         date_str = target_date.strftime("%A, %B %d, %Y")
         if reminders_found:
-            reminders_text = " ".join(f"{r['task']} at {r['time'].strftime('%I:%M %p')}." for r in reminders_found)
-            response = get_response("list_reminders", date=date_str, reminders=reminders_text)
+            reminders_text = " ".join(
+                f"{r['task']} at {r['time'].strftime('%I:%M %p')}."
+                for r in reminders_found
+            )
+            response = get_response(
+                "list_reminders", date=date_str, reminders=reminders_text
+            )
         else:
             response = get_response("list_reminders_none", date=date_str)
         threading.Thread(
@@ -281,7 +336,9 @@ async def handle_get_weather_intent(
             r"(?:weather in|weather for|weather at|weather like in)\s+([A-Za-z\s]+)",
             normalized_transcription.lower(),
         )
-        extracted_location_regex = location_match.group(1).strip() if location_match else None
+        extracted_location_regex = (
+            location_match.group(1).strip() if location_match else None
+        )
         if extracted_location_regex:
             if extracted_location_regex.lower() in [p.lower() for p in my_area_phrases]:
                 use_current_location = True
@@ -295,7 +352,7 @@ async def handle_get_weather_intent(
             )
             if is_my_area_query or is_simple_query:
                 use_current_location = True
-            
+
     if not use_current_location and not location_name_to_fetch:
         response = get_response("get_weather_location_prompt")
         await text_to_speech_async(response)
@@ -308,12 +365,18 @@ async def handle_get_weather_intent(
         if weather_data:
             response = get_response(
                 "get_weather_current",
-                city=weather_data['city'],
-                description=weather_data['description'],
-                temp=weather_data['temp']
+                city=weather_data["city"],
+                description=weather_data["description"],
+                temp=weather_data["temp"],
             )
-            today = datetime.datetime.now().replace(hour=9, minute=0, second=0, microsecond=0)
-            add_event_to_calendar(f"Weather in {weather_data['city']}: {weather_data['description']}", today, description=f"Temperature: {weather_data['temp']:.1f}°C")
+            today = datetime.datetime.now().replace(
+                hour=9, minute=0, second=0, microsecond=0
+            )
+            add_event_to_calendar(
+                f"Weather in {weather_data['city']}: {weather_data['description']}",
+                today,
+                description=f"Temperature: {weather_data['temp']:.1f}°C",
+            )
         else:
             response = get_response("get_weather_current_error")
     elif location_name_to_fetch:
@@ -323,12 +386,14 @@ async def handle_get_weather_intent(
         if weather_data:
             response = get_response(
                 "get_weather_city",
-                city=weather_data['city'],
-                description=weather_data['description'],
-                temp=weather_data['temp']
+                city=weather_data["city"],
+                description=weather_data["description"],
+                temp=weather_data["temp"],
             )
         else:
-            response = get_response("get_weather_city_error", location=location_name_to_fetch)
+            response = get_response(
+                "get_weather_city_error", location=location_name_to_fetch
+            )
     if not response:
         response = get_response("get_weather_unsure")
     await text_to_speech_async(response)
@@ -336,39 +401,54 @@ async def handle_get_weather_intent(
 
 
 @intent_handler("add_calendar_event")
-async def handle_add_calendar_event_intent(normalized_transcription: str, entities: Dict[str, Any]) -> str:
-    import dateparser # Moved import here
+async def handle_add_calendar_event_intent(
+    normalized_transcription: str, entities: Dict[str, Any]
+) -> str:
+    import dateparser  # Moved import here
+
     response = ""
-    summary = entities.get("event_summary") 
-    date_str = entities.get("event_datetime_str") # Expecting NLU to provide this
+    summary = entities.get("event_summary")
+    date_str = entities.get("event_datetime_str")  # Expecting NLU to provide this
     start_time_obj = None
 
     if date_str:
-        start_time_obj = dateparser.parse(date_str, settings={'PREFER_DATES_FROM': 'future'})
+        start_time_obj = dateparser.parse(
+            date_str, settings={"PREFER_DATES_FROM": "future"}
+        )
 
-    if not summary or not start_time_obj: # Fallback to regex if entities are insufficient
-        print("Entities for calendar event not fully resolved or missing, falling back to regex.")
+    if (
+        not summary or not start_time_obj
+    ):  # Fallback to regex if entities are insufficient
+        print(
+            "Entities for calendar event not fully resolved or missing, falling back to regex."
+        )
         patterns = [
             r"add (.+?)(?:\s+on|\s+at|\s+for)\s+(.+)",
             r"schedule (.+?)(?:\s+on|\s+at|\s+for)\s+(.+)",
-            r"put (.+?)(?:\s+on my calendar|\s+in my calendar)(?:\s+for|\s+on|\s+at)\s+(.+)"
+            r"put (.+?)(?:\s+on my calendar|\s+in my calendar)(?:\s+for|\s+on|\s+at)\s+(.+)",
         ]
         for pattern in patterns:
             match = re.search(pattern, normalized_transcription, re.IGNORECASE)
             if match:
                 summary = match.group(1).strip()
                 # Handle "called" construct within summary if NLU didn't separate it
-                called_match = re.search(r"(.+?)\s+called\s+(.+)", summary, re.IGNORECASE)
+                called_match = re.search(
+                    r"(.+?)\s+called\s+(.+)", summary, re.IGNORECASE
+                )
                 if called_match:
-                     summary = f"{called_match.group(1).strip()}: {called_match.group(2).strip()}"
+                    summary = f"{called_match.group(1).strip()}: {called_match.group(2).strip()}"
                 date_str_regex = match.group(2).strip()
-                start_time_obj = dateparser.parse(date_str_regex, settings={'PREFER_DATES_FROM': 'future'})
+                start_time_obj = dateparser.parse(
+                    date_str_regex, settings={"PREFER_DATES_FROM": "future"}
+                )
                 break
 
-    if summary and start_time_obj: # Check start_time_obj instead of date_str
+    if summary and start_time_obj:  # Check start_time_obj instead of date_str
         if start_time_obj:
             calendar_response = add_event_to_calendar(summary, start_time_obj)
-            response = get_response("add_calendar_event_success", calendar_response=calendar_response)
+            response = get_response(
+                "add_calendar_event_success", calendar_response=calendar_response
+            )
         else:
             response = get_response("add_calendar_event_parse_error")
     else:
@@ -376,12 +456,14 @@ async def handle_add_calendar_event_intent(normalized_transcription: str, entiti
     await text_to_speech_async(response)
     return response
 
+
 # Helper function to get a descriptive name for a task
 def task_name(task: asyncio.Task) -> str:
     try:
-        return task.get_name() # Python 3.8+
+        return task.get_name()  # Python 3.8+
     except AttributeError:
         return str(task)
+
 
 async def handle_interaction():
     try:
@@ -399,10 +481,12 @@ async def handle_interaction():
             return
         except Exception as rec_e:
             print(f"Error during audio recording: {rec_e}")
-            await text_to_speech_async("Sorry, there was an issue with audio recording.")
+            await text_to_speech_async(
+                "Sorry, there was an issue with audio recording."
+            )
             return
 
-        if audio_data is None or not audio_data.any(): # Check if audio_data is valid
+        if audio_data is None or not audio_data.any():  # Check if audio_data is valid
             print("No audio data captured or audio data is empty.")
             await text_to_speech_async(get_response("no_speech_detected"))
             return
@@ -437,22 +521,24 @@ async def main_loop(loop: asyncio.AbstractEventLoop):
 
             if current_wakeword_task and not current_wakeword_task.done():
                 current_wakeword_task.cancel()
-            
-            current_wakeword_task = loop.create_task(run_wakeword_async(callback=on_wakeword_detected))
-            
+
+            current_wakeword_task = loop.create_task(
+                run_wakeword_async(callback=on_wakeword_detected)
+            )
+
             try:
                 await wake_event.wait()
             except asyncio.CancelledError:
                 print("Main loop's wait for wake_event cancelled.")
-                raise 
+                raise
 
             if current_wakeword_task:
                 current_wakeword_task.cancel()
                 try:
                     await current_wakeword_task
                 except asyncio.CancelledError:
-                    pass 
-            
+                    pass
+
             await handle_interaction()
     except asyncio.CancelledError:
         print("Main loop was cancelled.")
@@ -464,7 +550,7 @@ async def main_loop(loop: asyncio.AbstractEventLoop):
                 await current_wakeword_task
             except asyncio.CancelledError:
                 print("Wakeword task cancelled during main loop cleanup.")
-        
+
         for task in background_tasks:
             if not task.done():
                 task.cancel()
@@ -473,8 +559,11 @@ async def main_loop(loop: asyncio.AbstractEventLoop):
                 except asyncio.CancelledError:
                     print(f"Background task {task_name(task)} was cancelled.")
                 except Exception as e:
-                    print(f"Error during cancellation of background task {task_name(task)}: {e}")
+                    print(
+                        f"Error during cancellation of background task {task_name(task)}: {e}"
+                    )
         print("All background tasks in main_loop processed for cancellation.")
+
 
 def run_assistant():
     # --- Initialization ---
@@ -482,10 +571,11 @@ def run_assistant():
     # For Windows, set the policy to allow more threads if needed
     if platform.system() == "Windows":
         import nest_asyncio
+
         nest_asyncio.apply()
 
-    loop = asyncio.get_event_loop() # Get the event loop
-    
+    loop = asyncio.get_event_loop()  # Get the event loop
+
     initialize_stt()
     initialize_tts()
     initialize_weather_service()
@@ -508,30 +598,39 @@ def run_assistant():
                 loop.run_until_complete(main_task)
             except asyncio.CancelledError:
                 print("Main task successfully cancelled.")
-            except RuntimeError as e: # Handle cases where loop might be closing
+            except RuntimeError as e:  # Handle cases where loop might be closing
                 print(f"Runtime error during main_task cleanup: {e}")
             except Exception as e:
                 print(f"Exception during main_task cleanup: {e}")
-    except Exception as e: # Catch other unexpected errors from main_loop
+    except Exception as e:  # Catch other unexpected errors from main_loop
         print(f"Unexpected error in run_assistant: {e}")
-        if main_task and not main_task.done(): # Attempt to cancel main_task if it's still running
+        if (
+            main_task and not main_task.done()
+        ):  # Attempt to cancel main_task if it's still running
             main_task.cancel()
             if loop.is_running():
-                 loop.run_until_complete(main_task) # Allow it to process cancellation
+                loop.run_until_complete(main_task)  # Allow it to process cancellation
     finally:
         print("Performing final cleanup of any remaining tasks...")
-        remaining_tasks = [t for t in asyncio.all_tasks(loop=loop) if t is not asyncio.current_task(loop=loop) and not t.done()]
+        remaining_tasks = [
+            t
+            for t in asyncio.all_tasks(loop=loop)
+            if t is not asyncio.current_task(loop=loop) and not t.done()
+        ]
         if remaining_tasks:
             print(f"Cancelling {len(remaining_tasks)} remaining tasks...")
             for task in remaining_tasks:
                 task.cancel()
             if loop.is_running():
-                loop.run_until_complete(asyncio.gather(*remaining_tasks, return_exceptions=True))
+                loop.run_until_complete(
+                    asyncio.gather(*remaining_tasks, return_exceptions=True)
+                )
 
         print("Closing event loop.")
         if not loop.is_closed():
             loop.close()
         print("Assistant shut down.")
+
 
 if __name__ == "__main__":
     run_assistant()

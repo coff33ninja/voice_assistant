@@ -1,13 +1,15 @@
 import asyncio
 from langchain_community.llms import Ollama
-from langchain.memory import ConversationBufferMemory
-from langchain.chains import ConversationChain
-from langchain.prompts import PromptTemplate
+from langchain_core.prompts import PromptTemplate
+from langchain_community.chat_message_histories import ChatMessageHistory
+from langchain_core.runnables.history import RunnableWithMessageHistory
+from langchain_core.chat_history import BaseChatMessageHistory
+from langchain_core.runnables.config import RunnableConfig  # Import RunnableConfig
 from .config import LLM_MODEL_NAME
 
 llm_instance = None
-conversation_memory = None
-llm_chain = None
+runnable_with_history_global = None
+message_history_store: dict[str, BaseChatMessageHistory] = {}
 
 PROMPT_TEMPLATE_STR = """
 You are a voice assistant that detects user intents and responds appropriately. You can set reminders, check calendars, provide weather updates, or answer questions. Use the conversation history for context.
@@ -25,21 +27,57 @@ Do NOT try to guess or initiate an action (like setting a reminder) if the input
 Your response:
 """
 
+
+def get_session_history(session_id: str) -> BaseChatMessageHistory:
+    if session_id not in message_history_store:
+        message_history_store[session_id] = ChatMessageHistory()
+    return message_history_store[session_id]
+
+
 def initialize_llm():
-    global llm_instance, conversation_memory, llm_chain
+    global llm_instance, runnable_with_history_global
     print("Initializing LLM service...")
     llm_instance = Ollama(model=LLM_MODEL_NAME)
-    conversation_memory = ConversationBufferMemory(ai_prefix="Assistant:")
-    prompt = PromptTemplate(input_variables=["history", "input"], template=PROMPT_TEMPLATE_STR)
-    llm_chain = ConversationChain(prompt=prompt, llm=llm_instance, memory=conversation_memory)
+    prompt = PromptTemplate(
+        input_variables=["history", "input"], template=PROMPT_TEMPLATE_STR
+    )
+
+    runnable_with_history_global = RunnableWithMessageHistory(
+        llm_instance,
+        get_session_history,
+        input_messages_key="input",
+        history_messages_key="history",
+        prompt=prompt,
+    )
     print("LLM service initialized.")
 
+
 async def get_llm_response(input_text: str) -> str:
-    if llm_chain is None:
+    if runnable_with_history_global is None:
         raise RuntimeError("LLM service not initialized. Call initialize_llm() first.")
     try:
-        response = await asyncio.to_thread(llm_chain.run, input=input_text)
+        session_id = "user_session"  # Fixed session ID for single user assistant
+        config: RunnableConfig = {
+            "configurable": {"session_id": session_id}
+        }  # Explicitly type the config
+        response = await asyncio.to_thread(
+            runnable_with_history_global.invoke, {"input": input_text}, config=config
+        )
         return response
     except Exception as e:
         print(f"[ERROR] LLM connection failed: {e}")
         return ""
+def get_llm_response_sync(input_text: str) -> str:
+    if runnable_with_history_global is None:
+        raise RuntimeError("LLM service not initialized. Call initialize_llm() first.")
+    try:
+        session_id = "user_session"  # Fixed session ID for single user assistant
+        config: RunnableConfig = {
+            "configurable": {"session_id": session_id}
+        }  # Explicitly type the config
+        response = runnable_with_history_global.invoke({"input": input_text}, config=config)
+        return response
+    except Exception as e:
+        print(f"[ERROR] LLM connection failed: {e}")
+        return ""
+    
