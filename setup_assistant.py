@@ -10,9 +10,15 @@ from modules.db_setup import setup_db
 from modules.utils import create_directories
 from modules.config import (
     DB_PATH,
+    TTS_MODEL_NAME, # For final TTS message
+    TTS_SPEED_RATE, # For final TTS message
+    TTS_SAMPLERATE, # For final TTS message
     PICOVOICE_KEY_FILE_PATH,
     OPENWEATHER_API_KEY_FILE_PATH,
 )
+# For final TTS message
+from TTS.api import TTS as CoquiTTS
+import sounddevice as sd
 
 # Determine the absolute path to the 'models' directory relative to this script
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -159,8 +165,21 @@ def main():
 
     print("\nSetup process finished!")
     print("Well, this is the most you are supposed to do for voice assistants, who knows maybe there might be new typing areas added later.")
-    print("But let's continue, and you can finally hear my voice!")
+    
+    final_tts_message = "But let's continue, and you can finally hear my voice! I hope I sound just right after all that tinkering."
+    print(final_tts_message)
 
+    try:
+        print("Playing final message...")
+        # Ensure TTS_MODEL_NAME and TTS_SPEED_RATE are up-to-date from .env if changed during setup
+        # This requires config.py to have reloaded .env or for these to be fresh.
+        # For simplicity, we assume config.py reflects the latest .env settings.
+        tts_instance_final = CoquiTTS(model_name=TTS_MODEL_NAME, progress_bar=False)
+        audio_output = tts_instance_final.tts(text=final_tts_message, speed=TTS_SPEED_RATE)
+        sd.play(audio_output, samplerate=TTS_SAMPLERATE)
+        sd.wait()
+    except Exception as tts_e:
+        print(f"Could not play final TTS message: {tts_e}")
     if yes_no_prompt("Would you like to launch the voice assistant now?"):
         print("Launching voice assistant...")
         try:
