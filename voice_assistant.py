@@ -45,14 +45,27 @@ from modules.retrain_utils import parse_retrain_request  # Still need this for p
 warnings.filterwarnings(
     "ignore",
     category=UserWarning,
-    message="Module 'speechbrain.pretrained' was deprecated",
+    message=r"Module 'speechbrain.pretrained' was deprecated.*", # Use raw string for regex
 )
 
 # 2. TTS (torch.load) FutureWarning
 warnings.filterwarnings(
     "ignore",
     category=FutureWarning,
-    message="You are using `torch.load` with `weights_only=False`",
+    message=r"You are using `torch\.load` with `weights_only=False`.*" # Use raw string for regex
+)
+
+# 3. WhisperX / Pyannote version mismatch warnings (these are often UserWarning)
+# These messages are printed by WhisperX itself, not necessarily through pyannote.audio's logger.
+warnings.filterwarnings(
+    "ignore",
+    # category=UserWarning, # Can be specified if known, otherwise matches any category
+    message=r"Model was trained with pyannote\.audio .* yours is .*" # Use raw string for regex
+)
+warnings.filterwarnings(
+    "ignore",
+    # category=UserWarning,
+    message=r"Model was trained with torch .* yours is .*" # Use raw string for regex
 )
 
 # Configure logging levels for verbose libraries
