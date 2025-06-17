@@ -361,3 +361,112 @@ if __name__ == "__main__":
         nest_asyncio.apply()
 
     run_assistant()
+
+# --- Auto-generated handlers for orphaned responses ---
+@intent_handler("add_calendar_event_success")
+async def handle_add_calendar_event_success(normalized_transcription: str) -> str:
+    response = get_response("add_calendar_event_success")
+    await text_to_speech_async(response)
+    return response
+
+@intent_handler("get_weather_city_error")
+async def handle_get_weather_city_error(normalized_transcription: str) -> str:
+    response = get_response("get_weather_city_error")
+    await text_to_speech_async(response)
+    return response
+
+@intent_handler("retrain_model_error")
+async def handle_retrain_model_error(normalized_transcription: str) -> str:
+    response = get_response("retrain_model_error")
+    await text_to_speech_async(response)
+    return response
+
+@intent_handler("set_reminder_error")
+async def handle_set_reminder_error(normalized_transcription: str) -> str:
+    response = get_response("set_reminder_error")
+    await text_to_speech_async(response)
+    return response
+
+@intent_handler("list_reminders_error")
+async def handle_list_reminders_error(normalized_transcription: str) -> str:
+    response = get_response("list_reminders_error")
+    await text_to_speech_async(response)
+    return response
+
+@intent_handler("get_weather_city")
+async def handle_get_weather_city(normalized_transcription: str) -> str:
+    response = get_response("get_weather_city")
+    await text_to_speech_async(response)
+    return response
+
+@intent_handler("llm_fallback_sorry")
+async def handle_llm_fallback_sorry(normalized_transcription: str) -> str:
+    response = get_response("llm_fallback_sorry")
+    await text_to_speech_async(response)
+    return response
+
+@intent_handler("no_speech_detected")
+async def handle_no_speech_detected(normalized_transcription: str) -> str:
+    response = get_response("no_speech_detected")
+    await text_to_speech_async(response)
+    return response
+
+@intent_handler("get_weather_unsure")
+async def handle_get_weather_unsure(normalized_transcription: str) -> str:
+    response = get_response("get_weather_unsure")
+    await text_to_speech_async(response)
+    return response
+
+@intent_handler("set_reminder_success")
+async def handle_set_reminder_success(normalized_transcription: str) -> str:
+    response = get_response("set_reminder_success")
+    await text_to_speech_async(response)
+    return response
+
+@intent_handler("add_calendar_event_parse_error")
+async def handle_add_calendar_event_parse_error(normalized_transcription: str) -> str:
+    response = get_response("add_calendar_event_parse_error")
+    await text_to_speech_async(response)
+    return response
+
+@intent_handler("get_weather_current")
+async def handle_get_weather_current(normalized_transcription: str) -> str:
+    response = get_response("get_weather_current")
+    await text_to_speech_async(response)
+    return response
+
+@intent_handler("llm_service_error")
+async def handle_llm_service_error(normalized_transcription: str) -> str:
+    response = get_response("llm_service_error")
+    await text_to_speech_async(response)
+    return response
+
+@intent_handler("get_weather_current_error")
+async def handle_get_weather_current_error(normalized_transcription: str) -> str:
+    response = get_response("get_weather_current_error")
+    await text_to_speech_async(response)
+    return response
+
+@intent_handler("get_time")
+async def handle_get_time(normalized_transcription: str) -> str:
+    response = get_response("get_time")
+    await text_to_speech_async(response)
+    return response
+
+@intent_handler("get_weather_location_prompt")
+async def handle_get_weather_location_prompt(normalized_transcription: str) -> str:
+    response = get_response("get_weather_location_prompt")
+    await text_to_speech_async(response)
+    return response
+
+@intent_handler("add_calendar_event_missing")
+async def handle_add_calendar_event_missing(normalized_transcription: str) -> str:
+    response = get_response("add_calendar_event_missing")
+    await text_to_speech_async(response)
+    return response
+
+@intent_handler("list_reminders_none")
+async def handle_list_reminders_none(normalized_transcription: str) -> str:
+    response = get_response("list_reminders_none")
+    await text_to_speech_async(response)
+    return response
