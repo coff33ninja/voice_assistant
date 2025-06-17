@@ -119,9 +119,9 @@ def install_system_dependencies():
                 )
 
         # Recommend Visual C++ Build Tools and Chocolatey for libsndfile/portaudio
-        logger.info(
-            "Ensure Visual C++ Build Tools are installed for Windows: "
-            "https://visualstudio.microsoft.com/visual-cpp-build-tools/"
+        logger.warning(
+            "For runtime dependencies like ONNXRuntime (used by WhisperX), ensure the Microsoft Visual C++ Redistributable is installed. "
+            "Download from https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist (Visual Studio 2015-2022 section)."
         )
         if shutil.which("choco"):
             logger.info("Installing libsndfile, portaudio, and espeak-ng via Chocolatey...")

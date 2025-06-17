@@ -23,20 +23,24 @@ from modules.db_manager import (
     reminder_check_loop,
 )
 from modules.gui_utils import show_reminders_gui  # type: ignore
-from modules.retrain_utils import trigger_model_retraining_async, parse_retrain_request
 from modules.contractions import normalize_text
 from modules.error_handling import async_error_handler
-from typing import Callable, Dict, Awaitable
+from typing import Callable, Dict, Awaitable, Any
 from modules.calendar_utils import add_event_to_calendar # get_calendar_file_path not used directly here yet
 
 # --- Modularized interaction logic ---
 
+# Import for validation and retraining logic
+from scripts.intent_validator import run_validation_and_retrain_async
+from modules.retrain_utils import parse_retrain_request # Still need this for parsing
+
 # --- Intent Handling Registry ---
-INTENT_HANDLERS: Dict[str, Callable[[str], Awaitable[str]]] = {}
+INTENT_HANDLERS: Dict[str, Callable[[str, Dict[str, Any]], Awaitable[str]]] = {}
 
 
 def intent_handler(intent_name: str):
-    def decorator(func: Callable[[str], Awaitable[str]]):
+
+    def decorator(func: Callable[[str, Dict[str, Any]], Awaitable[str]]):
         INTENT_HANDLERS[intent_name] = func
         return func
 
@@ -52,27 +56,35 @@ def get_response(intent_key, **kwargs):
     if resp and kwargs:
         try:
             return resp.format(**kwargs)
-        except Exception:
+        except KeyError as e:
+            print(f"Warning: Missing key {e} in response format for intent '{intent_key}'. Response: '{resp}', Kwargs: {kwargs}")
+            return resp # Return unformatted response as fallback
+        except Exception as e: # Catch other formatting errors
+            print(f"Warning: Error formatting response for intent '{intent_key}': {e}. Response: '{resp}', Kwargs: {kwargs}")
             return resp
     return resp
 
 
 @intent_handler("cancel_task")
-async def handle_cancel_task(normalized_transcription: str) -> str:
+async def handle_cancel_task(
+    normalized_transcription: str, entities: Dict[str, Any]
+) -> str:
     response = get_response("cancel_task")
     await text_to_speech_async(response)
     return response
 
 
 @intent_handler("calendar_query")
-async def handle_calendar_query(normalized_transcription: str) -> str:
+async def handle_calendar_query(
+    normalized_transcription: str, entities: Dict[str, Any]
+) -> str:
     response = get_response("calendar_query")
     await text_to_speech_async(response)
     return response
 
 
 @intent_handler("greeting")
-async def handle_greeting_intent(normalized_transcription: str) -> str:
+async def handle_greeting_intent(normalized_transcription: str, entities: Dict[str, Any]) -> str:
     response = get_response("greeting")
     print(f"Assistant (greeting): {response}")
     await text_to_speech_async(response)
@@ -80,7 +92,9 @@ async def handle_greeting_intent(normalized_transcription: str) -> str:
 
 
 @intent_handler("goodbye")
-async def handle_goodbye_intent(normalized_transcription: str) -> str:
+async def handle_goodbye_intent(
+    normalized_transcription: str, entities: Dict[str, Any]
+) -> str:
     response = get_response("goodbye")
     print(f"Assistant (goodbye): {response}")
     await text_to_speech_async(response)
@@ -91,11 +105,13 @@ async def handle_goodbye_intent(normalized_transcription: str) -> str:
 
 
 @intent_handler("retrain_model")
-async def handle_retrain_model_intent(normalized_transcription: str) -> str:
+async def handle_retrain_model_intent(
+    normalized_transcription: str, entities: Dict[str, Any]
+) -> str:
     response = get_response("retrain_model")
     await text_to_speech_async(response)
     try:
-        _success, retrain_msg = await trigger_model_retraining_async()
+        _success, retrain_msg = await run_validation_and_retrain_async()
     except Exception as e:
         retrain_msg = get_response("retrain_model_error", error=str(e))
     print(retrain_msg)
@@ -107,14 +123,15 @@ async def handle_retrain_model_intent(normalized_transcription: str) -> str:
 async def process_command(transcription: str):
     normalized_transcription = normalize_text(transcription)
     print(f"Processing command: {normalized_transcription}")
-    intent = await detect_intent_async(normalized_transcription)
+
+    intent, extracted_entities = await detect_intent_async(normalized_transcription)
 
     # Special handling for retrain_model as it's combined with parse_retrain_request
     if intent == "retrain_model" or parse_retrain_request(normalized_transcription):
         response = get_response("retrain_model")
         await text_to_speech_async(response)
         try:
-            _success, retrain_msg = await trigger_model_retraining_async()
+            _success, retrain_msg = await run_validation_and_retrain_async()
         except Exception as e:
             retrain_msg = get_response("retrain_model_error", error=str(e))
         print(retrain_msg)
@@ -125,8 +142,7 @@ async def process_command(transcription: str):
     response_text = "" # Initialize for clarity, though handlers return their own
 
     if handler:
-        # Handlers are responsible for their own TTS and returning the spoken text
-        response_text = await handler(normalized_transcription)
+        response_text = await handler(normalized_transcription, extracted_entities)
     else:  # Fallback to LLM
         print("Sending to LLM for general query or unhandled/low-confidence intent...")
         llm_response = await get_llm_response(input_text=normalized_transcription)
@@ -149,22 +165,71 @@ async def process_command(transcription: str):
 
 # Define placeholder handlers for intents previously in the first process_command
 @intent_handler("set_reminder")
-async def handle_set_reminder_intent(normalized_transcription: str) -> str:
-    reminder = parse_reminder(normalized_transcription)
-    if reminder:
-        await save_reminder_async(reminder["task"], reminder["time"])
-        # Add reminder to calendar
-        add_event_to_calendar(reminder["task"], reminder["time"])
-        response = get_response("set_reminder_success", task=reminder["task"], time=reminder["time"].strftime('%I:%M %p on %A, %B %d'))
+async def handle_set_reminder_intent(
+    normalized_transcription: str, entities: Dict[str, Any]
+) -> str:
+    import dateparser  # Moved import here as it's specific to this handler
+
+    task = entities.get("task")
+    time_phrase = entities.get("time_phrase")
+    reminder_time_obj = None
+
+    if time_phrase:
+        # Try parsing the time_phrase using dateparser
+        reminder_time_obj = dateparser.parse(
+            time_phrase, settings={"PREFER_DATES_FROM": "future"}
+        )
+
+    if (
+        not task or not reminder_time_obj
+    ):  # Fallback to full parsing if entities are insufficient
+        print(
+            "Entities for reminder not fully resolved or missing, falling back to parse_reminder."
+        )
+        parsed_reminder_data = parse_reminder(normalized_transcription)
+        if parsed_reminder_data:
+            task = parsed_reminder_data["task"]
+            reminder_time_obj = parsed_reminder_data["time"]
+        else:
+            response_to_speak = get_response("set_reminder_error")
+            await text_to_speech_async(response_to_speak)
+            return response_to_speak
+
+    response_parts = [] # Initialize the list here
+    if task and reminder_time_obj:
+        await save_reminder_async(task, reminder_time_obj)
+        add_event_to_calendar(task, reminder_time_obj)  # Add reminder to calendar
+        response = get_response(
+            "reminder_set_full", # Use granular key
+            task=task,
+            time=reminder_time_obj.strftime("%I:%M %p on %A, %B %d"),
+        )
+        response_parts.append(response)
+        response_parts.append(get_response("reminder_added_to_calendar")) # Add calendar confirmation part
+    elif task and not reminder_time_obj:
+        response_parts.append(get_response("reminder_set_task_only", task=task))
+        response_parts.append(get_response("reminder_ask_for_time"))
+    elif not task and reminder_time_obj:
+        response_parts.append(get_response("reminder_set_time_only", time=reminder_time_obj.strftime('%I:%M %p on %A, %B %d')))
+        response_parts.append(get_response("reminder_ask_for_task"))
     else:
         response = get_response("set_reminder_error")
-    await text_to_speech_async(response)
-    return response
+        response_parts.append(response) # Add the error response part
 
+    response_to_speak = " ".join(filter(None, response_parts))
+    if not response_to_speak: # Fallback if no parts were added somehow
+        response_to_speak = get_response("set_reminder_success_generic") # Use generic success key
+    await text_to_speech_async(response_to_speak)
+    return response_to_speak
 
 @intent_handler("list_reminders")
-async def handle_list_reminders_intent(normalized_transcription: str) -> str:
-    target_date = parse_list_reminder_request(normalized_transcription or "")
+async def handle_list_reminders_intent(
+    normalized_transcription: str, entities: Dict[str, Any]
+) -> str:
+    date_reference = entities.get("date_reference")
+    target_date = parse_list_reminder_request(
+        date_reference or normalized_transcription or ""
+    )
     if target_date:
         reminders_found = await get_reminders_for_date_async(target_date)
         date_str = target_date.strftime("%A, %B %d, %Y")
@@ -183,46 +248,58 @@ async def handle_list_reminders_intent(normalized_transcription: str) -> str:
 
 
 @intent_handler("get_weather")
-async def handle_get_weather_intent(normalized_transcription: str) -> str:
-    location_name: Optional[str] = None
+async def handle_get_weather_intent(
+    normalized_transcription: str, entities: Dict[str, Any]
+) -> str:
+    location_entity = entities.get("location")  # This could be a city name or "current"
     use_current_location = False
     response = ""
-    my_area_phrases = [
-        "my area",
-        "here",
-        "current location",
-        "around me",
-        "local weather",
-    ]
-    simple_weather_queries = [
-        "what's the weather",
-        "weather today",
-        "weather now",
-        "tell me the weather",
-        "weather",
-    ]
-    location_match = re.search(
-        r"(?:weather in|weather for|weather at|weather like in)\s+([A-Za-z\s]+)",
-        normalized_transcription.lower(),
-    )
-    extracted_location = location_match.group(1).strip() if location_match else None
-    if extracted_location:
-        if extracted_location.lower() in [p.lower() for p in my_area_phrases]:
+    location_name_to_fetch: Optional[str] = None
+
+    if location_entity:
+        if location_entity.lower() in ["current", "my area", "here"]:
             use_current_location = True
         else:
-            location_name = extracted_location
-    else:
-        transcription_lower_stripped = normalized_transcription.lower().strip()
-        is_simple_query = transcription_lower_stripped in simple_weather_queries
-        is_my_area_query = any(
-            phrase in transcription_lower_stripped for phrase in my_area_phrases
+            location_name_to_fetch = location_entity
+    else:  # Fallback to regex if no location entity from NLU
+        print("No location entity from NLU, attempting regex for weather.")
+        my_area_phrases = [
+            "my area",
+            "here",
+            "current location",
+            "around me",
+            "local weather",
+        ]
+        simple_weather_queries = [
+            "what's the weather",
+            "weather today",
+            "weather now",
+            "tell me the weather",
+            "weather",
+        ]
+        location_match = re.search(
+            r"(?:weather in|weather for|weather at|weather like in)\s+([A-Za-z\s]+)",
+            normalized_transcription.lower(),
         )
-        if is_my_area_query or is_simple_query:
-            use_current_location = True
+        extracted_location_regex = location_match.group(1).strip() if location_match else None
+        if extracted_location_regex:
+            if extracted_location_regex.lower() in [p.lower() for p in my_area_phrases]:
+                use_current_location = True
+            else:
+                location_name_to_fetch = extracted_location_regex
         else:
-            response = get_response("get_weather_location_prompt")
-            await text_to_speech_async(response)
-            return response
+            transcription_lower_stripped = normalized_transcription.lower().strip()
+            is_simple_query = transcription_lower_stripped in simple_weather_queries
+            is_my_area_query = any(
+                phrase in transcription_lower_stripped for phrase in my_area_phrases
+            )
+            if is_my_area_query or is_simple_query:
+                use_current_location = True
+            
+    if not use_current_location and not location_name_to_fetch:
+        response = get_response("get_weather_location_prompt")
+        await text_to_speech_async(response)
+        return response
     weather_data = None
     if use_current_location:
         print("Fetching weather for current location...")
@@ -239,10 +316,10 @@ async def handle_get_weather_intent(normalized_transcription: str) -> str:
             add_event_to_calendar(f"Weather in {weather_data['city']}: {weather_data['description']}", today, description=f"Temperature: {weather_data['temp']:.1f}°C")
         else:
             response = get_response("get_weather_current_error")
-    elif location_name:
-        print(f"Fetching weather for {location_name}...")
-        await text_to_speech_async(f"Fetching weather for {location_name}...")
-        weather_data = await get_weather_async(location_name)
+    elif location_name_to_fetch:
+        print(f"Fetching weather for {location_name_to_fetch}...")
+        await text_to_speech_async(f"Fetching weather for {location_name_to_fetch}...")
+        weather_data = await get_weather_async(location_name_to_fetch)
         if weather_data:
             response = get_response(
                 "get_weather_city",
@@ -251,7 +328,7 @@ async def handle_get_weather_intent(normalized_transcription: str) -> str:
                 temp=weather_data['temp']
             )
         else:
-            response = get_response("get_weather_city_error", location=location_name)
+            response = get_response("get_weather_city_error", location=location_name_to_fetch)
     if not response:
         response = get_response("get_weather_unsure")
     await text_to_speech_async(response)
@@ -259,29 +336,38 @@ async def handle_get_weather_intent(normalized_transcription: str) -> str:
 
 
 @intent_handler("add_calendar_event")
-async def handle_add_calendar_event_intent(normalized_transcription: str) -> str:
-    import dateparser
+async def handle_add_calendar_event_intent(normalized_transcription: str, entities: Dict[str, Any]) -> str:
+    import dateparser # Moved import here
     response = ""
-    patterns = [
-        r"add (.+?)(?:\s+on|\s+at|\s+for)\s+(.+)",
-        r"schedule (.+?)(?:\s+on|\s+at|\s+for)\s+(.+)",
-        r"put (.+?)(?:\s+on my calendar|\s+in my calendar)(?:\s+for|\s+on|\s+at)\s+(.+)"
-    ]
-    summary = None
-    date_str = None
-    for pattern in patterns:
-        match = re.search(pattern, normalized_transcription, re.IGNORECASE)
-        if match:
-            summary = match.group(1).strip()
-            called_match = re.search(r"(.+?)\s+called\s+(.+)", summary, re.IGNORECASE)
-            if called_match:
-                 summary = f"{called_match.group(1).strip()}: {called_match.group(2).strip()}"
-            date_str = match.group(2).strip()
-            break
-    if summary and date_str:
-        start = dateparser.parse(date_str, settings={'PREFER_DATES_FROM': 'future'})
-        if start:
-            calendar_response = add_event_to_calendar(summary, start)
+    summary = entities.get("event_summary") 
+    date_str = entities.get("event_datetime_str") # Expecting NLU to provide this
+    start_time_obj = None
+
+    if date_str:
+        start_time_obj = dateparser.parse(date_str, settings={'PREFER_DATES_FROM': 'future'})
+
+    if not summary or not start_time_obj: # Fallback to regex if entities are insufficient
+        print("Entities for calendar event not fully resolved or missing, falling back to regex.")
+        patterns = [
+            r"add (.+?)(?:\s+on|\s+at|\s+for)\s+(.+)",
+            r"schedule (.+?)(?:\s+on|\s+at|\s+for)\s+(.+)",
+            r"put (.+?)(?:\s+on my calendar|\s+in my calendar)(?:\s+for|\s+on|\s+at)\s+(.+)"
+        ]
+        for pattern in patterns:
+            match = re.search(pattern, normalized_transcription, re.IGNORECASE)
+            if match:
+                summary = match.group(1).strip()
+                # Handle "called" construct within summary if NLU didn't separate it
+                called_match = re.search(r"(.+?)\s+called\s+(.+)", summary, re.IGNORECASE)
+                if called_match:
+                     summary = f"{called_match.group(1).strip()}: {called_match.group(2).strip()}"
+                date_str_regex = match.group(2).strip()
+                start_time_obj = dateparser.parse(date_str_regex, settings={'PREFER_DATES_FROM': 'future'})
+                break
+
+    if summary and start_time_obj: # Check start_time_obj instead of date_str
+        if start_time_obj:
+            calendar_response = add_event_to_calendar(summary, start_time_obj)
             response = get_response("add_calendar_event_success", calendar_response=calendar_response)
         else:
             response = get_response("add_calendar_event_parse_error")

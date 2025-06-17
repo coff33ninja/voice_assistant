@@ -20,16 +20,21 @@ def fine_tune_model(dataset_path, model_save_path):
     else:
         raise ValueError("Loaded dataset is not a supported HuggingFace Dataset type.")
 
-    # Dynamically generate label_map from CSV
+    # Load the CSV to get unique labels and potentially entities in the future
     df = pd.read_csv(dataset_path)
+    if 'label' not in df.columns or 'text' not in df.columns:
+        raise ValueError("CSV must contain 'text' and 'label' columns.")
+
+    # Dynamically generate label_map from the 'label' column
     unique_labels = sorted(df['label'].unique())
     label_map = {label: idx for idx, label in enumerate(unique_labels)}
+    id2label = {idx: label for label, idx in label_map.items()} # For model config
+
     dataset = dataset.map(lambda x: {"label": label_map[x["label"]]})
 
     # Tokenizer and model
     tokenizer = DistilBertTokenizer.from_pretrained("distilbert-base-uncased")
-    model = DistilBertForSequenceClassification.from_pretrained("distilbert-base-uncased", num_labels=len(label_map))
-
+    model = DistilBertForSequenceClassification.from_pretrained("distilbert-base-uncased", num_labels=len(label_map), id2label=id2label, label2id=label_map)
     def tokenize_function(examples):
         return tokenizer(examples["text"], padding="max_length", truncation=True, max_length=128)
 
