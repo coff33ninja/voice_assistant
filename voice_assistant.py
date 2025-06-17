@@ -319,8 +319,8 @@ def run_assistant():
 
                 def on_wakeword_detected():
                     print("Wake word detected (callback)!")
-                    loop = asyncio.get_event_loop()
-                    if loop.is_running(): # Ensure loop is running before calling call_soon_threadsafe
+                    # Use the main event loop from the enclosing scope, do not rebind 'loop' here
+                    if loop.is_running():
                         loop.call_soon_threadsafe(wake_event.set)
 
                 print("[DEBUG] Before run_wakeword_async")
