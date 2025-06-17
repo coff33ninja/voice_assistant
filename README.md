@@ -42,7 +42,7 @@ voice_assistant/
 │   ├── calendar_utils.py   # Calendar file (.ics) management
 │   ├── config.py             # Configuration variables
 │   ├── contractions.py       # Text normalization
-│   ├── dataset.py            # Intent classification dataset
+│   ├── dataset.py            # Loads intent data from intent_data/intent_dataset.csv
 │   ├── db_manager.py         # Database interactions for reminders
 │   ├── db_setup.py
 │   ├── download_and_models.py # Downloads TTS/Precise models
@@ -59,6 +59,11 @@ voice_assistant/
 │   ├── utils.py
 │   ├── weather_service.py    # Weather fetching
 │   └── whisperx_setup.py     # WhisperX initial setup and test
+├── intent_data/              # Data for intent classification and responses
+│   └── intent_dataset.csv    # CSV: utterances mapped to intents (see USER_INTENTS.md for intent details)
+│   └── intent_responses.csv  # CSV: predefined responses mapped to intents
+├── scripts/                  # Utility scripts (e.g., data conversion, maintenance, helper tools)
+│   └── intent_validator.py   # Script to validate intent data consistency and model retraining
 ├── setup_assistant.py        # Main setup script
 ├── voice_assistant.py        # Main application script
 ├── USER_INTENTS.md           # Describes available user commands/intents
