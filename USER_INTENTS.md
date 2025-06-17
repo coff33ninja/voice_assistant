@@ -6,6 +6,27 @@ This document outlines the types of commands the voice assistant can currently u
 
 The assistant categorizes your spoken commands into one of the following intents:
 
+*   **Greeting (`greeting`)**
+    *   Purpose: To initiate a conversation or respond to a greeting.
+    *   Example Phrases:
+        *   "Hello"
+        *   "Hi Mika"
+        *   "Good morning"
+
+*   **Goodbye (`goodbye`)**
+    *   Purpose: To end the conversation and optionally shut down the assistant.
+    *   Example Phrases:
+        *   "Goodbye"
+        *   "See you later"
+        *   "Shut down"
+
+*   **Add Calendar Event (`add_calendar_event`)**
+    *   Purpose: To add a new event directly to your calendar file.
+    *   Example Phrases:
+        *   "Add meeting with John on June 20th at 3pm"
+        *   "Schedule project update for next Tuesday at 2pm"
+        *   "Put dentist appointment on my calendar for July 1st at 10 am"
+
 *   **Set Reminder (`set_reminder`)**
     *   Purpose: To create a new reminder for a specific task at a given time.
     *   Example Phrases:
