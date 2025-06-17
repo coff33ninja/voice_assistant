@@ -215,6 +215,7 @@ def install_python_dependencies():
             "pip",
             "install",
             "whisperx",
+            "onnxruntime==1.17.3", # Pin onnxruntime version
             "TTS==0.22.0",
             "langchain==0.3.1",
             "langchain-community==0.3.1",

@@ -47,7 +47,7 @@ def intent_handler(intent_name: str):
     return decorator
 
 # Load responses from CSV
-RESPONSES_PATH = os.path.join(os.path.dirname(__file__), 'models/intent_responses.csv')
+RESPONSES_PATH = os.path.join(os.path.dirname(__file__), 'intent_data', 'intent_responses.csv')
 _responses_df = pd.read_csv(RESPONSES_PATH)
 RESPONSE_MAP = dict(zip(_responses_df['intent'], _responses_df['response']))
 
@@ -376,13 +376,37 @@ async def handle_add_calendar_event_intent(normalized_transcription: str, entiti
     await text_to_speech_async(response)
     return response
 
+# Helper function to get a descriptive name for a task
+def task_name(task: asyncio.Task) -> str:
+    try:
+        return task.get_name() # Python 3.8+
+    except AttributeError:
+        return str(task)
 
 async def handle_interaction():
     try:
         greeting = get_response("greeting")
         print(f"Assistant (speaking): {greeting}")
         await text_to_speech_async(greeting)
-        audio_data = await record_audio_async()
+
+        audio_data = None
+        try:
+            # Record audio with a 10-second timeout
+            audio_data = await asyncio.wait_for(record_audio_async(), timeout=10.0)
+        except asyncio.TimeoutError:
+            print("Audio recording timed out.")
+            await text_to_speech_async("Sorry, I couldn't capture audio in time.")
+            return
+        except Exception as rec_e:
+            print(f"Error during audio recording: {rec_e}")
+            await text_to_speech_async("Sorry, there was an issue with audio recording.")
+            return
+
+        if audio_data is None or not audio_data.any(): # Check if audio_data is valid
+            print("No audio data captured or audio data is empty.")
+            await text_to_speech_async(get_response("no_speech_detected"))
+            return
+
         transcription = await transcribe_audio_async(audio_data)
         if not transcription or not transcription.strip():
             print("No speech detected after greeting.")
@@ -394,10 +418,74 @@ async def handle_interaction():
         print(f"[ERROR] Exception in handle_interaction: {e}")
 
 
+async def main_loop(loop: asyncio.AbstractEventLoop):
+    # Keep track of tasks to cancel them on exit
+    background_tasks = []
+    reminder_task = loop.create_task(reminder_check_loop(text_to_speech_async))
+    background_tasks.append(reminder_task)
+
+    current_wakeword_task: Optional[asyncio.Task] = None
+
+    try:
+        while True:
+            print("Waiting for wake word...")
+            wake_event = asyncio.Event()
+
+            def on_wakeword_detected():
+                if loop.is_running() and not wake_event.is_set():
+                    loop.call_soon_threadsafe(wake_event.set)
+
+            if current_wakeword_task and not current_wakeword_task.done():
+                current_wakeword_task.cancel()
+            
+            current_wakeword_task = loop.create_task(run_wakeword_async(callback=on_wakeword_detected))
+            
+            try:
+                await wake_event.wait()
+            except asyncio.CancelledError:
+                print("Main loop's wait for wake_event cancelled.")
+                raise 
+
+            if current_wakeword_task:
+                current_wakeword_task.cancel()
+                try:
+                    await current_wakeword_task
+                except asyncio.CancelledError:
+                    pass 
+            
+            await handle_interaction()
+    except asyncio.CancelledError:
+        print("Main loop was cancelled.")
+    finally:
+        print("Main loop ending. Cancelling background tasks...")
+        if current_wakeword_task and not current_wakeword_task.done():
+            current_wakeword_task.cancel()
+            try:
+                await current_wakeword_task
+            except asyncio.CancelledError:
+                print("Wakeword task cancelled during main loop cleanup.")
+        
+        for task in background_tasks:
+            if not task.done():
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    print(f"Background task {task_name(task)} was cancelled.")
+                except Exception as e:
+                    print(f"Error during cancellation of background task {task_name(task)}: {e}")
+        print("All background tasks in main_loop processed for cancellation.")
+
 def run_assistant():
     # --- Initialization ---
     print("Initializing services...")
-    loop = asyncio.get_event_loop()
+    # For Windows, set the policy to allow more threads if needed
+    if platform.system() == "Windows":
+        import nest_asyncio
+        nest_asyncio.apply()
+
+    loop = asyncio.get_event_loop() # Get the event loop
+    
     initialize_stt()
     initialize_tts()
     initialize_weather_service()
@@ -407,43 +495,43 @@ def run_assistant():
 
     print("Services initialized. You can now interact with the assistant.")
 
-    # Start reminder check loop as a background task
-    loop.create_task(reminder_check_loop(text_to_speech_async))
-
-    # --- Main loop ---
-    async def main_loop():
-        while True:
+    main_task: Optional[asyncio.Task] = None
+    try:
+        main_task = loop.create_task(main_loop(loop))
+        loop.run_until_complete(main_task)
+    except KeyboardInterrupt:
+        print("\nKeyboardInterrupt received. Shutting down gracefully...")
+        if main_task and not main_task.done():
+            main_task.cancel()
             try:
-                # Wake word detection
-                print("Waiting for wake word...")
-
-                wake_event = asyncio.Event()
-
-                def on_wakeword_detected():
-                    if loop.is_running():
-                        loop.call_soon_threadsafe(wake_event.set)
-
-                wakeword_task = asyncio.create_task(run_wakeword_async(callback=on_wakeword_detected))
-                await wake_event.wait()
-                wakeword_task.cancel()
-                try:
-                    await wakeword_task
-                except asyncio.CancelledError:
-                    pass
-                await handle_interaction()
-
+                # Give main_task a chance to clean up
+                loop.run_until_complete(main_task)
+            except asyncio.CancelledError:
+                print("Main task successfully cancelled.")
+            except RuntimeError as e: # Handle cases where loop might be closing
+                print(f"Runtime error during main_task cleanup: {e}")
             except Exception as e:
-                print(f"Error in main loop: {e}")
+                print(f"Exception during main_task cleanup: {e}")
+    except Exception as e: # Catch other unexpected errors from main_loop
+        print(f"Unexpected error in run_assistant: {e}")
+        if main_task and not main_task.done(): # Attempt to cancel main_task if it's still running
+            main_task.cancel()
+            if loop.is_running():
+                 loop.run_until_complete(main_task) # Allow it to process cancellation
+    finally:
+        print("Performing final cleanup of any remaining tasks...")
+        remaining_tasks = [t for t in asyncio.all_tasks(loop=loop) if t is not asyncio.current_task(loop=loop) and not t.done()]
+        if remaining_tasks:
+            print(f"Cancelling {len(remaining_tasks)} remaining tasks...")
+            for task in remaining_tasks:
+                task.cancel()
+            if loop.is_running():
+                loop.run_until_complete(asyncio.gather(*remaining_tasks, return_exceptions=True))
 
-    # Run the main loop
-    loop.run_until_complete(main_loop())
-
+        print("Closing event loop.")
+        if not loop.is_closed():
+            loop.close()
+        print("Assistant shut down.")
 
 if __name__ == "__main__":
-    # For Windows, set the policy to allow more threads if needed
-    if platform.system() == "Windows":
-        import nest_asyncio
-
-        nest_asyncio.apply()
-
     run_assistant()
