@@ -118,10 +118,11 @@ async def detect_wakeword(callback):
     except Exception as e_precise: # Catch potential errors from precise, though it handles its own printing
         print(f"Failed to run Precise engine: {e_precise}") # This provides context if precise itself fails beyond model not found
 
-def run_wakeword(callback):
-    asyncio.run(detect_wakeword(callback))
+async def run_wakeword_async(callback): # Renamed to indicate it's an async function
+    """Asynchronously runs the wakeword detection."""
+    await detect_wakeword(callback)
 
 if __name__ == "__main__":
     def test_callback():
         print("Wakeword callback triggered.")
-    run_wakeword(test_callback)
+    asyncio.run(run_wakeword_async(test_callback)) # Test with asyncio.run if run directly

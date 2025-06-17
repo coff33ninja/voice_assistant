@@ -2,9 +2,10 @@ import threading
 import asyncio
 import re
 import platform
+import datetime # Added for global datetime access
 from typing import Optional
 
-from wakeword_detector import run_wakeword
+from wakeword_detector import run_wakeword_async
 
 from modules.audio_utils import record_audio_async
 from modules.stt_service import initialize_stt, transcribe_audio_async
@@ -207,9 +208,9 @@ async def handle_get_weather_intent(normalized_transcription: str) -> str:
         if weather_data:
             response = f"The current weather in {weather_data['city']} is {weather_data['description']} with a temperature of {weather_data['temp']:.1f} degrees Celsius."
             # Add weather as calendar event (add_event_to_calendar is already globally imported)
-            import datetime
-            today = datetime.datetime.now().replace(hour=9, minute=0, second=0, microsecond=0)
-            add_event_to_calendar(f"Weather: {weather_data['description']}", today, description=f"Temperature: {weather_data['temp']:.1f}°C")
+            today = datetime.datetime.now().replace(hour=9, minute=0, second=0, microsecond=0) # Use globally imported datetime
+            add_event_to_calendar(f"Weather in {weather_data['city']}: {weather_data['description']}", today, description=f"Temperature: {weather_data['temp']:.1f}°C")
+            response += " I've also added this to your calendar."
         else:
             response = "Sorry, I couldn't determine your current location or fetch the weather for it. Please check your internet connection or try specifying a city."
     elif location_name:
@@ -312,8 +313,7 @@ def run_assistant():
                     loop = asyncio.get_event_loop()
                     if loop.is_running(): # Ensure loop is running before calling call_soon_threadsafe
                         loop.call_soon_threadsafe(wake_event.set)
-
-                run_wakeword(callback=on_wakeword_detected)
+                await run_wakeword_async(callback=on_wakeword_detected)
                 await wake_event.wait()
                 await handle_interaction() # Use the consolidated interaction logic
 
