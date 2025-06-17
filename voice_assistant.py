@@ -322,9 +322,14 @@ def run_assistant():
                     loop = asyncio.get_event_loop()
                     if loop.is_running(): # Ensure loop is running before calling call_soon_threadsafe
                         loop.call_soon_threadsafe(wake_event.set)
+
+                print("[DEBUG] Before run_wakeword_async")
                 await run_wakeword_async(callback=on_wakeword_detected)
+                print("[DEBUG] After run_wakeword_async, before wake_event.wait()")
                 await wake_event.wait()
+                print("[DEBUG] After wake_event.wait(), before handle_interaction()")
                 await handle_interaction() # Use the consolidated interaction logic
+                print("[DEBUG] After handle_interaction()")
 
             except Exception as e:
                 print(f"Error in main loop: {e}")
