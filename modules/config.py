@@ -31,6 +31,7 @@ GREETING_MESSAGE = "How can I help you?"
 # TTS Model - Default is "tts_models/en/ljspeech/vits".
 # This can be overridden by setting TTS_MODEL_NAME in the .env file (e.g., during setup).
 TTS_MODEL_NAME = os.getenv("TTS_MODEL_NAME", "tts_models/en/ljspeech/vits")
+TTS_SPEED_RATE = float(os.getenv("TTS_SPEED_RATE", "1.0")) # 1.0 is normal speed. <1.0 is slower, >1.0 is faster.
 TTS_SAMPLERATE = 22050
 
 # STT Model

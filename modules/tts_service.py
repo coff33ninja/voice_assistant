@@ -4,6 +4,7 @@ import torch
 from TTS.api import TTS as CoquiTTS
 from .config import (
     TTS_MODEL_NAME,
+    TTS_SPEED_RATE,
     TTS_SAMPLERATE,
 )  # Use the single configured model name
 
@@ -39,7 +40,7 @@ async def text_to_speech_async(text: str):
     if tts_instance is None:
         raise RuntimeError("TTS service not initialized. Call initialize_tts() first.")
     try:
-        audio_output = await asyncio.to_thread(tts_instance.tts, text=text)
+        audio_output = await asyncio.to_thread(tts_instance.tts, text=text, speed=TTS_SPEED_RATE)
         await asyncio.to_thread(sd.play, audio_output, samplerate=TTS_SAMPLERATE)
         await asyncio.to_thread(sd.wait)
     except Exception as e:
@@ -49,6 +50,6 @@ async def text_to_speech_async(text: str):
 def text_to_speech(text: str):  # Keep sync version if used by non-async parts
     if tts_instance is None:
         raise RuntimeError("TTS not initialized")
-    audio = tts_instance.tts(text=text)
+    audio = tts_instance.tts(text=text, speed=TTS_SPEED_RATE)
     sd.play(audio, samplerate=TTS_SAMPLERATE)
     sd.wait()

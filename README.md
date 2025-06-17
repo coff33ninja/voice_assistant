@@ -90,6 +90,7 @@ voice_assistant/
     *   Install system dependencies (attempt to).
     *   Download necessary models (TTS, wakeword).
     *   Guide through TTS model selection (will attempt to list available Coqui TTS models and download the chosen one).
+    *   Allow configuration of TTS speaking speed.
     *   Prompt for API keys (Picovoice for Porcupine, OpenWeather).
     *   Set up the WhisperX STT engine and test it.
     *   Initialize the database.
