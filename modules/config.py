@@ -28,8 +28,9 @@ ALIGN_LANGUAGE_CODE = "en"  # For WhisperX alignment model
 
 GREETING_MESSAGE = "How can I help you?"
 
-# TTS Model
-TTS_MODEL_NAME = "tts_models/en/ljspeech/vits"
+# TTS Model - Default is "tts_models/en/ljspeech/vits".
+# This can be overridden by setting TTS_MODEL_NAME in the .env file (e.g., during setup).
+TTS_MODEL_NAME = os.getenv("TTS_MODEL_NAME", "tts_models/en/ljspeech/vits")
 TTS_SAMPLERATE = 22050
 
 # STT Model

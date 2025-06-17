@@ -2,23 +2,31 @@ import asyncio
 import sounddevice as sd
 import torch
 from TTS.api import TTS as CoquiTTS
-from .config import TTS_MODEL_NAME, TTS_SAMPLERATE
+from .config import TTS_MODEL_NAME, TTS_SAMPLERATE # Use the single configured model name
 
 tts_instance = None
 
 def initialize_tts():
     global tts_instance
     print("Initializing TTS service...")
+    
+    # TTS_MODEL_NAME is loaded from .env (set during setup_tts) or defaults from config.py
+    if not TTS_MODEL_NAME:
+        print("Error: TTS model identifier is not configured. Cannot initialize TTS.")
+        raise RuntimeError("TTS model not configured.")
+
     try:
+        print(f"TTS service: Attempting to load model '{TTS_MODEL_NAME}'")
         tts_instance = CoquiTTS(
             model_name=TTS_MODEL_NAME,
-            progress_bar=True,
+            progress_bar=True, # Good for first use, might download/setup
             gpu=torch.cuda.is_available(),
         )
-        print("TTS service initialized.")
+        print(f"TTS service initialized successfully with model: {TTS_MODEL_NAME}.")
     except Exception as e:
-        print(f"Failed to initialize Coqui TTS: {e}")
-        raise
+        print(f"ERROR: Failed to initialize Coqui TTS with model '{TTS_MODEL_NAME}': {e}")
+        print("Please check your TTS configuration, model files, and dependencies.")
+        raise # Re-raise to indicate critical failure
 
 async def text_to_speech_async(text: str):
     if tts_instance is None:

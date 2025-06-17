@@ -51,10 +51,10 @@ def main():
         install_dependencies()
         checkpoints["dependencies"] = True
         save_checkpoints(checkpoints)
-    if not checkpoints.get("tts", False):
-        setup_tts(BASE_DIR)
-        checkpoints["tts"] = True
-        save_checkpoints(checkpoints)
+    # Always run TTS setup to allow voice model changes
+    setup_tts()
+    checkpoints["tts"] = True # Still mark as 'done' for consistency, though it's always run
+    save_checkpoints(checkpoints)
     if not checkpoints.get("precise", False):
         setup_precise(BASE_DIR, PRECISE_MODEL_URL)
         checkpoints["precise"] = True
