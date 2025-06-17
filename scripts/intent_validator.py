@@ -2,14 +2,13 @@ import pandas as pd
 import asyncio
 import os
 import sys
+from modules.retrain_utils import trigger_model_retraining_async
 
 # Ensure the parent directory is in sys.path for module imports
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PARENT_DIR = os.path.abspath(os.path.join(SCRIPT_DIR, '..'))
 if PARENT_DIR not in sys.path:
     sys.path.insert(0, PARENT_DIR)
-
-from modules.retrain_utils import trigger_model_retraining_async
 
 DATASET_PATH = os.path.abspath(os.path.join(SCRIPT_DIR, '..', 'models', 'intent_dataset.csv'))
 RESPONSES_PATH = os.path.abspath(os.path.join(SCRIPT_DIR, '..', 'models', 'intent_responses.csv'))
@@ -50,4 +49,3 @@ if __name__ == "__main__":
         print(result[1])
     else:
         print("\nValidation failed. Please fix the issues above before retraining.")
-
