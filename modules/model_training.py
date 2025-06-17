@@ -6,7 +6,7 @@ import sys
 import argparse # For parsing command-line arguments
 
 def fine_tune_model(dataset_path, model_save_path):
-    print(f"Starting fine-tuning process...")
+    print(f"Starting fine-tuning process... [pid={os.getpid()}]")
     print(f"Using dataset: {dataset_path}")
     print(f"Saving model to: {model_save_path}")
 
