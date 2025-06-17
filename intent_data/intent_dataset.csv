@@ -93,3 +93,37 @@ Tell me the time,time_query
 What day is it?,date_query
 What's today's date?,date_query
 Tell me the date,date_query
+what time is it,get_time
+tell me the time,get_time
+set a reminder for 3pm,set_reminder_success
+I want to set a reminder,set_reminder_success
+I want to add an event,add_calendar_event_success
+add an event to my calendar,add_calendar_event_success
+I can't hear you,no_speech_detected
+I didn't say anything,no_speech_detected
+what's the weather in Paris,get_weather_city
+weather in New York,get_weather_city
+I don't know the city,get_weather_city_error
+I don't know the location,get_weather_city_error
+My current location weather is not working,get_weather_current_error
+Cannot fetch weather for my area,get_weather_current_error
+what's the weather,get_weather_current
+current weather,get_weather_current
+I don't understand the weather,get_weather_unsure
+I need help with the weather,get_weather_unsure
+I want to add an event but didn't say when,add_calendar_event_missing
+add an event but no date,add_calendar_event_missing
+I said the wrong date for the event,add_calendar_event_parse_error
+wrong date for calendar event,add_calendar_event_parse_error
+list my reminders,list_reminders_error
+show reminders for today,list_reminders_error
+I have no reminders,list_reminders_none
+no reminders for today,list_reminders_none
+sorry, I don't understand,llm_fallback_sorry
+language model error,llm_service_error
+retrain the model,retrain_model_error
+I want to retrain,retrain_model_error
+what's the weather location prompt,get_weather_location_prompt
+which city for weather,get_weather_location_prompt
+set reminder failed,set_reminder_error
+couldn't set reminder,set_reminder_error
