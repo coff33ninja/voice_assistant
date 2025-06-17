@@ -1,7 +1,7 @@
 from transformers import DistilBertTokenizer, DistilBertForSequenceClassification, Trainer, TrainingArguments
-import os
 from datasets import load_dataset
 import pandas as pd
+import os
 
 def fine_tune_model(dataset_path, model_save_path):
     # Load dataset from unified CSV

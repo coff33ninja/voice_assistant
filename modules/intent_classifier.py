@@ -5,23 +5,18 @@ from transformers import (
     pipeline,
 )
 from .config import MODEL_SAVE_PATH
+import pandas as pd
+import os
 
 intent_tokenizer = None
 intent_model = None
 intent_classifier_pipeline = None
 
-INTENT_LABELS_MAP = {
-    0: "set_reminder",
-    1: "calendar_query",
-    2: "get_weather",
-    3: "general_query",
-    4: "list_reminders",
-    5: "retrain_model",
-    6: "cancel_task",
-    7: "greeting",
-    8: "goodbye",
-    9: "add_calendar_event",
-}
+# Dynamically generate INTENT_LABELS_MAP from CSV
+CSV_PATH = os.path.join(os.path.dirname(__file__), '../models/intent_dataset.csv')
+df = pd.read_csv(CSV_PATH)
+unique_labels = sorted(df['label'].unique())
+INTENT_LABELS_MAP = {idx: label for idx, label in enumerate(unique_labels)}
 
 CONFIDENCE_THRESHOLD = 0.70  # Minimum confidence to accept a classified intent
 
