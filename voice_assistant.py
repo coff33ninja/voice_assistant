@@ -27,7 +27,6 @@ from modules.retrain_utils import trigger_model_retraining_async, parse_retrain_
 from modules.contractions import normalize_text
 from modules.error_handling import async_error_handler
 from typing import Callable, Dict, Awaitable
-from modules.greeting_module import get_greeting, get_goodbye
 from modules.calendar_utils import add_event_to_calendar # get_calendar_file_path not used directly here yet
 
 # --- Modularized interaction logic ---

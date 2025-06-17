@@ -11,8 +11,12 @@ PARENT_DIR = os.path.abspath(os.path.join(SCRIPT_DIR, '..'))
 if PARENT_DIR not in sys.path:
     sys.path.insert(0, PARENT_DIR)
 
-DATASET_PATH = os.path.abspath(os.path.join(SCRIPT_DIR, '..', 'models', 'intent_dataset.csv'))
-RESPONSES_PATH = os.path.abspath(os.path.join(SCRIPT_DIR, '..', 'models', 'intent_responses.csv'))
+DATASET_PATH = os.path.abspath(
+    os.path.join(SCRIPT_DIR, "..", "intent_data", "intent_dataset.csv")
+)
+RESPONSES_PATH = os.path.abspath(
+    os.path.join(SCRIPT_DIR, "..", "intent_data", "intent_responses.csv")
+)
 
 def validate_intents():
     print(f"Validating '{DATASET_PATH}' against '{RESPONSES_PATH}'...")
