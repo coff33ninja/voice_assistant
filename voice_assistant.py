@@ -371,25 +371,31 @@ async def handle_add_calendar_event_success(normalized_transcription: str) -> st
 
 @intent_handler("get_weather_city_error")
 async def handle_get_weather_city_error(normalized_transcription: str) -> str:
-    response = "Sorry, I couldn't find the weather for that city. Please check the city name and try again."
+    import re
+    match = re.search(r'in ([A-Za-z\s]+)', normalized_transcription)
+    city = match.group(1).strip() if match else None
+    if city:
+        response = f"Sorry, I couldn't find the weather for {city}. Please check the city name and try again."
+    else:
+        response = "Sorry, I couldn't find the weather for that city. Please specify the city name."
     await text_to_speech_async(response)
     return response
 
 @intent_handler("retrain_model_error")
 async def handle_retrain_model_error(normalized_transcription: str) -> str:
-    response = get_response("retrain_model_error")
+    response = "Sorry, there was an error retraining the model. Please check your dataset and try again."
     await text_to_speech_async(response)
     return response
 
 @intent_handler("set_reminder_error")
 async def handle_set_reminder_error(normalized_transcription: str) -> str:
-    response = get_response("set_reminder_error")
+    response = "Sorry, I couldn't set your reminder. Please try rephrasing your request or provide more details."
     await text_to_speech_async(response)
     return response
 
 @intent_handler("list_reminders_error")
 async def handle_list_reminders_error(normalized_transcription: str) -> str:
-    response = "Sorry, I couldn't retrieve your reminders due to an error."
+    response = "Sorry, I couldn't retrieve your reminders due to an error. Please check your reminder data or try again later."
     await text_to_speech_async(response)
     return response
 
@@ -428,7 +434,7 @@ async def handle_get_weather_current(normalized_transcription: str) -> str:
 
 @intent_handler("get_weather_current_error")
 async def handle_get_weather_current_error(normalized_transcription: str) -> str:
-    response = "Sorry, I couldn't fetch the current weather. Please try again later."
+    response = "Sorry, I couldn't fetch the current weather. Please check your internet connection or try again later."
     await text_to_speech_async(response)
     return response
 
@@ -446,7 +452,7 @@ async def handle_get_weather_location_prompt(normalized_transcription: str) -> s
 
 @intent_handler("add_calendar_event_parse_error")
 async def handle_add_calendar_event_parse_error(normalized_transcription: str) -> str:
-    response = "Sorry, I couldn't understand the date or time for your calendar event. Please try again."
+    response = "Sorry, I couldn't understand the date or time for your calendar event. Please try rephrasing your request."
     await text_to_speech_async(response)
     return response
 
@@ -458,7 +464,7 @@ async def handle_add_calendar_event_missing(normalized_transcription: str) -> st
 
 @intent_handler("llm_service_error")
 async def handle_llm_service_error(normalized_transcription: str) -> str:
-    response = "Sorry, my language model service is currently unavailable."
+    response = "Sorry, my language model service is currently unavailable. Please try again later."
     await text_to_speech_async(response)
     return response
 
