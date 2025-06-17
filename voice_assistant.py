@@ -269,17 +269,26 @@ async def handle_add_calendar_event_intent(normalized_transcription: str) -> str
 
 
 async def handle_interaction():
-    greeting = get_greeting()
-    print(f"Assistant (speaking): {greeting}")
-    await text_to_speech_async(greeting)
-    audio_data = await record_audio_async()
-    transcription = await transcribe_audio_async(audio_data)
-    if not transcription or not transcription.strip():
-        print("No speech detected after greeting.")
-        await text_to_speech_async("I didn't catch that. If you need something, please call me again.")
-        return
-    print(f"User said: {transcription}")
-    await process_command(transcription)
+    try:
+        print("[DEBUG] handle_interaction: Getting greeting...")
+        greeting = get_greeting()
+        print(f"Assistant (speaking): {greeting}")
+        print("[DEBUG] handle_interaction: Speaking greeting...")
+        await text_to_speech_async(greeting)
+        print("[DEBUG] handle_interaction: Recording audio...")
+        audio_data = await record_audio_async()
+        print("[DEBUG] handle_interaction: Transcribing audio...")
+        transcription = await transcribe_audio_async(audio_data)
+        print(f"[DEBUG] handle_interaction: Transcription result: {transcription}")
+        if not transcription or not transcription.strip():
+            print("No speech detected after greeting.")
+            await text_to_speech_async("I didn't catch that. If you need something, please call me again.")
+            return
+        print(f"User said: {transcription}")
+        print("[DEBUG] handle_interaction: Processing command...")
+        await process_command(transcription)
+    except Exception as e:
+        print(f"[ERROR] Exception in handle_interaction: {e}")
 
 
 def run_assistant():
