@@ -4,6 +4,8 @@ import re
 import platform
 import datetime # Added for global datetime access
 from typing import Optional
+import pandas as pd
+import os
 
 from wakeword_detector import run_wakeword_async
 
@@ -41,24 +43,38 @@ def intent_handler(intent_name: str):
 
     return decorator
 
+# Load responses from CSV
+RESPONSES_PATH = os.path.join(os.path.dirname(__file__), 'models/intent_responses.csv')
+_responses_df = pd.read_csv(RESPONSES_PATH)
+RESPONSE_MAP = dict(zip(_responses_df['intent'], _responses_df['response']))
+
+def get_response(intent_key, **kwargs):
+    resp = RESPONSE_MAP.get(intent_key, "")
+    if resp and kwargs:
+        try:
+            return resp.format(**kwargs)
+        except Exception:
+            return resp
+    return resp
+
 
 @intent_handler("cancel_task")
 async def handle_cancel_task(normalized_transcription: str) -> str:
-    response = "Okay, cancelling that. (Note: Advanced cancel not yet implemented.)"
+    response = get_response("cancel_task")
     await text_to_speech_async(response)
     return response
 
 
 @intent_handler("calendar_query")
 async def handle_calendar_query(normalized_transcription: str) -> str:
-    response = "I'm not yet connected to your calendar, but I can set reminders."
+    response = get_response("calendar_query")
     await text_to_speech_async(response)
     return response
 
 
 @intent_handler("greeting")
 async def handle_greeting_intent(normalized_transcription: str) -> str:
-    response = get_greeting()
+    response = get_response("greeting")
     print(f"Assistant (greeting): {response}")
     await text_to_speech_async(response)
     return response
@@ -66,13 +82,26 @@ async def handle_greeting_intent(normalized_transcription: str) -> str:
 
 @intent_handler("goodbye")
 async def handle_goodbye_intent(normalized_transcription: str) -> str:
-    response = get_goodbye()
+    response = get_response("goodbye")
     print(f"Assistant (goodbye): {response}")
     await text_to_speech_async(response)
     print("Shutting down assistant as requested by user.")
     await text_to_speech_async("Shutting down assistant as requested by user.")
     import sys
     sys.exit(0)
+
+
+@intent_handler("retrain_model")
+async def handle_retrain_model_intent(normalized_transcription: str) -> str:
+    response = get_response("retrain_model")
+    await text_to_speech_async(response)
+    try:
+        _success, retrain_msg = await trigger_model_retraining_async()
+    except Exception as e:
+        retrain_msg = get_response("retrain_model_error", error=str(e))
+    print(retrain_msg)
+    await text_to_speech_async(retrain_msg)
+    return response
 
 
 @async_error_handler()
@@ -136,9 +165,9 @@ async def handle_set_reminder_intent(normalized_transcription: str) -> str:
         await save_reminder_async(reminder["task"], reminder["time"])
         # Add reminder to calendar
         add_event_to_calendar(reminder["task"], reminder["time"])
-        response = f"Okay, I've set a reminder for '{reminder['task']}' at {reminder['time'].strftime('%I:%M %p on %A, %B %d')} and added it to your calendar."
+        response = get_response("set_reminder_success", task=reminder["task"], time=reminder["time"].strftime('%I:%M %p on %A, %B %d'))
     else:
-        response = "I couldn't quite understand the reminder. Please try saying something like 'remind me to call John tomorrow at 2 pm'."
+        response = get_response("set_reminder_error")
     await text_to_speech_async(response)
     return response
 
@@ -150,16 +179,15 @@ async def handle_list_reminders_intent(normalized_transcription: str) -> str:
         reminders_found = await get_reminders_for_date_async(target_date)
         date_str = target_date.strftime("%A, %B %d, %Y")
         if reminders_found:
-            response = f"Here are your reminders for {date_str}: "
-            for r in reminders_found:
-                response += f"{r['task']} at {r['time'].strftime('%I:%M %p')}. "
+            reminders_text = " ".join(f"{r['task']} at {r['time'].strftime('%I:%M %p')}." for r in reminders_found)
+            response = get_response("list_reminders", date=date_str, reminders=reminders_text)
         else:
-            response = f"You have no reminders scheduled for {date_str}."
+            response = get_response("list_reminders_none", date=date_str)
         threading.Thread(
             target=show_reminders_gui, args=(reminders_found, date_str), daemon=True
         ).start()
     else:
-        response = "I couldn't understand which date you want reminders for. Please specify a day like 'today', 'tomorrow', or a specific date."
+        response = get_response("list_reminders_error")
     await text_to_speech_async(response)
     return response
 
@@ -202,7 +230,7 @@ async def handle_get_weather_intent(normalized_transcription: str) -> str:
         if is_my_area_query or is_simple_query:
             use_current_location = True
         else:
-            response = "Which location's weather are you interested in? For example, say 'what is the weather in London' or 'what is the weather in my area'."
+            response = get_response("get_weather_location_prompt")
             await text_to_speech_async(response)
             return response
     weather_data = None
@@ -211,64 +239,64 @@ async def handle_get_weather_intent(normalized_transcription: str) -> str:
         await text_to_speech_async("Fetching weather for current location...")
         weather_data = await get_weather_async(None)
         if weather_data:
-            response = f"The current weather in {weather_data['city']} is {weather_data['description']} with a temperature of {weather_data['temp']:.1f} degrees Celsius."
-            # Add weather as calendar event (add_event_to_calendar is already globally imported)
-            today = datetime.datetime.now().replace(hour=9, minute=0, second=0, microsecond=0) # Use globally imported datetime
+            response = get_response(
+                "get_weather_current",
+                city=weather_data['city'],
+                description=weather_data['description'],
+                temp=weather_data['temp']
+            )
+            today = datetime.datetime.now().replace(hour=9, minute=0, second=0, microsecond=0)
             add_event_to_calendar(f"Weather in {weather_data['city']}: {weather_data['description']}", today, description=f"Temperature: {weather_data['temp']:.1f}°C")
-            response += " I've also added this to your calendar."
         else:
-            response = "Sorry, I couldn't determine your current location or fetch the weather for it. Please check your internet connection or try specifying a city."
+            response = get_response("get_weather_current_error")
     elif location_name:
         print(f"Fetching weather for {location_name}...")
         await text_to_speech_async(f"Fetching weather for {location_name}...")
         weather_data = await get_weather_async(location_name)
         if weather_data:
-            response = f"The current weather in {weather_data['city']} is {weather_data['description']} with a temperature of {weather_data['temp']:.1f} degrees Celsius."
+            response = get_response(
+                "get_weather_city",
+                city=weather_data['city'],
+                description=weather_data['description'],
+                temp=weather_data['temp']
+            )
         else:
-            response = f"Sorry, I couldn't fetch the weather for {location_name}. Please ensure the API key is set up and the location is valid."
+            response = get_response("get_weather_city_error", location=location_name)
     if not response:
-        response = "I'm not sure which location you're asking about for the weather. Please specify, like 'weather in London' or 'weather in my area'."
+        response = get_response("get_weather_unsure")
     await text_to_speech_async(response)
     return response
 
 
 @intent_handler("add_calendar_event")
 async def handle_add_calendar_event_intent(normalized_transcription: str) -> str:
-    # Example: "add meeting with John on June 20th at 3pm"
-    # Ensure dateparser and re are imported (they are at the top of the context file)
-    import dateparser 
-    # import re # Already imported at the top
-
+    import dateparser
     response = ""
-    # Try to extract event title and date/time using various patterns
     patterns = [
-        r"add (.+?)(?:\s+on|\s+at|\s+for)\s+(.+)", # "add event on date", "add event at time", "add event for date"
-        r"schedule (.+?)(?:\s+on|\s+at|\s+for)\s+(.+)", # "schedule event on date", etc.
-        r"put (.+?)(?:\s+on my calendar|\s+in my calendar)(?:\s+for|\s+on|\s+at)\s+(.+)" # "put event on my calendar for date"
+        r"add (.+?)(?:\s+on|\s+at|\s+for)\s+(.+)",
+        r"schedule (.+?)(?:\s+on|\s+at|\s+for)\s+(.+)",
+        r"put (.+?)(?:\s+on my calendar|\s+in my calendar)(?:\s+for|\s+on|\s+at)\s+(.+)"
     ]
-    
     summary = None
     date_str = None
-
     for pattern in patterns:
         match = re.search(pattern, normalized_transcription, re.IGNORECASE)
         if match:
             summary = match.group(1).strip()
-            # Clean up summary: remove "called X" if it's part of the date string, or rephrase
             called_match = re.search(r"(.+?)\s+called\s+(.+)", summary, re.IGNORECASE)
             if called_match:
                  summary = f"{called_match.group(1).strip()}: {called_match.group(2).strip()}"
             date_str = match.group(2).strip()
-            break 
-
+            break
     if summary and date_str:
         start = dateparser.parse(date_str, settings={'PREFER_DATES_FROM': 'future'})
         if start:
-            response = add_event_to_calendar(summary, start) # add_event_to_calendar returns a string
+            calendar_response = add_event_to_calendar(summary, start)
+            response = get_response("add_calendar_event_success", calendar_response=calendar_response)
         else:
-            response = "Sorry, I couldn't understand the date and time for the event. Please try again, like 'add meeting on June 20th at 3pm'."
+            response = get_response("add_calendar_event_parse_error")
     else:
-        response = "Please specify the event and date, for example: 'add meeting with John on June 20th at 3pm' or 'schedule project update for next Tuesday at 2pm'."
+        response = get_response("add_calendar_event_missing")
     await text_to_speech_async(response)
     return response
 
