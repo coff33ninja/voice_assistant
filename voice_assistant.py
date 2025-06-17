@@ -108,17 +108,16 @@ async def handle_retrain_model_intent(normalized_transcription: str) -> str:
 async def process_command(transcription: str):
     normalized_transcription = normalize_text(transcription)
     print(f"Processing command: {normalized_transcription}")
-    # Removed verbose "Processing command" TTS
     intent = await detect_intent_async(normalized_transcription)
 
     # Special handling for retrain_model as it's combined with parse_retrain_request
     if intent == "retrain_model" or parse_retrain_request(normalized_transcription):
-        response = "Starting model retraining. This may take a few minutes."
+        response = get_response("retrain_model")
         await text_to_speech_async(response)
         try:
             _success, retrain_msg = await trigger_model_retraining_async()
         except Exception as e:
-            retrain_msg = f"Retraining failed due to an error: {e}"
+            retrain_msg = get_response("retrain_model_error", error=str(e))
         print(retrain_msg)
         await text_to_speech_async(retrain_msg)
         return  # Exit early as speech is handled
@@ -133,25 +132,17 @@ async def process_command(transcription: str):
         print("Sending to LLM for general query or unhandled/low-confidence intent...")
         llm_response = await get_llm_response(input_text=normalized_transcription)
         if llm_response is None:
-            response_text = (
-                "I couldn't reach the language model service. "
-                "Please make sure Ollama is running, then try again."
-            )
+            response_text = get_response("llm_service_error")
         elif (
             not llm_response
             or "don't understand" in llm_response.lower()
             or "sorry" in llm_response.lower()
-        ):  # Broader check for LLM uncertainty
-            response_text = (
-                "I'm sorry, I didn't understand that. "
-                "You can ask me to set reminders, check the weather, or answer questions. "
-                "Try rephrasing your request or say 'help' for examples."
-            )
+        ):
+            response_text = get_response("llm_fallback_sorry")
         else:
             response_text = llm_response
-        
         print(f"Assistant (LLM): {response_text}")
-        if response_text: # Ensure there's something to say from LLM path
+        if response_text:
             await text_to_speech_async(response_text)
     # Individual handlers (including LLM path) now manage their own TTS.
     # The 'response_text' variable here primarily holds what was spoken for logging/debugging if needed.
@@ -303,14 +294,14 @@ async def handle_add_calendar_event_intent(normalized_transcription: str) -> str
 
 async def handle_interaction():
     try:
-        greeting = get_greeting()
+        greeting = get_response("greeting")
         print(f"Assistant (speaking): {greeting}")
         await text_to_speech_async(greeting)
         audio_data = await record_audio_async()
         transcription = await transcribe_audio_async(audio_data)
         if not transcription or not transcription.strip():
             print("No speech detected after greeting.")
-            await text_to_speech_async("I didn't catch that. If you need something, please call me again.")
+            await text_to_speech_async(get_response("no_speech_detected"))
             return
         print(f"User said: {transcription}")
         await process_command(transcription)
