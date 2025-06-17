@@ -62,7 +62,6 @@ def create_dataset(dataset_path):
             "retrain_model",
             "retrain_model",
             "retrain_model",
-            "retrain_model", # Update model
             "cancel_task",   # Cancel that
             "cancel_task",
             "cancel_task",
