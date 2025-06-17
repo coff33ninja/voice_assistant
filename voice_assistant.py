@@ -314,12 +314,10 @@ def run_assistant():
                 # Wake word detection
                 print("Waiting for wake word...")
 
-                # Define a simple callback that sets an event when the wake word is detected
                 wake_event = asyncio.Event()
 
                 def on_wakeword_detected():
                     print("[DEBUG] Entered on_wakeword_detected callback!")
-                    # Use the main event loop from the enclosing scope, do not rebind 'loop' here
                     if loop.is_running():
                         print("[DEBUG] loop is running, calling wake_event.set via call_soon_threadsafe")
                         loop.call_soon_threadsafe(wake_event.set)
@@ -327,12 +325,18 @@ def run_assistant():
                     else:
                         print("[DEBUG] loop is NOT running in callback!")
 
-                print("[DEBUG] Before run_wakeword_async")
-                await run_wakeword_async(callback=on_wakeword_detected)
-                print("[DEBUG] After run_wakeword_async, before wake_event.wait()")
+                print("[DEBUG] Before run_wakeword_async (background task)")
+                wakeword_task = asyncio.create_task(run_wakeword_async(callback=on_wakeword_detected))
+                print("[DEBUG] After creating run_wakeword_async task, before wake_event.wait()")
                 await wake_event.wait()
-                print("[DEBUG] After wake_event.wait(), before handle_interaction()")
-                await handle_interaction() # Use the consolidated interaction logic
+                print("[DEBUG] After wake_event.wait(), before cancelling wakeword_task")
+                wakeword_task.cancel()
+                try:
+                    await wakeword_task
+                except asyncio.CancelledError:
+                    print("[DEBUG] wakeword_task cancelled after wake word detected.")
+                print("[DEBUG] After cancelling wakeword_task, before handle_interaction()")
+                await handle_interaction()
                 print("[DEBUG] After handle_interaction()")
 
             except Exception as e:
