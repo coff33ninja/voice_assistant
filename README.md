@@ -1,5 +1,9 @@
 # Voice Assistant Project
 
+## ⚠️ Work in Progress ⚠️
+
+This is a personal voice assistant project currently under active development. Many features are implemented, but it's still evolving.
+
 This project is a Python-based voice assistant capable of understanding voice commands, performing tasks like setting reminders, fetching weather information, and answering general questions.
 
 ## Overview
@@ -11,16 +15,20 @@ The voice assistant uses a combination of local and cloud-based services for its
 *   **Text-to-Speech (TTS)**: Uses Coqui TTS to generate spoken responses.
 *   **Language Model (LLM)**: Leverages Ollama (with a model like Llama 2) for handling general queries and providing conversational responses.
 *   **Task-Specific Modules**: Includes dedicated modules for weather, reminders, and potentially more in the future.
+*   **Calendar**: Generates and manages an `.ics` calendar file for reminders, weather entries, and direct event additions.
 
 ## Features
 
 *   **Wakeword Activation**: Listens for a wakeword to start interaction.
-*   **Set Reminders**: "Remind me to call mom tomorrow at 2:30 pm"
-*   **List Reminders**: "What are my reminders for today?"
+*   **Set Reminders**: "Remind me to call mom tomorrow at 2:30 pm" (also adds to calendar).
+*   **List Reminders**: "What are my reminders for today?" (with GUI display).
 *   **Get Weather Information**: "What’s the weather like today?" or "What's the weather in London?"
+*   **Add Calendar Events**: "Add meeting with John on June 20th at 3pm".
 *   **General Question Answering**: "What’s the capital of France?"
 *   **Model Retraining**: "Retrain the model" (triggers retraining of the intent classifier).
 *   **Text Normalization**: Expands contractions (e.g., "what's" to "what is") and corrects common misspellings (e.g., "gonna" to "going to").
+*   **Calendar File Generation**: Creates an `assistant_calendar.ics` file that can be imported/synced with most calendar applications.
+*   **Greeting/Goodbye**: Handles basic conversational openings and closings.
 
 ## Project Structure
 
@@ -31,6 +39,7 @@ voice_assistant/
 │   ├── __init__.py
 │   ├── api_key_setup.py
 │   ├── audio_utils.py
+│   ├── calendar_utils.py   # Calendar file (.ics) management
 │   ├── config.py             # Configuration variables
 │   ├── contractions.py       # Text normalization
 │   ├── dataset.py            # Intent classification dataset
@@ -38,6 +47,7 @@ voice_assistant/
 │   ├── db_setup.py
 │   ├── download_and_models.py # Downloads TTS/Precise models
 │   ├── gui_utils.py          # Simple Tkinter GUI for reminders
+│   ├── greeting_module.py    # Handles greetings and goodbyes
 │   ├── install_dependencies.py # Dependency installer
 │   ├── intent_classifier.py  # Intent detection logic
 │   ├── llm_service.py        # LLM interaction
@@ -110,3 +120,10 @@ Please note: A folder named `not-implemented` containing modules for features li
 *   `modules/reminder_utils.py` & `modules/db_manager.py`: Manage reminders.
 *   `modules/weather_service.py`: Fetches weather data.
 *   `setup_assistant.py`: Comprehensive setup script for all components.
+
+## P.S. Regarding the `not-implemented` Folder
+
+**Important Note:** For users familiar with earlier versions, a `not-implemented` folder previously existed. This folder contained modules for features under development, such as device management (including Wake-on-LAN and status checks), network device discovery, system information utilities, and internet speed testing.
+It has been **temporarily removed** to facilitate a **focused refactor** of the project's core architecture.
+
+This refactoring aims to enhance stability and maintainability. These features are planned for **re-integration with improved functionality** in a future release. We appreciate your patience as we work to enhance the assistant.
