@@ -28,12 +28,21 @@ def create_dataset(dataset_path):
             "Cancel that",
             "Never mind",
             "Stop",
-            "I don't need that anymore",
+            "I don't need that anymore", # cancel_task
+            "Add dentist appointment on July 5th at 10 AM",
+            "Schedule a meeting for next Tuesday at 3pm called Project Update",
+            "Put lunch with Sarah on the calendar for tomorrow noon", # add_calendar_event
+            "Hello assistant",
+            "Hi there",
+            "Good morning", # greeting
+            "Goodbye assistant",
+            "See you later",
+            "Shut down", # goodbye
         ],
         "label": [
             "set_reminder",
             "set_reminder",
-            "set_reminder",
+            "set_reminder", # Remind me to buy groceries in 2 hours
             "calendar_query",
             "calendar_query",
             "calendar_query",
@@ -53,10 +62,20 @@ def create_dataset(dataset_path):
             "retrain_model",
             "retrain_model",
             "retrain_model",
-            "retrain_model","cancel_task",
+            "retrain_model", # Update model
+            "cancel_task",   # Cancel that
             "cancel_task",
             "cancel_task",
-            "cancel_task",],
+            "cancel_task",   # I don't need that anymore
+            "add_calendar_event",
+            "add_calendar_event",
+            "add_calendar_event",
+            "greeting",
+            "greeting",
+            "greeting",
+            "goodbye",
+            "goodbye",
+            "goodbye",],
     }
     df = pd.DataFrame(data)
     df.to_csv(dataset_path, index=False)

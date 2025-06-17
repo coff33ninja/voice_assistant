@@ -2,6 +2,7 @@ import threading
 import asyncio
 import re
 import platform
+import datetime
 from typing import Optional
 
 from wakeword_detector import run_wakeword
@@ -25,6 +26,7 @@ from modules.contractions import normalize_text
 from modules.error_handling import async_error_handler
 from typing import Callable, Dict, Awaitable
 from modules.greeting_module import get_greeting, get_goodbye
+from modules.calendar_utils import add_event_to_calendar # get_calendar_file_path not used directly here yet
 
 # --- Modularized interaction logic ---
 
@@ -51,10 +53,13 @@ async def handle_set_reminder(normalized_transcription: str) -> str:
         reminder = parse_reminder(normalized_transcription)
         if reminder:
             await save_reminder_async(reminder["task"], reminder["time"])
-            response = f"Okay, I've set a reminder for '{reminder['task']}' at {reminder['time'].strftime('%I:%M %p on %A, %B %d')}"
+            # Add reminder to calendar
+            add_event_to_calendar(reminder["task"], reminder["time"])
+            response = f"Okay, I've set a reminder for '{reminder['task']}' at {reminder['time'].strftime('%I:%M %p on %A, %B %d')} and added it to your calendar."
         else:
             response = "I couldn't quite understand the reminder. Please try saying something like 'remind me to call John tomorrow at 2 pm'."
-        return response  # Added return
+        await text_to_speech_async(response)
+        return response
     elif intent == "list_reminders":
         target_date = parse_list_reminder_request(normalized_transcription or "")
         if target_date:
@@ -145,7 +150,12 @@ async def handle_set_reminder(normalized_transcription: str) -> str:
         )  # Pass None to signify current location
         if weather_data:
             response = f"The current weather in {weather_data['city']} is {weather_data['description']} with a temperature of {weather_data['temp']:.1f} degrees Celsius."
-
+            # Add weather as a calendar event for today
+            # Ensure datetime is imported if not already at the top
+            # import datetime # Already imported at the top of the file
+            today = datetime.datetime.now().replace(hour=9, minute=0, second=0, microsecond=0)
+            add_event_to_calendar(f"Weather in {weather_data['city']}: {weather_data['description']}", today, description=f"Temperature: {weather_data['temp']:.1f}°C")
+            response += " I've also added this to your calendar."
         else:
             response = "Sorry, I couldn't determine your current location or fetch the weather for it. Please check your internet connection or try specifying a city."
     elif location_name:
@@ -332,6 +342,11 @@ async def handle_get_weather_intent(normalized_transcription: str) -> str:
         weather_data = await get_weather_async(None)
         if weather_data:
             response = f"The current weather in {weather_data['city']} is {weather_data['description']} with a temperature of {weather_data['temp']:.1f} degrees Celsius."
+            # Add weather as calendar event
+            from modules.calendar_utils import add_event_to_calendar
+            import datetime
+            today = datetime.datetime.now().replace(hour=9, minute=0, second=0, microsecond=0)
+            add_event_to_calendar(f"Weather: {weather_data['description']}", today, description=f"Temperature: {weather_data['temp']:.1f}°C")
         else:
             response = "Sorry, I couldn't determine your current location or fetch the weather for it. Please check your internet connection or try specifying a city."
     elif location_name:
@@ -344,6 +359,47 @@ async def handle_get_weather_intent(normalized_transcription: str) -> str:
             response = f"Sorry, I couldn't fetch the weather for {location_name}. Please ensure the API key is set up and the location is valid."
     if not response:
         response = "I'm not sure which location you're asking about for the weather. Please specify, like 'weather in London' or 'weather in my area'."
+    await text_to_speech_async(response)
+    return response
+
+
+@intent_handler("add_calendar_event")
+async def handle_add_calendar_event_intent(normalized_transcription: str) -> str:
+    # Example: "add meeting with John on June 20th at 3pm"
+    # Ensure dateparser and re are imported (they are at the top of the context file)
+    import dateparser 
+    # import re # Already imported at the top
+
+    response = ""
+    # Try to extract event title and date/time using various patterns
+    patterns = [
+        r"add (.+?)(?:\s+on|\s+at|\s+for)\s+(.+)", # "add event on date", "add event at time", "add event for date"
+        r"schedule (.+?)(?:\s+on|\s+at|\s+for)\s+(.+)", # "schedule event on date", etc.
+        r"put (.+?)(?:\s+on my calendar|\s+in my calendar)(?:\s+for|\s+on|\s+at)\s+(.+)" # "put event on my calendar for date"
+    ]
+    
+    summary = None
+    date_str = None
+
+    for pattern in patterns:
+        match = re.search(pattern, normalized_transcription, re.IGNORECASE)
+        if match:
+            summary = match.group(1).strip()
+            # Clean up summary: remove "called X" if it's part of the date string, or rephrase
+            called_match = re.search(r"(.+?)\s+called\s+(.+)", summary, re.IGNORECASE)
+            if called_match:
+                 summary = f"{called_match.group(1).strip()}: {called_match.group(2).strip()}"
+            date_str = match.group(2).strip()
+            break 
+
+    if summary and date_str:
+        start = dateparser.parse(date_str, settings={'PREFER_DATES_FROM': 'future'})
+        if start:
+            response = add_event_to_calendar(summary, start) # add_event_to_calendar returns a string
+        else:
+            response = "Sorry, I couldn't understand the date and time for the event. Please try again, like 'add meeting on June 20th at 3pm'."
+    else:
+        response = "Please specify the event and date, for example: 'add meeting with John on June 20th at 3pm' or 'schedule project update for next Tuesday at 2pm'."
     await text_to_speech_async(response)
     return response
 

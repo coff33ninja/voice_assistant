@@ -227,6 +227,8 @@ def install_python_dependencies():
             "aiohttp",
             "python-dotenv",
             "nest_asyncio",
+            "ics",
+            "dateparser",
         ],
         "Failed to install core dependencies",
     )

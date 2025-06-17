@@ -16,6 +16,7 @@ def fine_tune_model(dataset_path, model_save_path):
     else:
         raise ValueError("Loaded dataset is not a supported HuggingFace Dataset type.")
     # Update label_map to include retrain_model
+    # This should match INTENT_LABELS_MAP in intent_classifier.py
     label_map = {
         "set_reminder": 0,
         "calendar_query": 1,
@@ -23,7 +24,10 @@ def fine_tune_model(dataset_path, model_save_path):
         "general_query": 3,
         "list_reminders": 4,
         "retrain_model": 5,
-        "cancel_task": 6,}
+        "cancel_task": 6,
+        "greeting": 7,
+        "goodbye": 8,
+        "add_calendar_event": 9, }
     dataset = dataset.map(lambda x: {"label": label_map[x["label"]]})
 
     # Tokenizer and model

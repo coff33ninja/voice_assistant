@@ -20,6 +20,7 @@ INTENT_LABELS_MAP = {
     6: "cancel_task",
     7: "greeting",
     8: "goodbye",
+    9: "add_calendar_event",
 }
 
 CONFIDENCE_THRESHOLD = 0.70  # Minimum confidence to accept a classified intent
