@@ -2,6 +2,7 @@ import pandas as pd
 import asyncio
 import os
 import sys
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from modules.retrain_utils import trigger_model_retraining_async
 
 # Ensure the parent directory is in sys.path for module imports
