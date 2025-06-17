@@ -389,20 +389,15 @@ async def handle_retrain_model_error(normalized_transcription: str) -> str:
 
 @intent_handler("set_reminder_error")
 async def handle_set_reminder_error(normalized_transcription: str) -> str:
-    response = "Sorry, I couldn't set your reminder. Please try rephrasing your request or provide more details."
+    response = "Sorry, I couldn't set your reminder. Would you like to try again or give me more details?"
     await text_to_speech_async(response)
-    return response
-
-@intent_handler("list_reminders_error")
-async def handle_list_reminders_error(normalized_transcription: str) -> str:
-    response = "Sorry, I couldn't retrieve your reminders due to an error. Please check your reminder data or try again later."
-    await text_to_speech_async(response)
+    # Optionally, listen for a follow-up here
     return response
 
 @intent_handler("get_time")
 async def handle_get_time(normalized_transcription: str) -> str:
     now = datetime.datetime.now()
-    response = f"The current time is {now.strftime('%I:%M %p')}"
+    response = f"It's {now.strftime('%I:%M %p on %A, %B %d, %Y')}. Would you like to set a reminder or ask about something else?"
     await text_to_speech_async(response)
     return response
 
@@ -440,7 +435,7 @@ async def handle_get_weather_current_error(normalized_transcription: str) -> str
 
 @intent_handler("get_weather_unsure")
 async def handle_get_weather_unsure(normalized_transcription: str) -> str:
-    response = "I'm not sure which location you meant. Could you please specify the city or say 'current location'?"
+    response = "I'm not sure which location you meant. Would you like the weather for your current location or a specific city?"
     await text_to_speech_async(response)
     return response
 
@@ -470,12 +465,12 @@ async def handle_llm_service_error(normalized_transcription: str) -> str:
 
 @intent_handler("llm_fallback_sorry")
 async def handle_llm_fallback_sorry(normalized_transcription: str) -> str:
-    response = "Sorry, I couldn't understand your request. Could you please rephrase?"
+    response = ("Sorry, I couldn't understand your request. You can ask things like 'What's the weather?', 'Set a reminder for 3 PM', or 'Add a calendar event.' Would you like to try rephrasing?")
     await text_to_speech_async(response)
     return response
 
 @intent_handler("no_speech_detected")
 async def handle_no_speech_detected(normalized_transcription: str) -> str:
-    response = "I didn't hear anything. Please try speaking again."
+    response = "I didn't hear anything. Please try speaking again, or say 'help' for examples of what I can do."
     await text_to_speech_async(response)
     return response
