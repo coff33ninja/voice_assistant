@@ -23,7 +23,7 @@ from modules.calendar_utils import add_event_to_calendar
 
 # Import for validation and retraining logic
 from scripts.intent_validator import run_validation_and_retrain_async
-from modules.retrain_utils import parse_retrain_request # Still need this for parsing
+from modules.retrain_utils import parse_retrain_request
 
 # Configure a logger for this module (optional, or use root logger)
 logger = logging.getLogger(__name__)
@@ -47,10 +47,8 @@ def intent_handler(intent_name: str):
 
 
 # Load responses from CSV
-RESPONSES_PATH = os.path.join(
-    os.path.dirname(__file__), "..", "intent_data", "intent_responses.csv"
-)
-_responses_df = pd.read_csv(RESPONSES_PATH)
+# RESPONSES_PATH is no longer needed as INTENT_RESPONSES_CSV from config is used.
+_responses_df = pd.read_csv(INTENT_RESPONSES_CSV) # Use imported path from config
 RESPONSE_MAP = dict(zip(_responses_df["intent"], _responses_df["response"]))
 
 
