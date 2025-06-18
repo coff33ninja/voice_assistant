@@ -42,12 +42,13 @@ def initialize_llm():
         input_variables=["history", "input"], template=PROMPT_TEMPLATE_STR
     )
 
+    chain = prompt | llm_instance  # Create the chain: prompt -> llm
+
     runnable_with_history_global = RunnableWithMessageHistory(
-        llm_instance,
+        chain,  # Wrap the chain with history
         get_session_history,
         input_messages_key="input",
         history_messages_key="history",
-        prompt=prompt,
     )
     print("LLM service initialized.")
 
@@ -60,7 +61,7 @@ async def get_llm_response(input_text: str) -> str:
         config: RunnableConfig = {
             "configurable": {"session_id": session_id}
         }  # Explicitly type the config
-        response = await asyncio.to_thread(
+        response = await asyncio.to_thread(  # type: ignore
             runnable_with_history_global.invoke, {"input": input_text}, config=config
         )
         return response
@@ -75,9 +76,8 @@ def get_llm_response_sync(input_text: str) -> str:
         config: RunnableConfig = {
             "configurable": {"session_id": session_id}
         }  # Explicitly type the config
-        response = runnable_with_history_global.invoke({"input": input_text}, config=config)
+        response = runnable_with_history_global.invoke({"input": input_text}, config=config)  # type: ignore
         return response
     except Exception as e:
         print(f"[ERROR] LLM connection failed: {e}")
         return ""
-    

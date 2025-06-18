@@ -4,6 +4,12 @@ from typing import Optional
 import warnings
 import logging
 
+# --- Basic Logging Configuration ---
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+)
+
 from wakeword_detector import run_wakeword_async
 
 from modules.audio_utils import record_audio_async
@@ -25,12 +31,6 @@ from modules.intent_logic import process_command, get_response, ShutdownSignal
 # Import for validation and retraining logic
 from scripts.intent_validator import run_validation_and_retrain_async
 from modules.retrain_utils import parse_retrain_request  # Still need this for parsing
-
-# --- Basic Logging Configuration ---
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
 
 # --- Suppress specific library warnings and configure logging ---
 
