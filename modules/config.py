@@ -33,6 +33,9 @@ INTENT_RESPONSES_CSV = os.path.join(INTENT_DATA_DIR, "intent_responses.csv")
 INTENT_DATASET_CSV = os.path.join(INTENT_DATA_DIR, "intent_dataset.csv")
 INTENT_MODEL_SAVE_PATH = os.path.join(BASE_DIR, "fine_tuned_distilbert") # Same as old MODEL_SAVE_PATH
 
+# Default speaker WAV path for XTTS models
+DEFAULT_SPEAKER_WAV_PATH = os.path.join(_PROJECT_ROOT, "assets", "sample_speaker.wav")
+
 ASR_DEVICE = "cuda" if hasattr(__import__('torch'), 'cuda') and __import__('torch').cuda.is_available() else "cpu"
 ALIGN_LANGUAGE_CODE = "en"  # For WhisperX alignment model
 
@@ -55,4 +58,4 @@ AUDIO_SAMPLE_RATE = 16000
 AUDIO_DURATION_SECONDS = 5
 
 # LLM
-LLM_MODEL_NAME = "llama2"
+LLM_MODEL_NAME = os.getenv("LLM_MODEL_NAME", "llama2")

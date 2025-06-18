@@ -4,11 +4,13 @@ import urllib.request
 import subprocess
 from TTS.api import TTS as CoquiTTS # Renamed to avoid conflict if TTS is a common var name
 from dotenv import set_key # For .env manipulation
-from .config import _PROJECT_ROOT, TTS_MODEL_NAME as CURRENT_EFFECTIVE_TTS_MODEL, TTS_SPEED_RATE as CURRENT_EFFECTIVE_TTS_SPEED, TTS_SAMPLERATE
-
-# Define a path for a default speaker WAV file for XTTS models
-# This file needs to be present in the 'assets' directory for XTTS sample playback.
-DEFAULT_SPEAKER_WAV_PATH = os.path.join(_PROJECT_ROOT, "assets", "sample_speaker.wav")
+from .config import (
+    _PROJECT_ROOT, # Import _PROJECT_ROOT
+    TTS_MODEL_NAME as CURRENT_EFFECTIVE_TTS_MODEL,
+    TTS_SPEED_RATE as CURRENT_EFFECTIVE_TTS_SPEED,
+    TTS_SAMPLERATE,
+    DEFAULT_SPEAKER_WAV_PATH
+)
 
 def download_file(url, dest):
     try:

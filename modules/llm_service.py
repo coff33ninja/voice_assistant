@@ -6,9 +6,11 @@ from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_core.chat_history import BaseChatMessageHistory
 from langchain_core.runnables.config import RunnableConfig  # Import RunnableConfig
 from .config import LLM_MODEL_NAME
+from typing import Dict, Any, Optional, cast # Import cast
 
-llm_instance = None
-runnable_with_history_global = None
+llm_instance: Optional[Ollama] = None
+# Simplified type for Pylance compatibility, though RunnableWithMessageHistory is generic.
+runnable_with_history_global: Optional[RunnableWithMessageHistory] = None
 message_history_store: dict[str, BaseChatMessageHistory] = {}
 
 PROMPT_TEMPLATE_STR = """
@@ -42,7 +44,10 @@ def initialize_llm():
         input_variables=["history", "input"], template=PROMPT_TEMPLATE_STR
     )
 
-    chain = prompt | llm_instance  # Create the chain: prompt -> llm
+    # Ensure llm_instance is treated as Ollama for the chain construction
+    if llm_instance is None:
+        raise RuntimeError("LLM instance was not initialized before chain creation.") # Should not happen
+    chain = prompt | cast(Ollama, llm_instance)  # Create the chain: prompt -> llm
 
     runnable_with_history_global = RunnableWithMessageHistory(
         chain,  # Wrap the chain with history
@@ -61,10 +66,10 @@ async def get_llm_response(input_text: str) -> str:
         config: RunnableConfig = {
             "configurable": {"session_id": session_id}
         }  # Explicitly type the config
-        response = await asyncio.to_thread(  # type: ignore
+        response = await asyncio.to_thread(
             runnable_with_history_global.invoke, {"input": input_text}, config=config
         )
-        return response
+        return str(response) # Ensure return type is str
     except Exception as e:
         print(f"[ERROR] LLM connection failed: {e}")
         return ""
@@ -76,8 +81,8 @@ def get_llm_response_sync(input_text: str) -> str:
         config: RunnableConfig = {
             "configurable": {"session_id": session_id}
         }  # Explicitly type the config
-        response = runnable_with_history_global.invoke({"input": input_text}, config=config)  # type: ignore
-        return response
+        response = runnable_with_history_global.invoke({"input": input_text}, config=config)
+        return str(response) # Ensure return type is str
     except Exception as e:
         print(f"[ERROR] LLM connection failed: {e}")
         return ""

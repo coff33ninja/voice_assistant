@@ -7,14 +7,10 @@ from .config import (
     TTS_MODEL_NAME,
     TTS_SPEED_RATE,
     TTS_SAMPLERATE,
-    _PROJECT_ROOT # For accessing assets
+    DEFAULT_SPEAKER_WAV_PATH as DEFAULT_SPEAKER_WAV_PATH_TTS_SERVICE # Use centralized path
 )  # Use the single configured model name
 
 tts_instance = None
-
-# Define default speaker WAV path, similar to other modules
-# This file needs to be present in the 'assets' directory for XTTS playback.
-DEFAULT_SPEAKER_WAV_PATH_TTS_SERVICE = os.path.join(_PROJECT_ROOT, "assets", "sample_speaker.wav")
 
 
 def initialize_tts():

@@ -15,15 +15,12 @@ from modules.config import (
     INTENT_MODEL_SAVE_PATH,
     PICOVOICE_KEY_FILE_PATH,
     OPENWEATHER_API_KEY_FILE_PATH,
-    BASE_DIR, # Centralized models base directory
+    BASE_DIR, # Centralized models base directory,
+    DEFAULT_SPEAKER_WAV_PATH # Centralized default speaker WAV path
 )
 # For final TTS message
 from TTS.api import TTS as CoquiTTS
 import sounddevice as sd
-
-# Define a path for a default speaker WAV file for XTTS models, similar to download_and_models.py
-# This file needs to be present in the 'assets' directory for XTTS playback.
-DEFAULT_SPEAKER_WAV_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "sample_speaker.wav")
 
 PRECISE_MODEL_URL = "https://github.com/MycroftAI/mycroft-precise/releases/download/v0.3.0/precise-engine_0.3.0_x86_64.tar.gz"
 SETUP_CHECKPOINTS_PATH = os.path.join(BASE_DIR, "setup_checkpoints.json")
