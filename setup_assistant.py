@@ -21,6 +21,10 @@ from modules.config import (
 from TTS.api import TTS as CoquiTTS
 import sounddevice as sd
 
+# Define a path for a default speaker WAV file for XTTS models, similar to download_and_models.py
+# This file needs to be present in the 'assets' directory for XTTS playback.
+DEFAULT_SPEAKER_WAV_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "sample_speaker.wav")
+
 PRECISE_MODEL_URL = "https://github.com/MycroftAI/mycroft-precise/releases/download/v0.3.0/precise-engine_0.3.0_x86_64.tar.gz"
 SETUP_CHECKPOINTS_PATH = os.path.join(BASE_DIR, "setup_checkpoints.json")
 
@@ -176,10 +180,30 @@ def main():
         current_tts_model = os.getenv("TTS_MODEL_NAME", DEFAULT_TTS_MODEL)
         current_tts_speed = float(os.getenv("TTS_SPEED_RATE", str(DEFAULT_TTS_SPEED)))
         current_tts_samplerate = int(os.getenv("TTS_SAMPLERATE", str(DEFAULT_TTS_SAMPLERATE))) # Samplerate is usually fixed but good to be consistent
-
+        
         tts_instance_final = CoquiTTS(model_name=current_tts_model, progress_bar=False)
-        audio_output = tts_instance_final.tts(text=final_tts_message, speed=current_tts_speed)
-        sd.play(audio_output, samplerate=current_tts_samplerate)
+
+        tts_kwargs_final = {}
+        if "xtts" in current_tts_model.lower():
+            print(f"Final TTS: Model '{current_tts_model}' detected as an XTTS model. Checking for speaker WAV.")
+            tts_kwargs_final["language"] = "en" # Default language for XTTS
+            if os.path.exists(DEFAULT_SPEAKER_WAV_PATH):
+                tts_kwargs_final["speaker_wav"] = DEFAULT_SPEAKER_WAV_PATH
+                print(f"Final TTS: Using default speaker WAV: {DEFAULT_SPEAKER_WAV_PATH} and language: {tts_kwargs_final['language']}")
+            else:
+                print(f"WARNING (Final TTS): Default speaker WAV for XTTS models not found at '{DEFAULT_SPEAKER_WAV_PATH}'.")
+                print("The final message might not play correctly or use a default voice.")
+                # Allow to proceed, it might use a default internal speaker if any, or fail as observed.
+
+        audio_output = tts_instance_final.tts(text=final_tts_message, speed=current_tts_speed, **tts_kwargs_final)
+        
+        # Determine the correct samplerate for playback for the final message
+        final_playback_samplerate = current_tts_samplerate # Default
+        if hasattr(tts_instance_final, 'synthesizer') and tts_instance_final.synthesizer is not None and hasattr(tts_instance_final.synthesizer, 'output_sample_rate'):
+            final_playback_samplerate = tts_instance_final.synthesizer.output_sample_rate
+            print(f"Final TTS: Using model's output samplerate: {final_playback_samplerate}")
+
+        sd.play(audio_output, samplerate=final_playback_samplerate)
         sd.wait()
     except Exception as tts_e:
         print(f"Could not play final TTS message: {tts_e}")
