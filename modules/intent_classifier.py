@@ -4,7 +4,7 @@ from transformers import (
     DistilBertForSequenceClassification,
     pipeline,
 )
-from .config import MODEL_SAVE_PATH
+from .config import INTENT_MODEL_SAVE_PATH
 from typing import Tuple, Dict, Any
 import pandas as pd
 import os
@@ -25,12 +25,12 @@ def initialize_intent_classifier():
     global intent_tokenizer, intent_model, intent_classifier_pipeline
     print("Initializing Intent Classifier...")
     try:
-        intent_tokenizer = DistilBertTokenizer.from_pretrained(MODEL_SAVE_PATH)
-        intent_model = DistilBertForSequenceClassification.from_pretrained(MODEL_SAVE_PATH)
+        intent_tokenizer = DistilBertTokenizer.from_pretrained(INTENT_MODEL_SAVE_PATH)
+        intent_model = DistilBertForSequenceClassification.from_pretrained(INTENT_MODEL_SAVE_PATH)
         intent_classifier_pipeline = pipeline("text-classification", model=intent_model, tokenizer=intent_tokenizer)
         print("Intent Classifier initialized.")
     except Exception as e:
-        print(f"Error initializing Intent Classifier from {MODEL_SAVE_PATH}: {e}")
+        print(f"Error initializing Intent Classifier from {INTENT_MODEL_SAVE_PATH}: {e}")
         print("Ensure the model has been trained and saved correctly via setup_assistant.py.")
         raise
 
