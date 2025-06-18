@@ -119,13 +119,19 @@ def detect_cpu_vendor():
     return "unknown"
 
 
-def write_env_file(settings, base_dir_path):
+def write_env_file(settings, base_dir_path, asr_device=None, tts_device=None):
     env_path = base_dir_path / ".env"
     logger.info(f"Writing hardware configuration to: {env_path}")
     # This overwrites the .env file. For more careful updates, python-dotenv's set_key could be used.
     with env_path.open("w") as f:
         for key, value in settings.items():
             f.write(f"{key.upper()}={value}\n")
+        if asr_device:
+            f.write(f"ASR_DEVICE={asr_device}\n")
+            logger.info(f"ASR_DEVICE set to: {asr_device}")
+        if tts_device:
+            f.write(f"TTS_DEVICE={tts_device}\n")
+            logger.info(f"TTS_DEVICE set to: {tts_device}")
 
 
 def install_pytorch_version(torch_version_str):
@@ -172,6 +178,13 @@ def run_device_setup(base_dir_path_str):
 
     install_pytorch_version(recommended_config['torch'])
 
+    # Determine ASR and TTS device values
+    asr_device_val = "cuda" if recommended_config['type'] == "cuda" else "cpu"
+    tts_device_val = "cpu"  # TTS device is always CPU
+
+    logger.info(f"Determined ASR device: {asr_device_val}")
+    logger.info(f"Determined TTS device: {tts_device_val}")
+
     env_settings = {
         "TORCH_VARIANT": recommended_config['torch'],
         "DEVICE_TYPE": recommended_config['type'],
@@ -181,7 +194,7 @@ def run_device_setup(base_dir_path_str):
     if recommended_config['type'] == "cuda" and 'cuda' in recommended_config:
         env_settings["RECOMMENDED_CUDA_VERSION"] = recommended_config['cuda']
 
-    write_env_file(env_settings, base_dir)
+    write_env_file(env_settings, base_dir, asr_device=asr_device_val, tts_device=tts_device_val)
     logger.info("Hardware detection and PyTorch setup complete. Configuration saved to .env file.")
 
 if __name__ == "__main__":

@@ -59,6 +59,8 @@ def save_checkpoints(checkpoints):
         json.dump(checkpoints, f, indent=2)
 
 def main():
+    print("Setup Assistant: Checking for and loading existing .env file if present.")
+    load_dotenv() # Initial load to get any existing settings
     print("Setting up voice assistant...")
     create_directories(BASE_DIR, INTENT_MODEL_SAVE_PATH) # Use centralized path
 
@@ -121,8 +123,9 @@ def main():
                         print(f"Step '{step_name.replace('_', ' ').title()}' completed successfully.")
                         # If device detection just ran, reload .env variables
                         if step_name == "device_detection":
-                            print("Reloading .env variables after device detection and PyTorch setup...")
+                            print("Attempting to reload .env variables after device detection...")
                             load_dotenv(override=True)
+                            print(".env variables reloaded. Subsequent operations will use these settings.")
                         break # Exit retry loop for this step
                     except Exception as e:
                         print(f"Error during step '{step_name.replace('_', ' ').title()}': {e}")

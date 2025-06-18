@@ -1,5 +1,10 @@
 import os
 from dotenv import load_dotenv
+import logging
+
+# Setup basic logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(name)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 # Load environment variables from .env file if present
 load_dotenv()
@@ -36,7 +41,16 @@ INTENT_MODEL_SAVE_PATH = os.path.join(BASE_DIR, "fine_tuned_distilbert") # Same 
 # Default speaker WAV path for XTTS models
 DEFAULT_SPEAKER_WAV_PATH = os.path.join(_PROJECT_ROOT, "assets", "sample_speaker.wav")
 
-ASR_DEVICE = "cuda" if hasattr(__import__('torch'), 'cuda') and __import__('torch').cuda.is_available() else "cpu"
+# Device Configuration - these will be read from .env, which is populated by device_detector.py
+DEVICE_TYPE = os.getenv("DEVICE_TYPE", "cpu")  # Overall device type, e.g., "cuda" or "cpu"
+ASR_DEVICE = os.getenv("ASR_DEVICE", "cpu")    # Device for ASR tasks, e.g., "cuda" or "cpu"
+TTS_DEVICE = os.getenv("TTS_DEVICE", "cpu")    # Device for TTS tasks, e.g., "cpu"
+
+# Log the device configurations
+logger.info(f"Config - DEVICE_TYPE: {DEVICE_TYPE}")
+logger.info(f"Config - ASR_DEVICE: {ASR_DEVICE}")
+logger.info(f"Config - TTS_DEVICE: {TTS_DEVICE}")
+
 ALIGN_LANGUAGE_CODE = "en"  # For WhisperX alignment model
 
 GREETING_MESSAGE = "How can I help you?"

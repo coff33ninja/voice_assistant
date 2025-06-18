@@ -9,15 +9,17 @@ align_metadata_global = None
 
 def initialize_stt():
     global stt_model_global, align_model_global, align_metadata_global
-    print("Initializing STT service...")
+    # Ensure ASR_DEVICE is imported from config, which it is at the top of the file.
+    print(f"STT Service: Initializing with device: {ASR_DEVICE}") # Added logging for device
     stt_model_global = whisperx.load_model(
         STT_MODEL_NAME, device=ASR_DEVICE, compute_type=STT_COMPUTE_TYPE
     )
+    print(f"STT Service: Model '{STT_MODEL_NAME}' loaded successfully on device '{ASR_DEVICE}'.")
     try:
         align_model_global, align_metadata_global = whisperx.load_align_model(
             language_code=ALIGN_LANGUAGE_CODE, device=ASR_DEVICE
         )
-        print(f"Alignment model for '{ALIGN_LANGUAGE_CODE}' loaded.")
+        print(f"STT Service: Alignment model for '{ALIGN_LANGUAGE_CODE}' loaded successfully on device '{ASR_DEVICE}'.")
     except Exception as e:
         print(f"Warning: Failed to load alignment model for '{ALIGN_LANGUAGE_CODE}': {e}. Alignment will be skipped.")
         align_model_global, align_metadata_global = None, None
