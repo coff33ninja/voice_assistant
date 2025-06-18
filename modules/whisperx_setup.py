@@ -12,7 +12,7 @@ except ImportError:
     raise
 
 import tempfile
-from modules.config import DEFAULT_STT_MODEL_NAME
+from modules.config import STT_MODEL_NAME
 
 # Common WhisperX models
 WHISPERX_MODELS = [
@@ -33,7 +33,7 @@ def setup_whisperx():
         open(dotenv_path, 'a').close()
         print(f"Created .env file at {dotenv_path}")
 
-    current_stt_model = os.getenv("STT_MODEL_NAME", DEFAULT_STT_MODEL_NAME)
+    current_stt_model = os.getenv("STT_MODEL_NAME", STT_MODEL_NAME)
     print(f"Current WhisperX model: {current_stt_model}")
 
     print("\nAvailable WhisperX models:")

@@ -46,8 +46,8 @@ TTS_SAMPLERATE = 22050
 
 # STT Model
 # Default STT Model. This can be overridden by STT_MODEL_NAME in .env, or selected via whisperx_setup.py.
-DEFAULT_STT_MODEL_NAME = os.getenv("STT_MODEL_NAME", "base")
-STT_COMPUTE_TYPE = "int8" # Default compute type, can also be configured if needed
+STT_MODEL_NAME = os.getenv("STT_MODEL_NAME", "base")
+STT_COMPUTE_TYPE = "int8"  # Default compute type, can also be configured if needed
 STT_BATCH_SIZE = 16
 
 # Audio Recording
