@@ -10,9 +10,6 @@ _PROJECT_ROOT = os.path.dirname(os.path.abspath(os.path.join(__file__, os.pardir
 
 BASE_DIR = os.path.join(_PROJECT_ROOT, "models")
 
-DB_PATH = os.path.join(BASE_DIR, "reminders.db")
-MODEL_SAVE_PATH = os.path.join(BASE_DIR, "fine_tuned_distilbert")
-
 # API keys now loaded from environment variables, fallback to file if not set
 def get_picovoice_key():
     return os.getenv("PICOVOICE_KEY")
@@ -20,8 +17,21 @@ def get_picovoice_key():
 def get_openweather_api_key():
     return os.getenv("OPENWEATHER_API_KEY")
 
+# File Paths
+DB_FILENAME = "assistant_data.db" # Changed from reminders.db to be more general
+DB_PATH = os.path.join(_PROJECT_ROOT, DB_FILENAME) # Store DB in project root for easier access/backup
+
 PICOVOICE_KEY_FILE_PATH = os.path.join(BASE_DIR, "picovoice_key.txt")
 OPENWEATHER_API_KEY_FILE_PATH = os.path.join(BASE_DIR, "openweather_api_key.txt")
+
+PRECISE_ENGINE_EXECUTABLE = os.path.join(BASE_DIR, "precise-engine/precise-engine")
+PRECISE_MODEL_HEY_MIKA = os.path.join(BASE_DIR, "hey_mika.pb")
+PICOVOICE_MODEL_HEY_MIKA = os.path.join(BASE_DIR, "hey_mika.ppn")
+
+INTENT_DATA_DIR = os.path.join(_PROJECT_ROOT, "intent_data")
+INTENT_RESPONSES_CSV = os.path.join(INTENT_DATA_DIR, "intent_responses.csv")
+INTENT_DATASET_CSV = os.path.join(INTENT_DATA_DIR, "intent_dataset.csv")
+INTENT_MODEL_SAVE_PATH = os.path.join(BASE_DIR, "fine_tuned_distilbert") # Same as old MODEL_SAVE_PATH
 
 ASR_DEVICE = "cuda" if hasattr(__import__('torch'), 'cuda') and __import__('torch').cuda.is_available() else "cpu"
 ALIGN_LANGUAGE_CODE = "en"  # For WhisperX alignment model

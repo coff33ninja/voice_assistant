@@ -28,7 +28,7 @@ add_calendar_event_missing,"Please specify the event and date, for example: 'add
 llm_fallback_sorry,"I'm sorry, I didn't understand that. You can ask me to set reminders, check the weather, or answer questions. Try rephrasing your request or say 'help' for examples."
 llm_service_error,"I couldn't reach the language model service. Please make sure Ollama is running, then try again."
 no_speech_detected,"I didn't catch that. If you need something, please call me again."
-get_time,"The current time is {time}."
+get_time,"The current time is {time}." # Ensured this key exists
 no_speech_detected,"I didn't hear anything. Please try again."
 shopping_list,"Here is your shopping list."
 traffic_query,"Let me check the traffic for you."
@@ -36,6 +36,7 @@ alarm_set,"Alarm has been set."
 smarthome_off,"Turning off the smart home device."
 shopping_remove,"Item removed from your shopping list."
 date_query,"Today's date is {date}."
+get_date,"Today's date is {date}." # Added for consistency with get_time
 music_previous,"Playing the previous track."
 alarm_cancel,"Alarm cancelled."
 translate_query,"Let me translate that for you."

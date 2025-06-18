@@ -4,15 +4,12 @@ import sounddevice as sd
 from precise_runner import PreciseEngine, PreciseRunner
 import logging
 import pvporcupine
-
-# Determine the absolute path to the 'models' directory relative to this script
-_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-BASE_DIR = os.path.join(_SCRIPT_DIR, "models")
-
-PRECISE_ENGINE = os.path.join(BASE_DIR, "precise-engine/precise-engine")
-PRECISE_MODEL = os.path.join(BASE_DIR, "hey_mika.pb") # Renamed wakeword model
-PICOVOICE_KEY_FILE = os.path.join(BASE_DIR, "picovoice_key.txt")
-PICOVOICE_MODEL = os.path.join(BASE_DIR, "hey_mika.ppn") # Renamed wakeword model
+from modules.config import (
+    PRECISE_ENGINE_EXECUTABLE,
+    PRECISE_MODEL_HEY_MIKA,
+    PICOVOICE_KEY_FILE_PATH, # Renamed from PICOVOICE_KEY_FILE for clarity
+    PICOVOICE_MODEL_HEY_MIKA,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -20,21 +17,21 @@ def get_porcupine_key():
     if os.path.exists(PICOVOICE_KEY_FILE):
         with open(PICOVOICE_KEY_FILE, "r") as f:
             return f.read().strip()
-    return None
+    return None # Return None if key file doesn't exist
 
 async def detect_wakeword_precise(callback):
     try:
-        if not os.path.exists(PRECISE_MODEL):
+        if not os.path.exists(PRECISE_MODEL_HEY_MIKA):
             raise FileNotFoundError("Precise wakeword model not found. Train a model first.")
-        engine = PreciseEngine(PRECISE_ENGINE, PRECISE_MODEL)
+        engine = PreciseEngine(PRECISE_ENGINE_EXECUTABLE, PRECISE_MODEL_HEY_MIKA)
         runner = PreciseRunner(engine, on_activation=callback, sensitivity=0.5)
         await asyncio.to_thread(runner.start) # Run blocking start in a thread
         while True:
             await asyncio.sleep(1.0)
     except Exception as e:
-        logger.error(f"Precise wakeword error: {e}. Ensure model is trained and placed at {PRECISE_MODEL}.")
+        logger.error(f"Precise wakeword error: {e}. Ensure model is trained and placed at {PRECISE_MODEL_HEY_MIKA}.")
         # runner.stop() might be needed here if it was started.
-        # PreciseRunner's start() is blocking if not handled, or runs its own thread.
+        # PreciseRunner's start() is blocking if not handled, or runs its own thread. # type: ignore
         # If runner.start() itself fails, this is fine. If it starts then an error occurs, cleanup might be needed.
         # Ensure proper cleanup of PreciseRunner resources.
         finally:
@@ -47,7 +44,7 @@ async def detect_wakeword_porcupine(callback, access_key):
     stream = None
     try:
         logger.info("Initializing Porcupine...")
-        porcupine = await asyncio.to_thread(pvporcupine.create, access_key=access_key, keyword_paths=[PICOVOICE_MODEL])
+        porcupine = await asyncio.to_thread(pvporcupine.create, access_key=access_key, keyword_paths=[PICOVOICE_MODEL_HEY_MIKA])
         logger.info("Porcupine initialized.")
 
         sample_rate = porcupine.sample_rate
@@ -96,10 +93,10 @@ async def detect_wakeword_porcupine(callback, access_key):
 
 async def detect_wakeword(callback):
     access_key = get_porcupine_key()
-    porcupine_model_available = access_key and os.path.exists(PICOVOICE_MODEL)
+    porcupine_model_available = access_key and os.path.exists(PICOVOICE_MODEL_HEY_MIKA)
 
     if porcupine_model_available:
-        logger.info(f"Picovoice key found and Porcupine model exists at {PICOVOICE_MODEL}.")
+        logger.info(f"Picovoice key found and Porcupine model exists at {PICOVOICE_MODEL_HEY_MIKA}.")
         logger.info("Attempting to use Porcupine for wakeword detection...")
         try:
             await detect_wakeword_porcupine(callback, access_key)
@@ -112,14 +109,14 @@ async def detect_wakeword(callback):
     else:
         if not access_key:
             logger.info("Picovoice access key not found or not provided.")
-        elif not os.path.exists(PICOVOICE_MODEL): # Check if model is the missing part
-            logger.info(f"Porcupine model not found at {PICOVOICE_MODEL}.")
+        elif not os.path.exists(PICOVOICE_MODEL_HEY_MIKA): # Check if model is the missing part
+            logger.info(f"Porcupine model not found at {PICOVOICE_MODEL_HEY_MIKA}.")
         logger.info("Proceeding to use Precise engine as primary or fallback.")
 
     # Attempt to use Precise engine if Porcupine was not used or failed.
     # The detect_wakeword_precise function will raise FileNotFoundError if its model is missing,
     # which will then be caught and printed by its own exception handler.
-    logger.info(f"Attempting to use Precise engine with model: {PRECISE_MODEL}")
+    logger.info(f"Attempting to use Precise engine with model: {PRECISE_MODEL_HEY_MIKA}")
     try:
         await detect_wakeword_precise(callback)
     except Exception as e_precise: # Catch potential errors from precise, though it handles its own printing

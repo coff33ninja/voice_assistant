@@ -10,23 +10,20 @@ from modules.db_setup import setup_db
 from modules.utils import create_directories
 from modules.config import (
     DB_PATH,
+    INTENT_DATASET_CSV, # Centralized path
+    INTENT_MODEL_SAVE_PATH, # Centralized path
     TTS_MODEL_NAME, # For final TTS message
     TTS_SPEED_RATE, # For final TTS message
     TTS_SAMPLERATE, # For final TTS message
     PICOVOICE_KEY_FILE_PATH,
     OPENWEATHER_API_KEY_FILE_PATH,
+    BASE_DIR, # Centralized models base directory
 )
 # For final TTS message
 from TTS.api import TTS as CoquiTTS
 import sounddevice as sd
 
-# Determine the absolute path to the 'models' directory relative to this script
-_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-BASE_DIR = os.path.join(_SCRIPT_DIR, "models")
-
 PRECISE_MODEL_URL = "https://github.com/MycroftAI/mycroft-precise/releases/download/v0.3.0/precise-engine_0.3.0_x86_64.tar.gz"
-DATASET_PATH = os.path.join(BASE_DIR, "intent_dataset.csv")
-MODEL_SAVE_PATH = os.path.join(BASE_DIR, "fine_tuned_distilbert")
 SETUP_CHECKPOINTS_PATH = os.path.join(BASE_DIR, "setup_checkpoints.json")
 
 SETUP_STEPS = [
@@ -62,10 +59,10 @@ def save_checkpoints(checkpoints):
 
 def main():
     print("Setting up voice assistant...")
-    create_directories(BASE_DIR, MODEL_SAVE_PATH)
-    
+    create_directories(BASE_DIR, INTENT_MODEL_SAVE_PATH) # Use centralized path
+
     # Import functions here to ensure they are available for the action_map
-    from modules.dataset import create_dataset 
+    from modules.dataset import create_dataset
     from modules.model_training import fine_tune_model
 
     action_map = {
@@ -76,19 +73,19 @@ def main():
         "openweather_api_key": (setup_api_key, {"key_file_path": OPENWEATHER_API_KEY_FILE_PATH, "service_name": "OpenWeather", "prompt_message": "Enter OpenWeather API Key (or press Enter to skip): "}),
         "whisperx": (setup_whisperx, {}),
         "db": (setup_db, {"DB_PATH": DB_PATH}),
-        "dataset": (create_dataset, {"dataset_path": DATASET_PATH}),
-        "model_training": (fine_tune_model, {"dataset_path": DATASET_PATH, "model_save_path": MODEL_SAVE_PATH})
+        "dataset": (create_dataset, {"dataset_path": INTENT_DATASET_CSV}), # Use centralized path
+        "model_training": (fine_tune_model, {"dataset_path": INTENT_DATASET_CSV, "model_save_path": INTENT_MODEL_SAVE_PATH}) # Use centralized paths
     }
 
     while True: # Main loop for the entire setup process
         checkpoints = load_checkpoints()
-        
+
         for step_name in SETUP_STEPS:
             print(f"\n--- Processing Step: {step_name.replace('_', ' ').title()} ---")
             func_to_call, func_args = action_map[step_name]
-            
+
             is_step_complete = checkpoints.get(step_name, False)
-            
+
             # TTS is always interactive for model selection, so we run it and mark it complete for this pass.
             if step_name == "tts":
                 try:
@@ -111,7 +108,7 @@ def main():
                     run_this_step = True
                 else:
                     print("Skipping step.")
-            
+
             if run_this_step:
                 while True: # Loop for retrying a failed step
                     try:
@@ -123,7 +120,7 @@ def main():
                     except Exception as e:
                         print(f"Error during step '{step_name.replace('_', ' ').title()}': {e}")
                         checkpoints[step_name] = False
-                        
+
                         retry_choice = input("Step failed. Choose action: (r)etry, (s)kip this step for now, (e)xit setup: ").strip().lower()
                         if retry_choice == 'r':
                             print("Retrying step...")
@@ -140,10 +137,10 @@ def main():
                             break # Default to skip
                     finally:
                         save_checkpoints(checkpoints)
-        
+
         # After iterating through all steps in SETUP_STEPS for one pass
         print("\n--- Current Setup Pass Complete ---")
-        
+
         all_done_this_pass = all(checkpoints.get(s, False) for s in SETUP_STEPS)
         if all_done_this_pass:
             print("All setup steps are currently marked as complete.")
@@ -165,7 +162,7 @@ def main():
 
     print("\nSetup process finished!")
     print("Well, this is the most you are supposed to do for voice assistants, who knows maybe there might be new typing areas added later.")
-    
+
     final_tts_message = "But let's continue, and you can finally hear my voice! I hope I sound just right after all that tinkering."
     print(final_tts_message)
 
