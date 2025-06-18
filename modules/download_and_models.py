@@ -6,6 +6,10 @@ from TTS.api import TTS as CoquiTTS # Renamed to avoid conflict if TTS is a comm
 from dotenv import set_key # For .env manipulation
 from .config import _PROJECT_ROOT, TTS_MODEL_NAME as CURRENT_EFFECTIVE_TTS_MODEL, TTS_SPEED_RATE as CURRENT_EFFECTIVE_TTS_SPEED, TTS_SAMPLERATE
 
+# Define a path for a default speaker WAV file for XTTS models
+# This file needs to be present in the 'assets' directory for XTTS sample playback.
+DEFAULT_SPEAKER_WAV_PATH = os.path.join(_PROJECT_ROOT, "assets", "sample_speaker.wav")
+
 def download_file(url, dest):
     try:
         urllib.request.urlretrieve(url, dest)
@@ -18,10 +22,30 @@ def play_sample_tts(model_name_for_tts: str, speed_rate: float, sample_text: str
         # Import sounddevice locally to avoid issues if it's not available during other setup steps
         # or if this function is called in a context where sd is not globally defined.
         import sounddevice as sd
-        print(f"Generating sample audio with model '{model_name_for_tts}' at speed {speed_rate}...")
+        print(f"Attempting to generate sample audio with model '{model_name_for_tts}' at speed {speed_rate}...")
         tts_temp_instance = CoquiTTS(model_name=model_name_for_tts, progress_bar=False) # progress_bar=False for quick init
-        audio_output = tts_temp_instance.tts(text=sample_text, speed=speed_rate)
-        sd.play(audio_output, samplerate=TTS_SAMPLERATE) # Use samplerate from config
+
+        tts_kwargs = {}
+        if "xtts" in model_name_for_tts.lower():
+            print(f"Model '{model_name_for_tts}' detected as an XTTS model. Checking for speaker WAV and language.")
+            tts_kwargs["language"] = "en" # Default language for XTTS sample
+            if os.path.exists(DEFAULT_SPEAKER_WAV_PATH):
+                tts_kwargs["speaker_wav"] = DEFAULT_SPEAKER_WAV_PATH
+                print(f"Using default speaker WAV: {DEFAULT_SPEAKER_WAV_PATH} and language: {tts_kwargs['language']}")
+            else:
+                print(f"WARNING: Default speaker WAV for XTTS models not found at '{DEFAULT_SPEAKER_WAV_PATH}'.")
+                print("Cannot play TTS sample for this XTTS model without a speaker_wav.")
+                print("You can still set the speed, but it won't be audibly tested now.")
+                print(f"Please create a short .wav file (e.g., 3-5 seconds of speech) at '{DEFAULT_SPEAKER_WAV_PATH}' or choose a non-XTTS model for sample playback.")
+                return False # Indicate sample playback failure
+
+        print(f"Generating audio with: text='{sample_text}', speed={speed_rate}, model_specific_args={tts_kwargs}")
+        audio_output = tts_temp_instance.tts(text=sample_text, speed=speed_rate, **tts_kwargs)
+        
+        # Determine the correct samplerate for playback. Some models might have their own.
+        # For XTTS, the output samplerate is fixed by the model (e.g. 24000 Hz for xtts_v2).
+        playback_samplerate = tts_temp_instance.synthesizer.output_sample_rate if hasattr(tts_temp_instance, 'synthesizer') and tts_temp_instance.synthesizer is not None and hasattr(tts_temp_instance.synthesizer, 'output_sample_rate') else TTS_SAMPLERATE
+        sd.play(audio_output, samplerate=playback_samplerate)
         sd.wait()
         return True # Indicate success
     except Exception as e:

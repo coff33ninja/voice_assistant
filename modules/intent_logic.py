@@ -13,7 +13,7 @@ import dateparser # Moved to top-level
 from modules.tts_service import text_to_speech_async
 from modules.weather_service import get_weather_async
 from modules.llm_service import get_llm_response
-from modules.intent_classifier import detect_intent_async
+from modules.intent_classifier import detect_intent_async # type: ignore
 from modules.reminder_utils import parse_reminder, parse_list_reminder_request
 from modules.db_manager import save_reminder_async, get_reminders_for_date_async
 from modules.gui_utils import show_reminders_gui # type: ignore
@@ -21,6 +21,7 @@ from modules.contractions import normalize_text
 from modules.error_handling import async_error_handler
 from modules.calendar_utils import add_event_to_calendar
 
+from modules.config import INTENT_RESPONSES_CSV # Import the missing variable
 # Import for validation and retraining logic
 from scripts.intent_validator import run_validation_and_retrain_async
 from modules.retrain_utils import parse_retrain_request
