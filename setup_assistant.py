@@ -7,6 +7,7 @@ from dotenv import load_dotenv # Import load_dotenv
 from modules.download_and_models import setup_tts, setup_precise
 from modules.api_key_setup import setup_api_key
 from modules.whisperx_setup import setup_whisperx
+from modules.device_detector import run_device_setup # Import the new device setup function
 from modules.db_setup import setup_db
 from modules.utils import create_directories
 from modules.config import (
@@ -27,6 +28,7 @@ SETUP_CHECKPOINTS_PATH = os.path.join(BASE_DIR, "setup_checkpoints.json")
 
 SETUP_STEPS = [
     "dependencies",
+    "device_detection",
     "tts",
     "precise",
     "picovoice_api_key",
@@ -63,9 +65,11 @@ def main():
     # Import functions here to ensure they are available for the action_map
     from modules.dataset import create_dataset
     from modules.model_training import fine_tune_model
+    # Ensure run_device_setup is imported if not already at the top
 
     action_map = {
         "dependencies": (install_dependencies, {}),
+        "device_detection": (run_device_setup, {"base_dir_path_str": str(BASE_DIR)}),
         "tts": (setup_tts, {}),
         "precise": (setup_precise, {"base_dir": BASE_DIR, "model_url": PRECISE_MODEL_URL}),
         "picovoice_api_key": (setup_api_key, {"key_file_path": PICOVOICE_KEY_FILE_PATH, "service_name": "Picovoice", "prompt_message": "Enter Picovoice Access Key (or press Enter to skip): "}),
@@ -115,6 +119,10 @@ def main():
                         func_to_call(**func_args)
                         checkpoints[step_name] = True
                         print(f"Step '{step_name.replace('_', ' ').title()}' completed successfully.")
+                        # If device detection just ran, reload .env variables
+                        if step_name == "device_detection":
+                            print("Reloading .env variables after device detection and PyTorch setup...")
+                            load_dotenv(override=True)
                         break # Exit retry loop for this step
                     except Exception as e:
                         print(f"Error during step '{step_name.replace('_', ' ').title()}': {e}")
@@ -169,15 +177,15 @@ def main():
         print("Playing final message...")
         # Reload .env to get the latest settings potentially changed by setup_tts()
         load_dotenv(override=True)
-        
+
         # Fetch the potentially updated TTS configuration
         # Use defaults from modules.config if not found in .env (though setup_tts should ensure they are set)
         from modules.config import TTS_MODEL_NAME as DEFAULT_TTS_MODEL, TTS_SPEED_RATE as DEFAULT_TTS_SPEED, TTS_SAMPLERATE as DEFAULT_TTS_SAMPLERATE
-        
+
         current_tts_model = os.getenv("TTS_MODEL_NAME", DEFAULT_TTS_MODEL)
         current_tts_speed = float(os.getenv("TTS_SPEED_RATE", str(DEFAULT_TTS_SPEED)))
         current_tts_samplerate = int(os.getenv("TTS_SAMPLERATE", str(DEFAULT_TTS_SAMPLERATE))) # Samplerate is usually fixed but good to be consistent
-        
+
         tts_instance_final = CoquiTTS(model_name=current_tts_model, progress_bar=False)
 
         # --- Add these debug prints ---
@@ -199,7 +207,7 @@ def main():
                 # Allow to proceed, it might use a default internal speaker if any, or fail as observed.
 
         audio_output = tts_instance_final.tts(text=final_tts_message, speed=current_tts_speed, **tts_kwargs_final)
-        
+
         # Determine the correct samplerate for playback for the final message
         final_playback_samplerate = current_tts_samplerate # Default
         if hasattr(tts_instance_final, 'synthesizer') and tts_instance_final.synthesizer is not None and hasattr(tts_instance_final.synthesizer, 'output_sample_rate'):
