@@ -39,10 +39,10 @@ async def detect_wakeword_precise(callback):
         # PreciseRunner's start() is blocking if not handled, or runs its own thread. # type: ignore
         # If runner.start() itself fails, this is fine. If it starts then an error occurs, cleanup might be needed.
         # Ensure proper cleanup of PreciseRunner resources.
-        finally:
-            if 'runner' in locals() and runner is not None:
-                logger.info("Stopping PreciseRunner to release resources...")
-                runner.stop()
+    finally:
+        if 'runner' in locals() and runner is not None: # type: ignore
+            logger.info("Stopping PreciseRunner to release resources...")
+            runner.stop() # type: ignore
 
 async def detect_wakeword_porcupine(callback, access_key):
     porcupine = None

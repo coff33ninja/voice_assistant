@@ -183,6 +183,11 @@ def main():
         
         tts_instance_final = CoquiTTS(model_name=current_tts_model, progress_bar=False)
 
+        # --- Add these debug prints ---
+        print(f"DEBUG (Final TTS): current_tts_model = '{current_tts_model}'")
+        print(f"DEBUG (Final TTS): current_tts_model.lower() = '{current_tts_model.lower()}'")
+        print(f"DEBUG (Final TTS): 'xtts' in current_tts_model.lower() = {'xtts' in current_tts_model.lower()}")
+
         tts_kwargs_final = {}
         if "xtts" in current_tts_model.lower():
             print(f"Final TTS: Model '{current_tts_model}' detected as an XTTS model. Checking for speaker WAV.")
@@ -190,6 +195,7 @@ def main():
             if os.path.exists(DEFAULT_SPEAKER_WAV_PATH):
                 tts_kwargs_final["speaker_wav"] = DEFAULT_SPEAKER_WAV_PATH
                 print(f"Final TTS: Using default speaker WAV: {DEFAULT_SPEAKER_WAV_PATH} and language: {tts_kwargs_final['language']}")
+                print(f"DEBUG (Final TTS): DEFAULT_SPEAKER_WAV_PATH exists: True")
             else:
                 print(f"WARNING (Final TTS): Default speaker WAV for XTTS models not found at '{DEFAULT_SPEAKER_WAV_PATH}'.")
                 print("The final message might not play correctly or use a default voice.")
