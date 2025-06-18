@@ -3,6 +3,8 @@ import re
 import datetime
 from typing import Optional, Callable, Dict, Awaitable, Any
 import pandas as pd
+import json # For saving conversation
+from datetime import datetime as dt # For timestamp in filename
 import os
 import threading
 import logging # For logging warnings
@@ -10,6 +12,8 @@ import dateparser # Moved to top-level
 # import sys # No longer needed for sys.exit
 
 # Service function imports (these will call functions that use initialized services)
+from modules.audio_utils import record_audio_async # For dedicated chat loop
+from modules.stt_service import transcribe_audio_async # Import the transcription function
 from modules.tts_service import text_to_speech_async
 from modules.weather_service import get_weather_async
 from modules.llm_service import get_llm_response
@@ -17,7 +21,7 @@ from modules.intent_classifier import detect_intent_async # type: ignore
 from modules.reminder_utils import parse_reminder, parse_list_reminder_request
 from modules.db_manager import save_reminder_async, get_reminders_for_date_async
 from modules.gui_utils import show_reminders_gui # type: ignore
-from modules.contractions import normalize_text
+from modules.contractions import normalize_text # Ensure this is imported
 from modules.error_handling import async_error_handler
 from modules.calendar_utils import add_event_to_calendar
 
@@ -28,6 +32,7 @@ from modules.retrain_utils import parse_retrain_request
 
 # Configure a logger for this module (optional, or use root logger)
 logger = logging.getLogger(__name__)
+_PROJECT_ROOT_INTENT_LOGIC = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 
 # --- Custom Exceptions ---
 class ShutdownSignal(Exception):
@@ -334,6 +339,75 @@ async def handle_get_weather_intent(
 
     await text_to_speech_async(response)
     return response
+
+
+@intent_handler("start_chat_with_llm")
+async def handle_start_chat_with_llm(
+    normalized_transcription: str, entities: Dict[str, Any]
+) -> str:
+    initial_response = get_response("start_chat_with_llm")
+    await text_to_speech_async(initial_response)
+
+    conversation_log_for_saving = []
+    stop_phrase = "stop chat and save"
+
+    while True:
+        try:
+            # Use a slightly longer recording duration for more natural conversation flow
+            audio_data = await asyncio.wait_for(record_audio_async(duration=7), timeout=10.0)
+        except asyncio.TimeoutError:
+            logger.warning("Chat mode: Audio recording timed out.")
+            await text_to_speech_async("I didn't hear anything. Are you still there? Say 'stop chat and save' to end.")
+            continue
+        except Exception as rec_e:
+            logger.error(f"Chat mode: Error during audio recording: {rec_e}")
+            await text_to_speech_async("Sorry, there was an issue with audio recording during our chat.")
+            break # Exit chat on recording error
+
+        if audio_data is None or not audio_data.any():
+            logger.info("Chat mode: No audio data captured.")
+            # Don't say anything, just loop back to listen
+            continue
+
+        user_input = await transcribe_audio_async(audio_data)
+        if not user_input or not user_input.strip():
+            logger.info("Chat mode: No speech detected from user.")
+            # Don't say anything, just loop back to listen
+            continue
+
+        logger.info(f"Chat mode - User said: {user_input}")
+
+        if stop_phrase in user_input.lower():
+            logger.info("Chat mode: Stop phrase detected. Ending chat session.")
+            break
+
+        llm_response_text = await get_llm_response(user_input)
+        if not llm_response_text or llm_response_text.strip() == "":
+            llm_response_text = "The AI didn't provide a response for that. You can try rephrasing or say 'stop chat and save'."
+            logger.warning("Chat mode: LLM returned empty response.")
+
+        logger.info(f"Chat mode - Assistant (LLM): {llm_response_text}")
+        await text_to_speech_async(llm_response_text)
+        conversation_log_for_saving.append({"user": user_input, "assistant": llm_response_text})
+
+    # After loop (stop phrase or error)
+    if conversation_log_for_saving:
+        conversations_dir = os.path.join(_PROJECT_ROOT_INTENT_LOGIC, "conversations")
+        os.makedirs(conversations_dir, exist_ok=True)
+        timestamp = dt.now().strftime("%Y%m%d_%H%M%S")
+        filename = os.path.join(conversations_dir, f"chat_session_{timestamp}.json")
+        try:
+            with open(filename, "w", encoding="utf-8") as f:
+                json.dump(conversation_log_for_saving, f, indent=2, ensure_ascii=False)
+            final_response = get_response("chat_session_saved")
+        except Exception as e:
+            logger.error(f"Chat mode: Error saving conversation to {filename}: {e}")
+            final_response = get_response("chat_session_save_error")
+    else:
+        final_response = get_response("chat_session_empty")
+
+    await text_to_speech_async(final_response)
+    return final_response # Return the final status message
 
 
 @intent_handler("add_calendar_event")

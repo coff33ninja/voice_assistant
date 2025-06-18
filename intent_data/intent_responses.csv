@@ -15,7 +15,12 @@ reminder_set_time_only,"Okay, I can set a reminder for {time}."
 reminder_ask_for_time,"When should I remind you?"
 reminder_ask_for_task,"What should I remind you about?"
 reminder_added_to_calendar,"I've also added it to your calendar."
-set_reminder_success_generic,"Reminder has been set and added to your calendar."
+set_reminder_success_generic,"Reminder has been set and added to your calendar."intent,response
+start_chat_with_llm,"Okay, starting a chat session with the AI. I'm listening. Say 'stop chat and save' when you're done."
+chat_session_saved,"Chat session saved. You can find it in the 'conversations' directory."
+chat_session_empty,"There was no conversation to save."
+chat_session_save_error,"Sorry, I encountered an error while trying to save the chat session."
+
 get_weather_location_prompt,"Which location's weather are you interested in? For example, say 'what is the weather in London' or 'what is the weather in my area'."
 get_weather_current,"The current weather in {city} is {description} with a temperature of {temp:.1f} degrees Celsius. I've also added this to your calendar."
 get_weather_current_error,"Sorry, I couldn't determine your current location or fetch the weather for it. Please check your internet connection or try specifying a city."
@@ -56,3 +61,9 @@ music_next,"Playing the next track."
 time_query,"The current time is {time}."
 general_query,"I'm processing your general query."
 music_play,"Playing music."
+text,label
+"let's chat with the AI",start_chat_with_llm
+"I want to talk to the language model",start_chat_with_llm
+"start a conversation with the AI",start_chat_with_llm
+"open chat with AI",start_chat_with_llm
+"begin chat session",start_chat_with_llm

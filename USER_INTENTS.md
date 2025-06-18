@@ -71,3 +71,23 @@ The assistant categorizes your spoken commands into one of the following intents
 
 ---
 *Note: The assistant's ability to understand variations of these phrases depends on its training data and the accuracy of the Speech-to-Text (STT) engine.*
+
+*   **Chat with AI (`start_chat_with_llm`)**
+    *   Purpose: To engage in an open-ended conversation with the AI language model (Ollama) and optionally save the interaction.
+    *   Example Phrases:
+        *   "Let's chat with the AI"
+        *   "I want to talk to the language model"
+        *   "Start a conversation with the AI"
+        *   "Open chat with AI"
+        *   "Begin chat session"
+    *   Interaction Flow:
+        1.  The assistant confirms the start of the chat session.
+        2.  The user can speak freely, and the assistant will respond using the LLM.
+        3.  To end the session and save the conversation, the user says: **"stop chat and save"**.
+    *   Conversation Saving:
+        *   If the "stop chat and save" command is given, the entire dialogue (user inputs and AI responses) is saved.
+        *   Files are stored as timestamped JSON in the `conversations/` directory at the project root.
+        *   This feature is useful for reviewing interactions or gathering data for training other AI models.
+
+---
+*Note: The assistant's ability to understand variations of these phrases depends on its training data and the accuracy of the Speech-to-Text (STT) engine.*
