@@ -9,13 +9,18 @@ from modules.config import (
     PRECISE_MODEL_HEY_MIKA,
     PICOVOICE_KEY_FILE_PATH, # Renamed from PICOVOICE_KEY_FILE for clarity
     PICOVOICE_MODEL_HEY_MIKA,
+    get_picovoice_key as get_picovoice_key_from_config, # Import the config function
 )
 
 logger = logging.getLogger(__name__)
 
 def get_porcupine_key():
-    if os.path.exists(PICOVOICE_KEY_FILE):
-        with open(PICOVOICE_KEY_FILE, "r") as f:
+    # Prioritize environment variable, then file, consistent with config.py
+    env_key = get_picovoice_key_from_config()
+    if env_key:
+        return env_key
+    if os.path.exists(PICOVOICE_KEY_FILE_PATH): # Use the correct imported path
+        with open(PICOVOICE_KEY_FILE_PATH, "r") as f:
             return f.read().strip()
     return None # Return None if key file doesn't exist
 
