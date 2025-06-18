@@ -2,8 +2,38 @@ import os
 import json
 import subprocess
 import sys
+import importlib # For invalidate_caches
+
+# --- Bootstrap python-dotenv ---
+# This section ensures that the 'python-dotenv' package is available,
+# installing it if necessary, before other modules that depend on it are imported.
+try:
+    from dotenv import load_dotenv # Attempt to import a commonly used function from dotenv
+    # If this succeeds, dotenv is already installed and available.
+except ModuleNotFoundError:
+    print("Initial import of 'dotenv' failed. Module 'python-dotenv' appears to be missing.")
+    print("Attempting to install 'python-dotenv' automatically...")
+    try:
+        # Use sys.executable to ensure the pip associated with the current Python interpreter is used.
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "python-dotenv"])
+        print("'python-dotenv' installed successfully by the setup script.")
+        importlib.invalidate_caches() # Essential to make the newly installed module findable by Python's import system.
+        from dotenv import load_dotenv # Re-attempt the import after installation.
+        print("'dotenv' module loaded successfully after installation.")
+    except subprocess.CalledProcessError as e:
+        print(f"ERROR: Failed to install 'python-dotenv' using pip: {e}")
+        print("Please ensure 'pip' is working and then try installing it manually: pip install python-dotenv")
+        sys.exit(1) # Exit if installation fails, as it's a critical dependency for setup.
+    except ImportError:
+        print("ERROR: Failed to import 'dotenv' even after attempting installation.")
+        print("This is unexpected. Please ensure 'python-dotenv' is correctly installed and then re-run the script.")
+        sys.exit(1)
+    except FileNotFoundError: # This typically means sys.executable or pip itself wasn't found.
+        print("ERROR: Python executable or pip command not found. Ensure Python and pip are installed and in your system's PATH.")
+        sys.exit(1)
+# --- End bootstrap python-dotenv ---
+
 from modules.install_dependencies import install_dependencies
-from dotenv import load_dotenv # Import load_dotenv
 from modules.download_and_models import setup_tts, setup_precise
 from modules.api_key_setup import setup_api_key
 from modules.whisperx_setup import setup_whisperx
@@ -20,9 +50,6 @@ from modules.config import (
     DEFAULT_SPEAKER_WAV_PATH # Centralized default speaker WAV path
 )
 # For final TTS message
-from TTS.api import TTS as CoquiTTS
-import sounddevice as sd
-
 PRECISE_MODEL_URL = "https://github.com/MycroftAI/mycroft-precise/releases/download/v0.3.0/precise-engine_0.3.0_x86_64.tar.gz"
 SETUP_CHECKPOINTS_PATH = os.path.join(BASE_DIR, "setup_checkpoints.json")
 
@@ -60,7 +87,9 @@ def save_checkpoints(checkpoints):
 
 def main():
     print("Setup Assistant: Checking for and loading existing .env file if present.")
-    load_dotenv() # Initial load to get any existing settings
+    # load_dotenv() is called here. It was imported successfully by the bootstrap logic above,
+    # or was already available.
+    load_dotenv()
     print("Setting up voice assistant...")
     create_directories(BASE_DIR, INTENT_MODEL_SAVE_PATH) # Use centralized path
 
@@ -178,6 +207,9 @@ def main():
 
     try:
         print("Playing final message...")
+        from TTS.api import TTS as CoquiTTS # Import here, after dependencies are installed
+        import sounddevice as sd # Import here, after dependencies are installed
+
         # Reload .env to get the latest settings potentially changed by setup_tts()
         load_dotenv(override=True)
 

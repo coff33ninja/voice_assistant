@@ -1,9 +1,7 @@
-from transformers import DistilBertTokenizer, DistilBertForSequenceClassification, Trainer, TrainingArguments
-from datasets import load_dataset
-import pandas as pd
 import os
 import sys
 import argparse # For parsing command-line arguments
+
 
 def fine_tune_model(dataset_path, model_save_path):
     print(f"Starting fine-tuning process... [pid={os.getpid()}]")
@@ -11,8 +9,9 @@ def fine_tune_model(dataset_path, model_save_path):
     print(f"Saving model to: {model_save_path}")
 
     # Load dataset from unified CSV
+    # Import datasets components here, when needed
+    from datasets import load_dataset, DatasetDict, Dataset as HFDataset
     loaded_dataset = load_dataset("csv", data_files=dataset_path)
-    from datasets import DatasetDict, Dataset as HFDataset
     if isinstance(loaded_dataset, DatasetDict):
         dataset = loaded_dataset["train"]
     elif isinstance(loaded_dataset, HFDataset):
@@ -21,6 +20,7 @@ def fine_tune_model(dataset_path, model_save_path):
         raise ValueError("Loaded dataset is not a supported HuggingFace Dataset type.")
 
     # Load the CSV to get unique labels and potentially entities in the future
+    import pandas as pd # Import pandas here, just before it's used
     df = pd.read_csv(dataset_path)
     if 'label' not in df.columns or 'text' not in df.columns:
         raise ValueError("CSV must contain 'text' and 'label' columns.")
@@ -33,6 +33,7 @@ def fine_tune_model(dataset_path, model_save_path):
     dataset = dataset.map(lambda x: {"label": label_map[x["label"]]})
 
     # Tokenizer and model
+    from transformers import DistilBertTokenizer, DistilBertForSequenceClassification, Trainer, TrainingArguments
     tokenizer = DistilBertTokenizer.from_pretrained("distilbert-base-uncased")
     model = DistilBertForSequenceClassification.from_pretrained("distilbert-base-uncased", num_labels=len(label_map), id2label=id2label, label2id=label_map)
     def tokenize_function(examples):

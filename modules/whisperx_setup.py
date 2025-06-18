@@ -2,14 +2,6 @@ import os
 import sys
 import subprocess
 from dotenv import set_key
-import whisperx
-try:
-    import sounddevice as sd
-    import scipy.io.wavfile as wav
-except ImportError:
-    print("sounddevice and scipy are required. Please install them with: pip install sounddevice scipy")
-    # Re-raise or exit if these are critical for the setup script to proceed
-    raise
 
 import tempfile
 from modules.config import STT_MODEL_NAME
@@ -24,7 +16,22 @@ def get_project_root():
     """Infer the project root directory."""
     return os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 
+
 def setup_whisperx():
+    # Defer imports until this function is called
+    try:
+        import whisperx
+        import sounddevice as sd
+        import scipy.io.wavfile as wav
+    except ImportError as e:
+        print(f"A required module for WhisperX setup is missing: {e}")
+        print(
+            "This usually means the 'dependencies' step of the setup did not complete successfully or a package is missing from it."
+        )
+        print(
+            "Please ensure whisperx, sounddevice, and scipy are installed (e.g., via 'pip install whisperx sounddevice scipy') or re-run the full dependency installation."
+        )
+        raise  # Re-raise to indicate failure of this setup step
     project_root = get_project_root()
     dotenv_path = os.path.join(project_root, '.env')
 

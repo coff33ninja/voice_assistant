@@ -2,7 +2,6 @@ import os
 import sys
 import urllib.request
 import subprocess
-from TTS.api import TTS as CoquiTTS # Renamed to avoid conflict if TTS is a common var name
 from dotenv import set_key # For .env manipulation
 from .config import (
     _PROJECT_ROOT, # Import _PROJECT_ROOT
@@ -21,6 +20,7 @@ def download_file(url, dest):
 
 def play_sample_tts(model_name_for_tts: str, speed_rate: float, sample_text: str = "This is a test of the current speech rate."):
     try:
+        from TTS.api import TTS as CoquiTTS # Import CoquiTTS locally
         # Import sounddevice locally to avoid issues if it's not available during other setup steps
         # or if this function is called in a context where sd is not globally defined.
         import sounddevice as sd
@@ -43,7 +43,7 @@ def play_sample_tts(model_name_for_tts: str, speed_rate: float, sample_text: str
 
         print(f"Generating audio with: text='{sample_text}', speed={speed_rate}, model_specific_args={tts_kwargs}")
         audio_output = tts_temp_instance.tts(text=sample_text, speed=speed_rate, **tts_kwargs)
-        
+
         # Determine the correct samplerate for playback. Some models might have their own.
         # For XTTS, the output samplerate is fixed by the model (e.g. 24000 Hz for xtts_v2).
         playback_samplerate = tts_temp_instance.synthesizer.output_sample_rate if hasattr(tts_temp_instance, 'synthesizer') and tts_temp_instance.synthesizer is not None and hasattr(tts_temp_instance.synthesizer, 'output_sample_rate') else TTS_SAMPLERATE
@@ -55,6 +55,7 @@ def play_sample_tts(model_name_for_tts: str, speed_rate: float, sample_text: str
         return False # Indicate failure
 
 def setup_tts():
+    from TTS.api import TTS as CoquiTTS # Import CoquiTTS locally for final initialization
     env_path = os.path.join(_PROJECT_ROOT, ".env")
 
     print("\n--- TTS Model Configuration ---")
@@ -102,14 +103,14 @@ def setup_tts():
     print("A value of 1.0 is normal speed. Values less than 1.0 are slower, greater than 1.0 are faster.")
     print("Note: Not all voice models support speed adjustment, or they may respond differently. Errors can occur with incompatible models/speeds.")
     print("E.g., 0.8 for slower, 1.2 for faster. The effect may vary by model.")
-    
+
     while True:
         # Use final_model_to_use for the sample playback
         current_speed_for_prompt = float(os.getenv("TTS_SPEED_RATE", CURRENT_EFFECTIVE_TTS_SPEED)) # Get fresh value from .env or default
         print(f"\nCurrent effective TTS speed rate: {current_speed_for_prompt}")
-        
+
         user_input_speed_rate_str = input(f"Enter new TTS speed rate (e.g., 1.0, or press Enter to test current '{current_speed_for_prompt}'): ").strip()
-        
+
         speed_to_test = current_speed_for_prompt
 
         if not user_input_speed_rate_str: # User pressed Enter, test current

@@ -54,10 +54,10 @@ def check_prerequisites():
 
     # Check ollama
     if not shutil.which("ollama"):
-        logger.error(
-            "ollama is not installed. Install from https://ollama.com/download"
+        logger.warning(
+            "ollama executable not found. LLM capabilities will be unavailable. "
+            "Install from https://ollama.com/download if you need LLM features."
         )
-        sys.exit(1)
 
     # Check if running in a virtual environment
     if (
@@ -172,24 +172,8 @@ def install_python_dependencies():
         "Failed to uninstall conflicting packages",
     )
 
-    # Step 3: Install compatible torch versions
-    logger.info("Installing PyTorch CPU versions...")
-    run_command(
-        [
-            sys.executable,
-            "-m",
-            "pip",
-            "install",
-            "torch==2.5.0+cpu",
-            "torchvision==0.20.0+cpu",
-            "torchaudio==2.5.0+cpu",
-            "--index-url",
-            "https://download.pytorch.org/whl/cpu",
-        ],
-        "Failed to install PyTorch",
-    )
-
-    # Step 4: Install pyaudio (for precise-runner)
+    # Step 3: Install pyaudio (for precise-runner)
+    # Note: PyTorch installation is now handled by the 'device_detection' step in setup_assistant.py
     logger.info("Installing pyaudio...")
     try:
         run_command(
@@ -208,7 +192,7 @@ def install_python_dependencies():
                 "Failed to install pyaudio via pipwin. Install portaudio manually: choco install portaudio",
             )
 
-    # Step 5: Install core dependencies
+    # Step 4: Install core dependencies
     logger.info("Installing core Python dependencies...")
     run_command(
         [
@@ -262,6 +246,11 @@ def list_ollama_models() -> list[str]:
 
 def pull_ollama_model():
     """Interactively select and pull an Ollama LLM model, updating .env."""
+    if not shutil.which("ollama"):
+        logger.warning("Ollama executable not found. Skipping Ollama LLM model setup.")
+        # Ensure LLM_MODEL_NAME is set to a non-functional value or default if not already present
+        return # Exit function if ollama is not available
+
     dotenv_path = os.path.join(_PROJECT_ROOT, ".env")
     if not os.path.exists(dotenv_path):
         open(dotenv_path, 'a').close() # Ensure .env file exists for set_key
