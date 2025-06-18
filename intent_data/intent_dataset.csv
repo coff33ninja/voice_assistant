@@ -1,127 +1,127 @@
 text,label,entities
-"Remind me to call mom tomorrow at 2:30 pm",set_reminder,"{""task"": ""call mom"", ""time_phrase"": ""tomorrow at 2:30 pm""}"
-"Set a reminder for meeting at 5 pm",set_reminder,"{""task"": ""meeting"", ""time_phrase"": ""at 5 pm""}"
-"Remind me to buy groceries in 2 hours",set_reminder,"{""task"": ""buy groceries"", ""time_phrase"": ""in 2 hours""}"
-"Remind me to take medicine at 8 pm",set_reminder,"{""task"": ""take medicine"", ""time_phrase"": ""at 8 pm""}"
-"What’s on my calendar this week?",calendar_query,"{""date_reference"": ""this week""}"
-"Check my calendar for tomorrow",calendar_query,"{""date_reference"": ""tomorrow""}"
-"Show me my schedule for Friday",calendar_query,"{""date_reference"": ""Friday""}"
-"What's my next appointment?",calendar_query,"{}"
-"What’s the weather like today?",get_weather,"{""date_reference"": ""today"", ""location"": ""current""}"
-"Tell me the weather forecast for tomorrow",get_weather,"{""date_reference"": ""tomorrow"", ""location"": ""current""}"
-"Is it going to rain this afternoon?",get_weather,"{""date_reference"": ""this afternoon"", ""location"": ""current""}"
-"Will it rain tomorrow?",get_weather,"{""date_reference"": ""tomorrow"", ""location"": ""current""}"
-"What's the temperature outside?",get_weather,"{""location"": ""current""}"
-"Is it sunny today?",get_weather,"{""date_reference"": ""today"", ""location"": ""current""}"
-"What are my reminders for today?",list_reminders,"{""date_reference"": ""today""}"
-"Show me reminders for tomorrow",list_reminders,"{""date_reference"": ""tomorrow""}"
-"List my reminders for next Monday",list_reminders,"{""date_reference"": ""next Monday""}"
-"Any reminders for July 4th?",list_reminders,"{""date_reference"": ""July 4th""}"
-"Do I have any reminders for tomorrow?",list_reminders,"{""date_reference"": ""tomorrow""}"
-"What’s the capital of France?",general_query,"{""topic"": ""capital of France""}"
-"Who won the World Cup in 2022?",general_query,"{""topic"": ""World Cup 2022 winner""}"
-"How does photosynthesis work?",general_query,"{""topic"": ""photosynthesis""}"
-"How far is the moon?",general_query,"{""topic"": ""distance to moon""}"
-"Who is the president of the United States?",general_query,"{""topic"": ""US president""}"
-"How tall is Mount Everest?",general_query,"{""topic"": ""height of Mount Everest""}"
-"What's the stock price of Apple?",general_query,"{""company_name"": ""Apple"", ""query_type"": ""stock_price""}"
-"How did the stock market do today?",general_query,"{""query_type"": ""stock_market_performance"", ""date_reference"": ""today""}"
-"Retrain the model",retrain_model,"{}"
-"Update my assistant",retrain_model,"{}"
-"Retrain intent classifier",retrain_model,"{}"
-"Retrain assistant",retrain_model,"{}"
-"Train model",retrain_model,"{}"
-"Update model",retrain_model,"{}"
-"Cancel my last request",cancel_task,"{}"
-"Never mind",cancel_task,"{}"
-"Stop that",cancel_task,"{}"
-"Cancel that",cancel_task,"{}"
-"Stop",cancel_task,"{}"
-"I don't need that anymore",cancel_task,"{}"
-"Hello",greeting,"{}"
-"Hi there",greeting,"{}"
-"Hi",greeting,"{}"
-"Hey",greeting,"{}"
-"Good morning",greeting,"{}"
-"Good afternoon",greeting,"{}"
-"Good evening",greeting,"{}"
-"Greetings",greeting,"{}"
-"Howdy",greeting,"{}"
-"What's up",greeting,"{}"
-"Hiya",greeting,"{}"
-"Hello assistant",greeting,"{}"
-"bye",goodbye,"{}"
-"Goodbye",goodbye,"{}"
-"See you",goodbye,"{}"
-"See you later",goodbye,"{}"
-"Farewell",goodbye,"{}"
-"Take care",goodbye,"{}"
-"Catch you later",goodbye,"{}"
-"Bye bye",goodbye,"{}"
-"See ya",goodbye,"{}"
-"Shut down",goodbye,"{}"
-"Tell me a joke",joke_query,"{}"
-"Make me laugh",joke_query,"{}"
-"Do you know any jokes?",joke_query,"{}"
-"Play some music",music_play,"{}"
-"Play jazz music",music_play,"{""genre"": ""jazz""}"
-"Play my favorite playlist",music_play,"{""playlist_name"": ""my favorite playlist""}"
-"Pause the music",music_pause,"{}"
-"Stop the music",music_stop,"{}"
-"Next song",music_next,"{}"
-"Previous song",music_previous,"{}"
-"What's the news today?",news_query,"{""date_reference"": ""today""}"
-"Tell me the latest news",news_query,"{}"
-"Turn on the lights",smarthome_on,"{""device"": ""lights""}"
-"Turn off the lights",smarthome_off,"{""device"": ""lights""}"
-"Set the thermostat to 72 degrees",smarthome_set,"{""device"": ""thermostat"", ""setting_value"": ""72 degrees""}"
-"Lock the front door",smarthome_lock,"{""device"": ""front door""}"
-"Unlock the front door",smarthome_unlock,"{""device"": ""front door""}"
-"Set an alarm for 7 am",alarm_set,"{""time_phrase"": ""7 am""}"
-"Cancel my alarm",alarm_cancel,"{}"
-"Snooze the alarm",alarm_snooze,"{}"
-"What's the traffic like?",traffic_query,"{}"
-"How's the traffic to downtown?",traffic_query,"{""destination"": ""downtown""}"
-"Add milk to my shopping list",shopping_add,"{""item"": ""milk""}"
-"What's on my shopping list?",shopping_list,"{}"
-"Remove eggs from my shopping list",shopping_remove,"{""item"": ""eggs""}"
-"Translate hello to Spanish",translate_query,"{""text_to_translate"": ""hello"", ""target_language"": ""Spanish""}"
-"\"How do you say \"\"goodbye\"\" in French?\"",translate_query,"{""text_to_translate"": ""goodbye"", ""target_language"": ""French""}"
-"What time is it?",get_time,"{}"
-"What is the current time?",get_time,"{}"
-"Tell me the time",get_time,"{}"
-"What day is it?",get_date,"{}"
-"What's today's date?",get_date,"{}"
-"Tell me the date",get_date,"{}"
-"set a reminder for 3pm",set_reminder,"{""task"": ""reminder"", ""time_phrase"": ""3pm""}"
-"I want to set a reminder",set_reminder,"{}"
-"I want to add an event",add_calendar_event_success,"{}"
-"add an event to my calendar",add_calendar_event_success,"{}"
-"I can't hear you",no_speech_detected,"{}"
-"I didn't say anything",no_speech_detected,"{}"
-"what's the weather in Paris",get_weather_city,"{""location"": ""Paris""}"
-"weather in New York",get_weather_city,"{""location"": ""New York""}"
-"I don't know the city",get_weather_city_error,"{}"
-"I don't know the location",get_weather_city_error,"{}"
-"My current location weather is not working",get_weather_current_error,"{}"
-"Cannot fetch weather for my area",get_weather_current_error,"{}"
-"what's the weather",get_weather_current,"{""location"": ""current""}"
-"current weather",get_weather_current,"{""location"": ""current""}"
-"I don't understand the weather",get_weather_unsure,"{}"
-"I need help with the weather",get_weather_unsure,"{}"
-"I want to add an event but didn't say when",add_calendar_event_missing,"{}"
-"add an event but no date",add_calendar_event_missing,"{}"
-"I said the wrong date for the event",add_calendar_event_parse_error,"{}"
-"wrong date for calendar event",add_calendar_event_parse_error,"{}"
-"list my reminders",list_reminders_error,"{}"
-"show reminders for today",list_reminders_error,"{""date_reference"": ""today""}"
-"I have no reminders",list_reminders_none,"{}"
-"no reminders for today",list_reminders_none,"{""date_reference"": ""today""}"
-"sorry, I don't understand",llm_fallback_sorry,"{}"
-"language model error",llm_service_error,"{}"
-"retrain the model",retrain_model_error,"{}"
-"I want to retrain",retrain_model_error,"{}"
-"what's the weather location prompt",get_weather_location_prompt,"{}"
-"which city for weather",get_weather_location_prompt,"{}"
-"set reminder failed",set_reminder_error,"{}"
-"couldn't set reminder",set_reminder_error,"{}"
+Remind me to call mom tomorrow at 2:30 pm,set_reminder,"{""task"": ""call mom"", ""time_phrase"": ""tomorrow at 2:30 pm""}"
+Set a reminder for meeting at 5 pm,set_reminder,"{""task"": ""meeting"", ""time_phrase"": ""at 5 pm""}"
+Remind me to buy groceries in 2 hours,set_reminder,"{""task"": ""buy groceries"", ""time_phrase"": ""in 2 hours""}"
+Remind me to take medicine at 8 pm,set_reminder,"{""task"": ""take medicine"", ""time_phrase"": ""at 8 pm""}"
+What’s on my calendar this week?,calendar_query,"{""date_reference"": ""this week""}"
+Check my calendar for tomorrow,calendar_query,"{""date_reference"": ""tomorrow""}"
+Show me my schedule for Friday,calendar_query,"{""date_reference"": ""Friday""}"
+What's my next appointment?,calendar_query,{}
+What’s the weather like today?,get_weather,"{""date_reference"": ""today"", ""location"": ""current""}"
+Tell me the weather forecast for tomorrow,get_weather,"{""date_reference"": ""tomorrow"", ""location"": ""current""}"
+Is it going to rain this afternoon?,get_weather,"{""date_reference"": ""this afternoon"", ""location"": ""current""}"
+Will it rain tomorrow?,get_weather,"{""date_reference"": ""tomorrow"", ""location"": ""current""}"
+What's the temperature outside?,get_weather,"{""location"": ""current""}"
+Is it sunny today?,get_weather,"{""date_reference"": ""today"", ""location"": ""current""}"
+What are my reminders for today?,list_reminders,"{""date_reference"": ""today""}"
+Show me reminders for tomorrow,list_reminders,"{""date_reference"": ""tomorrow""}"
+List my reminders for next Monday,list_reminders,"{""date_reference"": ""next Monday""}"
+Any reminders for July 4th?,list_reminders,"{""date_reference"": ""July 4th""}"
+Do I have any reminders for tomorrow?,list_reminders,"{""date_reference"": ""tomorrow""}"
+What’s the capital of France?,general_query,"{""topic"": ""capital of France""}"
+Who won the World Cup in 2022?,general_query,"{""topic"": ""World Cup 2022 winner""}"
+How does photosynthesis work?,general_query,"{""topic"": ""photosynthesis""}"
+How far is the moon?,general_query,"{""topic"": ""distance to moon""}"
+Who is the president of the United States?,general_query,"{""topic"": ""US president""}"
+How tall is Mount Everest?,general_query,"{""topic"": ""height of Mount Everest""}"
+What's the stock price of Apple?,general_query,"{""company_name"": ""Apple"", ""query_type"": ""stock_price""}"
+How did the stock market do today?,general_query,"{""query_type"": ""stock_market_performance"", ""date_reference"": ""today""}"
+Retrain the model,retrain_model,{}
+Update my assistant,retrain_model,{}
+Retrain intent classifier,retrain_model,{}
+Retrain assistant,retrain_model,{}
+Train model,retrain_model,{}
+Update model,retrain_model,{}
+Cancel my last request,cancel_task,{}
+Never mind,cancel_task,{}
+Stop that,cancel_task,{}
+Cancel that,cancel_task,{}
+Stop,cancel_task,{}
+I don't need that anymore,cancel_task,{}
+Hello,greeting,{}
+Hi there,greeting,{}
+Hi,greeting,{}
+Hey,greeting,{}
+Good morning,greeting,{}
+Good afternoon,greeting,{}
+Good evening,greeting,{}
+Greetings,greeting,{}
+Howdy,greeting,{}
+What's up,greeting,{}
+Hiya,greeting,{}
+Hello assistant,greeting,{}
+bye,goodbye,{}
+Goodbye,goodbye,{}
+See you,goodbye,{}
+See you later,goodbye,{}
+Farewell,goodbye,{}
+Take care,goodbye,{}
+Catch you later,goodbye,{}
+Bye bye,goodbye,{}
+See ya,goodbye,{}
+Shut down,goodbye,{}
+Tell me a joke,joke_query,{}
+Make me laugh,joke_query,{}
+Do you know any jokes?,joke_query,{}
+Play some music,music_play,{}
+Play jazz music,music_play,"{""genre"": ""jazz""}"
+Play my favorite playlist,music_play,"{""playlist_name"": ""my favorite playlist""}"
+Pause the music,music_pause,{}
+Stop the music,music_stop,{}
+Next song,music_next,{}
+Previous song,music_previous,{}
+What's the news today?,news_query,"{""date_reference"": ""today""}"
+Tell me the latest news,news_query,{}
+Turn on the lights,smarthome_on,"{""device"": ""lights""}"
+Turn off the lights,smarthome_off,"{""device"": ""lights""}"
+Set the thermostat to 72 degrees,smarthome_set,"{""device"": ""thermostat"", ""setting_value"": ""72 degrees""}"
+Lock the front door,smarthome_lock,"{""device"": ""front door""}"
+Unlock the front door,smarthome_unlock,"{""device"": ""front door""}"
+Set an alarm for 7 am,alarm_set,"{""time_phrase"": ""7 am""}"
+Cancel my alarm,alarm_cancel,{}
+Snooze the alarm,alarm_snooze,{}
+What's the traffic like?,traffic_query,{}
+How's the traffic to downtown?,traffic_query,"{""destination"": ""downtown""}"
+Add milk to my shopping list,shopping_add,"{""item"": ""milk""}"
+What's on my shopping list?,shopping_list,{}
+Remove eggs from my shopping list,shopping_remove,"{""item"": ""eggs""}"
+Translate hello to Spanish,translate_query,"{""text_to_translate"": ""hello"", ""target_language"": ""Spanish""}"
+"\How do you say \""\""goodbye\""\"" in French?\""""",translate_query,"{""text_to_translate"": ""goodbye"", ""target_language"": ""French""}"
+What time is it?,get_time,{}
+What is the current time?,get_time,{}
+Tell me the time,get_time,{}
+What day is it?,get_date,{}
+What's today's date?,get_date,{}
+Tell me the date,get_date,{}
+set a reminder for 3pm,set_reminder,"{""task"": ""reminder"", ""time_phrase"": ""3pm""}"
+I want to set a reminder,set_reminder,{}
+I want to add an event,add_calendar_event_success,{}
+add an event to my calendar,add_calendar_event_success,{}
+I can't hear you,no_speech_detected,{}
+I didn't say anything,no_speech_detected,{}
+what's the weather in Paris,get_weather_city,"{""location"": ""Paris""}"
+weather in New York,get_weather_city,"{""location"": ""New York""}"
+I don't know the city,get_weather_city_error,{}
+I don't know the location,get_weather_city_error,{}
+My current location weather is not working,get_weather_current_error,{}
+Cannot fetch weather for my area,get_weather_current_error,{}
+what's the weather,get_weather_current,"{""location"": ""current""}"
+current weather,get_weather_current,"{""location"": ""current""}"
+I don't understand the weather,get_weather_unsure,{}
+I need help with the weather,get_weather_unsure,{}
+I want to add an event but didn't say when,add_calendar_event_missing,{}
+add an event but no date,add_calendar_event_missing,{}
+I said the wrong date for the event,add_calendar_event_parse_error,{}
+wrong date for calendar event,add_calendar_event_parse_error,{}
+list my reminders,list_reminders_error,{}
+show reminders for today,list_reminders_error,"{""date_reference"": ""today""}"
+I have no reminders,list_reminders_none,{}
+no reminders for today,list_reminders_none,"{""date_reference"": ""today""}"
+"sorry, I don't understand",llm_fallback_sorry,{}
+language model error,llm_service_error,{}
+retrain the model,retrain_model_error,{}
+I want to retrain,retrain_model_error,{}
+what's the weather location prompt,get_weather_location_prompt,{}
+which city for weather,get_weather_location_prompt,{}
+set reminder failed,set_reminder_error,{}
+couldn't set reminder,set_reminder_error,{}

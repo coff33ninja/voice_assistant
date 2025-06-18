@@ -12,7 +12,7 @@ except ImportError:
     raise
 
 import tempfile
-from modules.config import STT_MODEL_NAME as DEFAULT_STT_MODEL_NAME
+from modules.config import DEFAULT_STT_MODEL_NAME
 
 # Common WhisperX models
 WHISPERX_MODELS = [
