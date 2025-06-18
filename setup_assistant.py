@@ -3,6 +3,7 @@ import json
 import subprocess
 import sys
 from modules.install_dependencies import install_dependencies
+from dotenv import load_dotenv # Import load_dotenv
 from modules.download_and_models import setup_tts, setup_precise
 from modules.api_key_setup import setup_api_key
 from modules.whisperx_setup import setup_whisperx
@@ -10,11 +11,8 @@ from modules.db_setup import setup_db
 from modules.utils import create_directories
 from modules.config import (
     DB_PATH,
-    INTENT_DATASET_CSV, # Centralized path
-    INTENT_MODEL_SAVE_PATH, # Centralized path
-    TTS_MODEL_NAME, # For final TTS message
-    TTS_SPEED_RATE, # For final TTS message
-    TTS_SAMPLERATE, # For final TTS message
+    INTENT_DATASET_CSV,
+    INTENT_MODEL_SAVE_PATH,
     PICOVOICE_KEY_FILE_PATH,
     OPENWEATHER_API_KEY_FILE_PATH,
     BASE_DIR, # Centralized models base directory
@@ -168,12 +166,20 @@ def main():
 
     try:
         print("Playing final message...")
-        # Ensure TTS_MODEL_NAME and TTS_SPEED_RATE are up-to-date from .env if changed during setup
-        # This requires config.py to have reloaded .env or for these to be fresh.
-        # For simplicity, we assume config.py reflects the latest .env settings.
-        tts_instance_final = CoquiTTS(model_name=TTS_MODEL_NAME, progress_bar=False)
-        audio_output = tts_instance_final.tts(text=final_tts_message, speed=TTS_SPEED_RATE)
-        sd.play(audio_output, samplerate=TTS_SAMPLERATE)
+        # Reload .env to get the latest settings potentially changed by setup_tts()
+        load_dotenv(override=True)
+        
+        # Fetch the potentially updated TTS configuration
+        # Use defaults from modules.config if not found in .env (though setup_tts should ensure they are set)
+        from modules.config import TTS_MODEL_NAME as DEFAULT_TTS_MODEL, TTS_SPEED_RATE as DEFAULT_TTS_SPEED, TTS_SAMPLERATE as DEFAULT_TTS_SAMPLERATE
+        
+        current_tts_model = os.getenv("TTS_MODEL_NAME", DEFAULT_TTS_MODEL)
+        current_tts_speed = float(os.getenv("TTS_SPEED_RATE", str(DEFAULT_TTS_SPEED)))
+        current_tts_samplerate = int(os.getenv("TTS_SAMPLERATE", str(DEFAULT_TTS_SAMPLERATE))) # Samplerate is usually fixed but good to be consistent
+
+        tts_instance_final = CoquiTTS(model_name=current_tts_model, progress_bar=False)
+        audio_output = tts_instance_final.tts(text=final_tts_message, speed=current_tts_speed)
+        sd.play(audio_output, samplerate=current_tts_samplerate)
         sd.wait()
     except Exception as tts_e:
         print(f"Could not play final TTS message: {tts_e}")
