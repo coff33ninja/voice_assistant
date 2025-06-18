@@ -35,8 +35,9 @@ TTS_SPEED_RATE = float(os.getenv("TTS_SPEED_RATE", "1.0")) # 1.0 is normal speed
 TTS_SAMPLERATE = 22050
 
 # STT Model
-STT_MODEL_NAME = "base.en" # or "base" if multilingual needed and handled
-STT_COMPUTE_TYPE = "int8"
+# Default STT Model. This can be overridden by STT_MODEL_NAME in .env, or selected via whisperx_setup.py.
+DEFAULT_STT_MODEL_NAME = os.getenv("STT_MODEL_NAME", "base")
+STT_COMPUTE_TYPE = "int8" # Default compute type, can also be configured if needed
 STT_BATCH_SIZE = 16
 
 # Audio Recording
