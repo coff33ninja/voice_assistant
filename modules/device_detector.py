@@ -35,16 +35,41 @@ except ImportError:
 
 # Dictionary mapping GPU name keywords to recommended CUDA/Torch versions
 CUDA_COMPATIBILITY = {
-    "RTX 30": {"cuda": "11.7", "torch": "1.13.1+cu117"}, # Example, PyTorch versions evolve
-    "RTX 40": {"cuda": "11.8", "torch": "2.0.1+cu118"}, # Example
-    "RTX 20": {"cuda": "11.3", "torch": "1.10.0+cu113"}, # Example
-    "GTX 10": {"cuda": "10.2", "torch": "1.8.1+cu102"}, # Example
-    "GTX 9": {"cuda": "10.1", "torch": "1.7.1+cu101"},   # Example
-    "Quadro": {"cuda": "11.0", "torch": "1.9.1+cu110"},  # Example
-    "Tesla": {"cuda": "11.4", "torch": "1.12.0+cu114"},  # Example
+    "RTX 30": {
+        "cuda": "11.8",
+        "torch": "2.1.0+cu118",
+    },  # Supports Python 3.11, CUDA toolkit: https://developer.nvidia.com/cuda-11-8-0-download-archive
+    "RTX 40": {
+        "cuda": "12.8",
+        "torch": "2.7.1+cu128",
+    },  # Supports Python 3.11, CUDA toolkit: https://developer.nvidia.com/cuda-12-8-0-download-archive
+    "RTX 50": {
+        "cuda": "12.8",
+        "torch": "2.7.1+cu128",
+    },  # Supports Python 3.11, CUDA toolkit: https://developer.nvidia.com/cuda-12-8-0-download-archive
+    "RTX 20": {
+        "cuda": "11.3",
+        "torch": "1.10.0+cu113",
+    },  # Does not support Python 3.11; use Python 3.8, CUDA toolkit: https://developer.nvidia.com/cuda-11-3-0-download-archive
+    "GTX 10": {
+        "cuda": "10.2",
+        "torch": "1.8.1+cu102",
+    },  # Does not support Python 3.11; use Python 3.8, CUDA toolkit: https://developer.nvidia.com/cuda-10-2-download-archive
+    "GTX 9": {
+        "cuda": "10.1",
+        "torch": "1.7.1+cu101",
+    },  # Does not support Python 3.11; use Python 3.8, CUDA toolkit: https://developer.nvidia.com/cuda-10-1-download-archive
+    "Quadro": {
+        "cuda": "11.0",
+        "torch": "1.9.1+cu110",
+    },  # Does not support Python 3.11; use Python 3.8, CUDA toolkit: https://developer.nvidia.com/cuda-11-0-download-archive
+    "Tesla": {
+        "cuda": "11.4",
+        "torch": "1.12.0+cu114",
+    },  # Does not support Python 3.11; use Python 3.9, CUDA toolkit: https://developer.nvidia.com/cuda-11-4-0-download-archive
 }
 
-DEFAULT_CPU_TORCH = "2.0.1+cpu" # Update to a recent CPU version
+DEFAULT_CPU_TORCH = "2.7.1+cpu"  # Supports Python 3.11
 
 
 def get_cpu_info():
