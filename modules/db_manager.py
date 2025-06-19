@@ -1,7 +1,6 @@
 import sqlite3
 import asyncio
 from datetime import datetime, date
-import time
 from .config import DB_PATH
 
 def initialize_db():

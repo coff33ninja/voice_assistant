@@ -240,7 +240,7 @@ def main():
             if os.path.exists(DEFAULT_SPEAKER_WAV_PATH):
                 tts_kwargs_final["speaker_wav"] = DEFAULT_SPEAKER_WAV_PATH
                 print(f"Final TTS: Using default speaker WAV: {DEFAULT_SPEAKER_WAV_PATH} and language: {tts_kwargs_final['language']}")
-                print(f"DEBUG (Final TTS): DEFAULT_SPEAKER_WAV_PATH exists: True")
+                print("DEBUG (Final TTS): DEFAULT_SPEAKER_WAV_PATH exists: True")
             else:
                 print(f"WARNING (Final TTS): Default speaker WAV for XTTS models not found at '{DEFAULT_SPEAKER_WAV_PATH}'.")
                 print("The final message might not play correctly or use a default voice.")

@@ -6,7 +6,7 @@ from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_core.chat_history import BaseChatMessageHistory
 from langchain_core.runnables.config import RunnableConfig  # Import RunnableConfig
 from .config import LLM_MODEL_NAME
-from typing import Dict, Any, Optional, cast # Import cast
+from typing import Optional, cast # Import cast
 
 llm_instance: Optional[Ollama] = None
 # Simplified type for Pylance compatibility, though RunnableWithMessageHistory is generic.

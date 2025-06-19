@@ -6,6 +6,11 @@ import logging
 import os # Added
 from dotenv import set_key # Added
 
+from modules.config import (
+    LLM_MODEL_NAME,
+    _PROJECT_ROOT,
+)  # Import _PROJECT_ROOT for .env path
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -224,9 +229,6 @@ def install_python_dependencies():
         "Failed to install core dependencies",
     )
 
-
-from modules.config import LLM_MODEL_NAME, _PROJECT_ROOT # Import _PROJECT_ROOT for .env path
-
 def list_ollama_models() -> list[str]:
     """Lists locally available Ollama models."""
     logger.info("Checking for locally available Ollama models...")
@@ -260,7 +262,7 @@ def pull_ollama_model():
         open(dotenv_path, 'a').close() # Ensure .env file exists for set_key
 
     initial_effective_model = LLM_MODEL_NAME # From config.py (respects .env or defaults)
-    logger.info(f"--- Ollama LLM Model Configuration ---")
+    logger.info("--- Ollama LLM Model Configuration ---")
     logger.info(f"The current effective LLM model (from .env or default) is: {initial_effective_model}")
 
     available_models = list_ollama_models()
