@@ -143,6 +143,7 @@ def setup_whisperx():
                     sys.executable,
                     "-m",
                     "pytorch_lightning.utilities.upgrade_checkpoint",
+                    "--map-to-cpu", # Add this flag
                     checkpoint_file_path,
                 ]
                 print(f"Running: {' '.join(upgrade_command)}")

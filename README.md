@@ -84,6 +84,9 @@ voice_assistant/
    * Python (3.7-3.11 recommended).
    * `pip` (Python package installer).
    * System dependencies like `ffmpeg`, `libsndfile`, `portaudio` (see `modules/install_dependencies.py` for platform-specific instructions).
+   * **Windows Specific**: Microsoft Visual C++ Redistributable (Visual Studio 2015-2022). This is required for some Python packages like ONNXRuntime. You can download it from the official Microsoft site:
+     * For 64-bit systems: https://aka.ms/vs/17/release/vc_redist.x64.exe
+     * For 32-bit systems: https://aka.ms/vs/17/release/vc_redist.x86.exe
    * Ollama installed and running (e.g., `ollama serve`).
 
 2. **Clone the repository (if applicable) or ensure you are in the project's root directory.**

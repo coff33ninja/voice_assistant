@@ -122,8 +122,11 @@ def install_system_dependencies():
 
         # Recommend Visual C++ Build Tools and Chocolatey for libsndfile/portaudio
         logger.warning(
-            "For runtime dependencies like ONNXRuntime (used by WhisperX), ensure the Microsoft Visual C++ Redistributable is installed. "
-            "Download from https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist (Visual Studio 2015-2022 section)."
+            "For runtime dependencies like ONNXRuntime (used by WhisperX), ensure the Microsoft Visual C++ Redistributable is installed.\n"
+            "Download from the official Microsoft site (Visual Studio 2015-2022 section):\n"
+            "  - For 64-bit systems: https://aka.ms/vs/17/release/vc_redist.x64.exe\n"
+            "  - For 32-bit systems: https://aka.ms/vs/17/release/vc_redist.x86.exe\n"
+            "You can typically install the x64 version on modern systems. If unsure, you can install both."
         )
         if shutil.which("choco"):
             logger.info("Installing libsndfile, portaudio, and espeak-ng via Chocolatey...")
@@ -206,7 +209,7 @@ def install_python_dependencies():
             "langchain==0.3.1",
             "langchain-community==0.3.1",
             "transformers==4.45.2",
-            "precise-runner==0.2.1",
+            # "precise-runner==0.2.1", # Temporarily commented out due to Python 3.11 incompatibility
             "pvporcupine==3.0.3",
             "datasets==3.0.0",
             "accelerate==1.0.0",
@@ -216,6 +219,7 @@ def install_python_dependencies():
             "nest_asyncio",
             "ics",
             "dateparser",
+            "onnx",
         ],
         "Failed to install core dependencies",
     )

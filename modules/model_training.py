@@ -34,6 +34,7 @@ def fine_tune_model(dataset_path, model_save_path):
 
     # Tokenizer and model
     from transformers import DistilBertTokenizer, DistilBertForSequenceClassification, Trainer, TrainingArguments
+    import torch # Import torch to check for CUDA availability
     tokenizer = DistilBertTokenizer.from_pretrained("distilbert-base-uncased")
     model = DistilBertForSequenceClassification.from_pretrained("distilbert-base-uncased", num_labels=len(label_map), id2label=id2label, label2id=label_map)
     def tokenize_function(examples):
@@ -52,6 +53,7 @@ def fine_tune_model(dataset_path, model_save_path):
         per_device_train_batch_size=8,
         save_steps=100,
         save_total_limit=2,
+        dataloader_pin_memory=torch.cuda.is_available(), # Set based on CUDA availability
         logging_dir=logging_output_dir,
         logging_steps=50, # Log more frequently
     )

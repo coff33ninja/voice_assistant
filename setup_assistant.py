@@ -77,12 +77,17 @@ def yes_no_prompt(prompt_text: str) -> bool:
 
 def load_checkpoints():
     if os.path.exists(SETUP_CHECKPOINTS_PATH):
-        with open(SETUP_CHECKPOINTS_PATH, "r") as f:
-            return json.load(f)
+        try:
+            with open(SETUP_CHECKPOINTS_PATH, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except json.JSONDecodeError:
+            print(f"Warning: Could not decode {SETUP_CHECKPOINTS_PATH}. File might be corrupted. Starting with fresh checkpoints.")
+        except Exception as e:
+            print(f"Warning: Error loading {SETUP_CHECKPOINTS_PATH}: {e}. Starting with fresh checkpoints.")
     return {step: False for step in SETUP_STEPS}
 
 def save_checkpoints(checkpoints):
-    with open(SETUP_CHECKPOINTS_PATH, "w") as f:
+    with open(SETUP_CHECKPOINTS_PATH, "w", encoding="utf-8") as f:
         json.dump(checkpoints, f, indent=2)
 
 def main():

@@ -125,9 +125,9 @@ what's the weather location prompt,get_weather_location_prompt,{}
 which city for weather,get_weather_location_prompt,{}
 set reminder failed,set_reminder_error,{}
 couldn't set reminder,set_reminder_error,{}
-text,label
-"let's chat with the AI",start_chat_with_llm
-"I want to talk to the language model",start_chat_with_llm
-"start a conversation with the AI",start_chat_with_llm
-"open chat with AI",start_chat_with_llm
-"begin chat session",start_chat_with_llm
+text,label,
+let's chat with the AI,start_chat_with_llm,
+I want to talk to the language model,start_chat_with_llm,
+start a conversation with the AI,start_chat_with_llm,
+open chat with AI,start_chat_with_llm,
+begin chat session,start_chat_with_llm,
