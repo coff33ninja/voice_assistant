@@ -15,11 +15,11 @@ intent_classifier_pipeline = None
 
 # Dynamically generate INTENT_LABELS_MAP from CSV
 CSV_PATH = os.path.join(os.path.dirname(__file__), '../intent_data/intent_dataset.csv')
-df = pd.read_csv(CSV_PATH)
+df = pd.read_csv(CSV_PATH, on_bad_lines='skip')
 unique_labels = sorted(df['label'].unique())
 INTENT_LABELS_MAP = {idx: label for idx, label in enumerate(unique_labels)}
 
-CONFIDENCE_THRESHOLD = 0.70  # Minimum confidence to accept a classified intent
+CONFIDENCE_THRESHOLD = 0.40  # Minimum confidence to accept a classified intent
 
 def initialize_intent_classifier():
     global intent_tokenizer, intent_model, intent_classifier_pipeline
@@ -77,17 +77,19 @@ async def detect_intent_async(text: str) -> Tuple[str, Dict[str, Any]]:
         detected_intent = INTENT_LABELS_MAP.get(label_idx)
         if detected_intent:
             print(f"Detected intent: '{detected_intent}' with score {score:.4f}")
-            # Future: If the NLU model also extracts entities, they would be processed here.
-            # For now, we're not extracting entities from this model.
-            # If your CSV's 'entities' column was used to train a joint model,
-            # you'd parse them from the model output or a corresponding lookup.
-            # Example (conceptual, if entities were in CSV and model could use them):
+            # The 'entities' column in the CSV is primarily for training models capable of NER.
+            # The current DistilBertForSequenceClassification model does not inherently extract entities.
+            # The following lookup is very brittle as it requires an exact match of the user's raw text
+            # with a training phrase, which is unlikely.
+            # For robust entity extraction, a dedicated NER model or a joint intent-entity model is needed.
+            # For now, 'entities' remains a placeholder.
+            #
             # matching_row = df[(df['text'] == text) & (df['label'] == detected_intent)]
             # if not matching_row.empty and 'entities' in matching_row.columns:
             #     entities_str = matching_row.iloc[0]['entities']
-            #     if entities_str and entities_str != '{}':
+            #     if entities_str and pd.notna(entities_str) and entities_str.strip() and entities_str != '{}':
             #         try: entities = json.loads(entities_str)
-            #         except json.JSONDecodeError: print(f"Could not parse entities: {entities_str}")
+            #         except json.JSONDecodeError: print(f"Could not parse entities from CSV: {entities_str}")
             return detected_intent, entities
         else:
             print(f"Warning: Parsed label_idx {label_idx} not in INTENT_LABELS_MAP.")

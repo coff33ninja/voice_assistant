@@ -24,6 +24,46 @@ def initialize_tts():
         raise RuntimeError("TTS model not configured.")
 
     try:
+        # --- Add this block to handle PyTorch 2.6+ weights_only=True issue for XTTS ---
+        # torch is already imported at the top of this file
+        if "xtts" in TTS_MODEL_NAME.lower():
+            print("TTS Service: XTTS model detected, attempting to add safe globals for PyTorch 2.6+ compatibility.")
+            safe_globals_to_add = []
+            # Attempt to import and add XttsConfig
+            try:
+                from TTS.tts.configs.xtts_config import XttsConfig
+                safe_globals_to_add.append(XttsConfig)
+                print("TTS Service: Identified TTS.tts.configs.xtts_config.XttsConfig for safe globals.")
+            except ImportError:
+                print("TTS Service Warning: Could not import XttsConfig. XTTS models might fail to load.")
+            except Exception as e:
+                print(f"TTS Service Warning: Error importing XttsConfig: {e}")
+            # Attempt to import and add XttsAudioConfig
+            try:
+                from TTS.tts.models.xtts import XttsAudioConfig
+                safe_globals_to_add.append(XttsAudioConfig)
+                print("TTS Service: Identified TTS.tts.models.xtts.XttsAudioConfig for safe globals.")
+            except ImportError:
+                print("TTS Service Warning: Could not import XttsAudioConfig.")
+            # Attempt to import and add BaseDatasetConfig
+            try:
+                from TTS.config.shared_configs import BaseDatasetConfig
+                safe_globals_to_add.append(BaseDatasetConfig)
+                print("TTS Service: Identified TTS.config.shared_configs.BaseDatasetConfig for safe globals.")
+            except ImportError:
+                print("TTS Service Warning: Could not import BaseDatasetConfig.")
+            # Attempt to import and add XttsArgs
+            try:
+                from TTS.tts.models.xtts import XttsArgs
+                safe_globals_to_add.append(XttsArgs)
+                print("TTS Service: Identified TTS.tts.models.xtts.XttsArgs for safe globals.")
+            except ImportError:
+                print("TTS Service Warning: Could not import XttsArgs.")
+            if safe_globals_to_add and hasattr(torch.serialization, 'add_safe_globals'):
+                torch.serialization.add_safe_globals(safe_globals_to_add)
+                print(f"TTS Service: Applied {len(safe_globals_to_add)} identified XTTS class(es) to torch safe globals.")
+        # --- End block ---
+
         print(f"TTS service: Attempting to load model '{TTS_MODEL_NAME}'")
 
         use_gpu = False
@@ -44,14 +84,19 @@ def initialize_tts():
             gpu=use_gpu,
         )
 
-        if use_gpu and tts_instance.device.type == 'cuda':
-            print(f"TTS service initialized successfully with model: {TTS_MODEL_NAME} on GPU.")
-        elif not use_gpu and tts_instance.device.type == 'cpu':
-            print(f"TTS service initialized successfully with model: {TTS_MODEL_NAME} on CPU.")
+        # Check the actual device the model was loaded onto
+        if hasattr(tts_instance, 'model') and hasattr(tts_instance.model, 'device'):
+            actual_device_type = tts_instance.model.device.type
+            if use_gpu and actual_device_type == 'cuda':
+                print(f"TTS service initialized successfully with model: {TTS_MODEL_NAME} on GPU ({actual_device_type}).")
+            elif not use_gpu and actual_device_type == 'cpu':
+                print(f"TTS service initialized successfully with model: {TTS_MODEL_NAME} on CPU ({actual_device_type}).")
+            else:
+                # This case might occur if CoquiTTS falls back to CPU despite gpu=True request,
+                # or if there's a mismatch in device checking.
+                print(f"TTS service initialized successfully with model: {TTS_MODEL_NAME}. Note: Actual device is {actual_device_type}, requested use_gpu was {use_gpu}.")
         else:
-            # This case might occur if CoquiTTS falls back to CPU despite gpu=True request,
-            # or if there's a mismatch in device checking.
-            print(f"TTS service initialized successfully with model: {TTS_MODEL_NAME}. Note: Actual device is {tts_instance.device.type}, requested use_gpu was {use_gpu}.")
+            print(f"TTS service initialized successfully with model: {TTS_MODEL_NAME}. Could not determine actual device (model.device not found).")
 
     except Exception as e:
         print(

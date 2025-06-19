@@ -224,6 +224,8 @@ def install_python_dependencies():
             "nest_asyncio",
             "ics",
             "dateparser",
+            "pyspellchecker", # Added spell-checking library
+            "watchdog", # Added for file watching
             "onnx",
         ],
         "Failed to install core dependencies",

@@ -3,14 +3,19 @@ import platform
 from typing import Optional
 import warnings
 import logging
+import threading # Import the threading module
+
 
 # --- Basic Logging Configuration ---
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
+# Define the logger at the module level so it's accessible throughout
+logger = logging.getLogger(__name__)
 
-from wakeword_detector import run_wakeword_async
+
+from wakeword_detector import run_wakeword_async # type: ignore
 
 from modules.audio_utils import record_audio_async
 from modules.stt_service import initialize_stt, transcribe_audio_async
@@ -26,11 +31,11 @@ from modules.db_manager import (
 # Import the new intent logic module
 from modules.intent_logic import process_command, get_response, ShutdownSignal
 
-# --- Modularized interaction logic ---
-
 # Import for validation and retraining logic
-from scripts.intent_validator import run_validation_and_retrain_async
-from modules.retrain_utils import parse_retrain_request  # Still need this for parsing
+# from scripts.intent_validator import run_validation_and_retrain_async # This seems unused here
+from modules.contractions import reload_normalization_data, NORMALIZATION_DATA_DIR # Import for watcher
+from modules.file_watcher_service import start_normalization_data_watcher # Import watcher
+# from modules.retrain_utils import parse_retrain_request  # This seems to be unused now
 
 # --- Suppress specific library warnings and configure logging ---
 
@@ -124,6 +129,17 @@ async def main_loop(loop: asyncio.AbstractEventLoop):
     reminder_task = loop.create_task(reminder_check_loop(text_to_speech_async))
     background_tasks.append(reminder_task)
 
+    # Start the file watcher for normalization data in a separate thread
+    # This thread will run in the background and call reload_normalization_data when files change.
+    # We need to ensure this thread is managed correctly on shutdown.
+    normalization_files_to_watch = ["contractions_map.json", "common_misspellings_map.json", "custom_dictionary.txt"]
+    watcher_thread = threading.Thread(
+        target=start_normalization_data_watcher,
+        args=(reload_normalization_data, NORMALIZATION_DATA_DIR, normalization_files_to_watch),
+        daemon=True # Daemonize so it exits when the main program exits
+    )
+    watcher_thread.start()
+
     current_wakeword_task: Optional[asyncio.Task] = None
 
     try:
@@ -184,6 +200,11 @@ async def main_loop(loop: asyncio.AbstractEventLoop):
                     logging.error(
                         f"Error during cancellation of background task {task_name(task)}: {e}", exc_info=True
                     )
+        # The watcher_thread is a daemon, so it should exit automatically.
+        # If explicit cleanup for the observer was needed outside its own try/finally,
+        # you'd need a way to signal it to stop (e.g., an event) and then join it.
+        # However, the observer's own try/finally with observer.stop() should handle it.
+        logging.info("File watcher thread (daemon) will exit with main program.") # Use logging directly
         logging.info("All background tasks in main_loop processed for cancellation.") # Changed from print
 
 

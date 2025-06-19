@@ -24,6 +24,62 @@ def play_sample_tts(model_name_for_tts: str, speed_rate: float, sample_text: str
         # Import sounddevice locally to avoid issues if it's not available during other setup steps
         # or if this function is called in a context where sd is not globally defined.
         import sounddevice as sd
+        import torch # Add import
+
+        # --- Add this block to handle PyTorch 2.6+ weights_only=True issue for XTTS ---
+        if "xtts" in model_name_for_tts.lower():
+            print("Sample TTS: XTTS model detected, attempting to add safe globals for PyTorch 2.6+ compatibility.")
+            safe_globals_to_add = []
+            # Attempt to import and add XttsConfig
+            try:
+                from TTS.tts.configs.xtts_config import XttsConfig
+                safe_globals_to_add.append(XttsConfig)
+                print("Sample TTS: Identified TTS.tts.configs.xtts_config.XttsConfig for safe globals.")
+            except ImportError:
+                print("Sample TTS Warning: Could not import TTS.tts.configs.xtts_config.XttsConfig.")
+            except Exception as e:
+                print(f"Sample TTS Warning: Error importing XttsConfig: {e}")
+
+            # Attempt to import and add XttsAudioConfig (based on error messages)
+            try:
+                from TTS.tts.models.xtts import XttsAudioConfig # Corrected import path based on typical structure
+                safe_globals_to_add.append(XttsAudioConfig)
+                print("Sample TTS: Identified TTS.tts.models.xtts.XttsAudioConfig for safe globals.")
+            except ImportError:
+                print("Sample TTS Warning: Could not import TTS.tts.models.xtts.XttsAudioConfig.")
+            except Exception as e:
+                print(f"Sample TTS Warning: Error importing XttsAudioConfig: {e}")
+
+            # Attempt to import and add BaseDatasetConfig
+            try:
+                from TTS.config.shared_configs import BaseDatasetConfig
+                safe_globals_to_add.append(BaseDatasetConfig)
+                print("Sample TTS: Identified TTS.config.shared_configs.BaseDatasetConfig for safe globals.")
+            except ImportError:
+                print("Sample TTS Warning: Could not import TTS.config.shared_configs.BaseDatasetConfig.")
+            except Exception as e:
+                print(f"Sample TTS Warning: Error importing BaseDatasetConfig: {e}")
+            
+            # Attempt to import and add XttsArgs
+            try:
+                from TTS.tts.models.xtts import XttsArgs
+                safe_globals_to_add.append(XttsArgs)
+                print("Sample TTS: Identified TTS.tts.models.xtts.XttsArgs for safe globals.")
+            except ImportError:
+                print("Sample TTS Warning: Could not import TTS.tts.models.xtts.XttsArgs.")
+            except Exception as e:
+                print(f"Sample TTS Warning: Error importing XttsArgs: {e}")
+            if safe_globals_to_add:
+                try:
+                    if hasattr(torch.serialization, 'add_safe_globals'):
+                        torch.serialization.add_safe_globals(safe_globals_to_add)
+                        print(f"Sample TTS: Applied {len(safe_globals_to_add)} identified XTTS class(es) to torch safe globals.")
+                    else:
+                        print("Sample TTS Warning: torch.serialization.add_safe_globals not found. This is expected for PyTorch < 2.1. XTTS models might still fail with PyTorch 2.6+ if this utility is missing.")
+                except Exception as e: # Catch any exception during the add_safe_globals call
+                    print(f"Sample TTS Error: Could not apply safe globals: {e}")
+        # --- End block ---
+
         print(f"Attempting to generate sample audio with model '{model_name_for_tts}' at speed {speed_rate}...")
         tts_temp_instance = CoquiTTS(model_name=model_name_for_tts, progress_bar=False) # progress_bar=False for quick init
 
@@ -146,8 +202,62 @@ def setup_tts():
             # Loop continues
 
     try:
+        import torch # Add import
+        # --- Add this block to handle PyTorch 2.6+ weights_only=True issue for XTTS ---
+        if "xtts" in final_model_to_use.lower():
+            print("TTS Setup: XTTS model detected, attempting to add safe globals for PyTorch 2.6+ compatibility.")
+            safe_globals_to_add = []
+            # Attempt to import and add XttsConfig
+            try:
+                from TTS.tts.configs.xtts_config import XttsConfig
+                safe_globals_to_add.append(XttsConfig)
+                print("TTS Setup: Identified TTS.tts.configs.xtts_config.XttsConfig for safe globals.")
+            except ImportError:
+                print("TTS Setup Warning: Could not import TTS.tts.configs.xtts_config.XttsConfig.")
+            except Exception as e:
+                print(f"TTS Setup Warning: Error importing XttsConfig: {e}")
+
+            # Attempt to import and add XttsAudioConfig (based on error messages)
+            try:
+                from TTS.tts.models.xtts import XttsAudioConfig # Corrected import path based on typical structure
+                safe_globals_to_add.append(XttsAudioConfig)
+                print("TTS Setup: Identified TTS.tts.models.xtts.XttsAudioConfig for safe globals.")
+            except ImportError:
+                print("TTS Setup Warning: Could not import TTS.tts.models.xtts.XttsAudioConfig.")
+            except Exception as e:
+                print(f"TTS Setup Warning: Error importing XttsAudioConfig: {e}")
+
+            # Attempt to import and add BaseDatasetConfig
+            try:
+                from TTS.config.shared_configs import BaseDatasetConfig
+                safe_globals_to_add.append(BaseDatasetConfig)
+                print("TTS Setup: Identified TTS.config.shared_configs.BaseDatasetConfig for safe globals.")
+            except ImportError:
+                print("TTS Setup Warning: Could not import TTS.config.shared_configs.BaseDatasetConfig.")
+            except Exception as e:
+                print(f"TTS Setup Warning: Error importing BaseDatasetConfig: {e}")
+
+            # Attempt to import and add XttsArgs
+            try:
+                from TTS.tts.models.xtts import XttsArgs
+                safe_globals_to_add.append(XttsArgs)
+                print("TTS Setup: Identified TTS.tts.models.xtts.XttsArgs for safe globals.")
+            except ImportError:
+                print("TTS Setup Warning: Could not import TTS.tts.models.xtts.XttsArgs.")
+            except Exception as e:
+                print(f"TTS Setup Warning: Error importing XttsArgs: {e}")
+            if safe_globals_to_add:
+                try:
+                    if hasattr(torch.serialization, 'add_safe_globals'):
+                        torch.serialization.add_safe_globals(safe_globals_to_add)
+                        print(f"TTS Setup: Applied {len(safe_globals_to_add)} identified XTTS class(es) to torch safe globals.")
+                    else:
+                        print("TTS Setup Warning: torch.serialization.add_safe_globals not found. This is expected for PyTorch < 2.1. XTTS models might still fail with PyTorch 2.6+ if this utility is missing.")
+                except Exception as e: # Catch any exception during the add_safe_globals call
+                    print(f"TTS Setup Error: Could not apply safe globals: {e}")
+        # --- End block ---
         print(f"Initializing Coqui TTS with model '{final_model_to_use}' to download (if needed)...")
-        CoquiTTS(model_name=final_model_to_use, progress_bar=True)
+        CoquiTTS(model_name=final_model_to_use, progress_bar=True) # This is where the error occurred
         print(f"Coqui TTS model '{final_model_to_use}' is ready.")
     except Exception as e:
         print(f"ERROR: Failed to initialize/download Coqui TTS model '{final_model_to_use}': {e}")

@@ -144,6 +144,14 @@ async def process_command(transcription: str):
 
     intent, extracted_entities = await detect_intent_async(normalized_transcription)
     logger.info(f"Detected intent: {intent}, Entities: {extracted_entities}")
+    
+        # --- Heuristic check for "goodbye" --- Moved after the NLU
+    goodbye_phrases = ["goodbye", "bye", "see you later", "farewell", "exit", "quit", "terminate"]
+    if any(phrase in normalized_transcription.lower() for phrase in goodbye_phrases):
+        logger.info("Heuristic match for 'goodbye' intent.")
+        await handle_goodbye_intent(normalized_transcription, {})  # Call handler directly
+        return  # Exit early as goodbye is handled
+
     # Special handling for retrain_model as it's combined with parse_retrain_request
     if intent == "retrain_model" or parse_retrain_request(normalized_transcription):
         response = get_response("retrain_model")

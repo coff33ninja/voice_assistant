@@ -1,0 +1,10 @@
+Mika
+Ollama
+WhisperX
+Picovoice
+Porcupine
+Coqui
+TTS
+DistilBERT
+PyTorch
+CUDA

@@ -14,6 +14,8 @@ Will it rain tomorrow?,get_weather,"{""date_reference"": ""tomorrow"", ""locatio
 What's the temperature outside?,get_weather,"{""location"": ""current""}"
 Is it sunny today?,get_weather,"{""date_reference"": ""today"", ""location"": ""current""}"
 What are my reminders for today?,list_reminders,"{""date_reference"": ""today""}"
+Will it be rainy tomorrow?,get_weather,"{""date_reference"": ""tomorrow"", ""location"": ""current""}"
+How about the rain tomorrow?,get_weather,"{""date_reference"": ""tomorrow"", ""location"": ""current""}"
 Show me reminders for tomorrow,list_reminders,"{""date_reference"": ""tomorrow""}"
 List my reminders for next Monday,list_reminders,"{""date_reference"": ""next Monday""}"
 Any reminders for July 4th?,list_reminders,"{""date_reference"": ""July 4th""}"
@@ -29,6 +31,9 @@ How did the stock market do today?,general_query,"{""query_type"": ""stock_marke
 Retrain the model,retrain_model,{}
 Update my assistant,retrain_model,{}
 Retrain intent classifier,retrain_model,{}
+Could you retrain the intent model?,retrain_model,{}
+It's time to update the training data,retrain_model,{}
+Refresh the model,retrain_model,{}
 Retrain assistant,retrain_model,{}
 Train model,retrain_model,{}
 Update model,retrain_model,{}
@@ -37,6 +42,7 @@ Never mind,cancel_task,{}
 Stop that,cancel_task,{}
 Cancel that,cancel_task,{}
 Stop,cancel_task,{}
+Don't do that,cancel_task,{}
 I don't need that anymore,cancel_task,{}
 Hello,greeting,{}
 Hi there,greeting,{}
@@ -58,8 +64,16 @@ Farewell,goodbye,{}
 Take care,goodbye,{}
 Catch you later,goodbye,{}
 Bye bye,goodbye,{}
+Talk to you later,goodbye,{}
+Have a good one,goodbye,{}
+I'm off,goodbye,{}
+See you soon,goodbye,{}
 See ya,goodbye,{}
 Shut down,goodbye,{}
+Talk to you later,goodbye,{}
+Have a good one,goodbye,{}
+I'm off,goodbye,{}
+See you soon,goodbye,{}
 Tell me a joke,joke_query,{}
 Make me laugh,joke_query,{}
 Do you know any jokes?,joke_query,{}
@@ -86,16 +100,23 @@ Add milk to my shopping list,shopping_add,"{""item"": ""milk""}"
 What's on my shopping list?,shopping_list,{}
 Remove eggs from my shopping list,shopping_remove,"{""item"": ""eggs""}"
 Translate hello to Spanish,translate_query,"{""text_to_translate"": ""hello"", ""target_language"": ""Spanish""}"
-"\How do you say \""\""goodbye\""\"" in French?\""""",translate_query,"{""text_to_translate"": ""goodbye"", ""target_language"": ""French""}"
+"How do you say ""goodbye"" in French?",translate_query,"{""text_to_translate"": ""goodbye"", ""target_language"": ""French""}"
 What time is it?,get_time,{}
 What is the current time?,get_time,{}
 Tell me the time,get_time,{}
+Could you tell me the time?,get_time,{}
+Time please,get_time,{}
+Do you have the time?,get_time,{}
 What day is it?,get_date,{}
 What's today's date?,get_date,{}
 Tell me the date,get_date,{}
+What's the date today?,get_date,{}
+Date,get_date,{}
 set a reminder for 3pm,set_reminder,"{""task"": ""reminder"", ""time_phrase"": ""3pm""}"
 I want to set a reminder,set_reminder,{}
 I want to add an event,add_calendar_event_success,{}
+Don't set that reminder,cancel_task,{}
+Cancel the reminder I just asked for,cancel_task,{}
 add an event to my calendar,add_calendar_event_success,{}
 I can't hear you,no_speech_detected,{}
 I didn't say anything,no_speech_detected,{}
@@ -125,9 +146,8 @@ what's the weather location prompt,get_weather_location_prompt,{}
 which city for weather,get_weather_location_prompt,{}
 set reminder failed,set_reminder_error,{}
 couldn't set reminder,set_reminder_error,{}
-text,label,
 let's chat with the AI,start_chat_with_llm,
-I want to talk to the language model,start_chat_with_llm,
-start a conversation with the AI,start_chat_with_llm,
-open chat with AI,start_chat_with_llm,
-begin chat session,start_chat_with_llm,
+I want to talk to the language model,start_chat_with_llm,{}
+start a conversation with the AI,start_chat_with_llm,{}
+open chat with AI,start_chat_with_llm,{}
+begin chat session,start_chat_with_llm,{}
