@@ -68,8 +68,10 @@ def fine_tune_model(dataset_path, model_save_path):
 
     # Define the custom model for joint intent and slot filling
     from transformers.utils import ModelOutput # Import ModelOutput
+    from dataclasses import dataclass # Import dataclass
     from typing import Optional, Tuple # Import types for ModelOutput
 
+    @dataclass # Add the dataclass decorator
     class JointModelOutput(ModelOutput):
         loss: Optional[torch.FloatTensor] = None
         intent_logits: Optional[torch.FloatTensor] = None # Changed type hint
