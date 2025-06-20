@@ -126,7 +126,7 @@ def parse_reminder(text: str, entities: Optional[Dict[str, Any]] = None) -> Opti
     if not task_match:
         return None
     task = task_match.group(1).strip()
-    
+
     time_text_part = text[task_match.end():].strip().lower()
     if not time_text_part:
         time_text_part = text.lower() # Fallback if time phrase is not immediately after task
@@ -159,7 +159,7 @@ def parse_reminder(text: str, entities: Optional[Dict[str, Any]] = None) -> Opti
                     parsed_time = datetime.strptime(time_str, "%H:%M").time()
                 except ValueError:
                     return None
-            
+
             rt_today = datetime.combine(now.date(), parsed_time)
             reminder_time = rt_today if rt_today >= now else datetime.combine(now.date() + timedelta(days=1), parsed_time)
 

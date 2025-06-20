@@ -144,7 +144,7 @@ async def process_command(transcription: str):
 
     intent, extracted_entities = await detect_intent_async(normalized_transcription)
     logger.info(f"Detected intent: {intent}, Entities: {extracted_entities}")
-    
+
         # --- Heuristic check for "goodbye" --- Moved after the NLU
     goodbye_phrases = ["goodbye", "bye", "see you later", "farewell", "exit", "quit", "terminate"]
     if any(phrase in normalized_transcription.lower() for phrase in goodbye_phrases):
