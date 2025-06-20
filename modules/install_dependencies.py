@@ -246,7 +246,7 @@ def install_python_dependencies():
             "-m",
             "pip",
             "install",
-            "openai-whisper"
+            "openai-whisper-20231117"
         ],
         "Failed to install OpenAI Whisper (standard)",
     )
