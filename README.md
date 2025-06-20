@@ -18,6 +18,23 @@ The voice assistant uses a combination of local and cloud-based services for its
 * **Task-Specific Modules**: Includes dedicated modules for weather, reminders, and potentially more in the future.
 * **Calendar**: Generates and manages an `.ics` calendar file for reminders, weather entries, and direct event additions.
 
+### Entity Extraction Details
+
+The NLU model is trained to extract the following key entity types from user commands, enabling a more nuanced understanding of requests:
+
+*   `subject`: The main description of a task or event (e.g., "call mom", "project meeting").
+*   `time_phrase`: Natural language expressions of time, date, or duration (e.g., "tomorrow at 3pm", "in an hour", "next Monday"). This is typically parsed by the system to determine specific datetime objects.
+*   `date_reference`: Specific references to dates, often relative or named (e.g., "today", "tomorrow", "July 10th").
+*   `time`: Specific references to times of day (e.g., "5 PM", "morning", "noon").
+*   `location`: Geographical places or named locations (e.g., "London", "the office", "current location").
+*   `contact_name`: Names of people or groups involved (e.g., "John", "Marketing team", "Dr. Smith").
+*   `duration`: Specific lengths of time (e.g., "1 hour", "for 30 minutes", "two days").
+*   `topic`: The subject matter of a general knowledge question (e.g., "capital of France", "how photosynthesis works").
+*   `item_to_add` / `item_to_remove`: Specific items for list management commands (e.g., "milk" for a shopping list).
+*   `text_to_translate` / `target_language`: The text to be translated and the language to translate it into.
+
+The model's ability to accurately extract these entities is directly dependent on comprehensive annotations within the `intent_data/intent_dataset.csv` training data.
+
 ## Features
 
 * **Wakeword Activation**: Listens for a wakeword to start interaction.
