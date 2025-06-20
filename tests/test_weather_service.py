@@ -30,19 +30,24 @@ def mock_api_key():
 @pytest.fixture
 def mock_aiohttp_get():
     """
-    Fixture to mock aiohttp.ClientSession.get.
+    Fixture to mock aiohttp.ClientSession so that session.get supports async context manager protocol.
     Returns a mock response object that can be configured.
     """
-    with patch('aiohttp.ClientSession.get', new_callable=AsyncMock) as mock_get:
+    with patch('aiohttp.ClientSession') as mock_session_cls:
+        mock_session = MagicMock()
         mock_response = MagicMock(spec=aiohttp.ClientResponse)
-        # Properly mock async context manager protocol
+        # Properly mock async context manager protocol for session.get
         async def async_json():
             return mock_response._json_payload
         mock_response.json = AsyncMock(side_effect=async_json)
         mock_response._json_payload = None  # Will be set in each test
-        mock_get.return_value.__aenter__.return_value = mock_response
-        mock_get.return_value.__aexit__.return_value = False
-        yield mock_get, mock_response
+        mock_response.__aenter__.return_value = mock_response
+        mock_response.__aexit__.return_value = False
+        mock_session.get.return_value = mock_response
+        mock_session.__aenter__.return_value = mock_session
+        mock_session.__aexit__.return_value = False
+        mock_session_cls.return_value = mock_session
+        yield mock_session.get, mock_response
 
 @pytest.fixture
 def mock_weather_success_payload():
@@ -137,7 +142,6 @@ class TestGetWeatherAsync:
         mock_response.json.return_value = mock_weather_success_payload
         mock_response._json_payload = mock_weather_success_payload
         mock_response.status = 200
-
         entities = {"location": "London"}
         result = await get_weather_async(entities=entities)
 
@@ -154,7 +158,6 @@ class TestGetWeatherAsync:
         mock_response.json.return_value = mock_weather_success_payload
         mock_response._json_payload = mock_weather_success_payload
         mock_response.status = 200
-
         entities = {"location": "Paris"}
         result = await get_weather_async(location_query="Berlin", entities=entities)
 
