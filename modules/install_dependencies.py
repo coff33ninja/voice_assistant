@@ -238,6 +238,19 @@ def install_python_dependencies():
         "Failed to install core dependencies",
     )
 
+    # Step 4b: Install OpenAI Whisper (standard)
+    logger.info("Installing OpenAI Whisper (standard)...")
+    run_command(
+        [
+            sys.executable,
+            "-m",
+            "pip",
+            "install",
+            "openai-whisper"
+        ],
+        "Failed to install OpenAI Whisper (standard)",
+    )
+
 def list_ollama_models() -> list[str]:
     """Lists locally available Ollama models."""
     logger.info("Checking for locally available Ollama models...")

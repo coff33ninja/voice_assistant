@@ -10,6 +10,7 @@ from .config import (
     TTS_SAMPLERATE,
     DEFAULT_SPEAKER_WAV_PATH
 )
+from modules.stt_model_selection import prompt_stt_model_choice
 
 def download_file(url, dest):
     try:
@@ -276,3 +277,10 @@ def setup_precise(base_dir, model_url):
     print(
         "To train a custom wakeword, record 10-20 samples and use precise-train: https://github.com/MycroftAI/mycroft-precise"
     )
+
+def setup_stt_model():
+    """Interactive setup for STT model selection (WhisperX or Whisper)."""
+    choice = prompt_stt_model_choice()
+    env_path = os.path.join(_PROJECT_ROOT, ".env")
+    set_key(env_path, "STT_BACKEND", choice)
+    print(f"STT backend set to '{choice}' in .env.")

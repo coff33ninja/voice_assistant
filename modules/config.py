@@ -67,6 +67,9 @@ STT_MODEL_NAME = os.getenv("STT_MODEL_NAME", "base")
 STT_COMPUTE_TYPE = "int8"  # Default compute type, can also be configured if needed
 STT_BATCH_SIZE = 16
 
+# STT Backend selection: 'whisperx' (default) or 'whisper'
+STT_BACKEND = os.getenv("STT_BACKEND", "whisperx")
+
 # Audio Recording
 AUDIO_SAMPLE_RATE = 16000
 AUDIO_DURATION_SECONDS = 5

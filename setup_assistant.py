@@ -50,7 +50,7 @@ except ModuleNotFoundError:
 # --- End bootstrap python-dotenv ---
 
 from modules.install_dependencies import install_dependencies
-from modules.download_and_models import setup_tts, setup_precise
+from modules.download_and_models import setup_tts, setup_precise, setup_stt_model
 from modules.api_key_setup import setup_api_key
 from modules.whisperx_setup import setup_whisperx
 from modules.device_detector import (
@@ -78,6 +78,7 @@ SETUP_STEPS = [
     "tts",
     "precise",
     "picovoice_api_key",
+    "stt_model",  # <-- Add this step for STT model selection
     "whisperx",
     "db",
     "dataset",
@@ -177,6 +178,7 @@ def main():
                 "model_save_path": INTENT_MODEL_SAVE_PATH,
             },
         ),  # Use centralized paths
+        "stt_model": (setup_stt_model, {}),
     }
 
     while True:  # Main loop for the entire setup process
