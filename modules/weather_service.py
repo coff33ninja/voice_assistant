@@ -138,6 +138,7 @@ async def get_weather_async(
             ) as response:  # Use raise_for_status=True
                 response.raise_for_status()  # Raise an exception for HTTP errors
                 data = await response.json()
+                print(f"DEBUG: Weather API response data type: {type(data)}, value: {data}")
 
                 weather_list = data.get("weather")
                 main_data = data.get("main")
