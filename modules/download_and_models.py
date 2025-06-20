@@ -11,6 +11,8 @@ from .config import (
     DEFAULT_SPEAKER_WAV_PATH
 )
 from modules.stt_model_selection import prompt_stt_model_choice
+from modules.whisperx_setup import setup_whisperx
+from modules.whisper_setup import setup_whisper
 
 def download_file(url, dest):
     try:
@@ -279,8 +281,15 @@ def setup_precise(base_dir, model_url):
     )
 
 def setup_stt_model():
-    """Interactive setup for STT model selection (WhisperX or Whisper)."""
+    """Interactive setup for STT model selection (WhisperX or Whisper), model selection, and test."""
     choice = prompt_stt_model_choice()
     env_path = os.path.join(_PROJECT_ROOT, ".env")
     set_key(env_path, "STT_BACKEND", choice)
     print(f"STT backend set to '{choice}' in .env.")
+    # After backend selection, run the appropriate model setup
+    if choice == "whisperx":
+        setup_whisperx()
+    elif choice == "whisper":
+        setup_whisper()
+    else:
+        print(f"Unknown STT backend: {choice}. Skipping model setup.")
