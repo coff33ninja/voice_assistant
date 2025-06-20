@@ -52,7 +52,6 @@ except ModuleNotFoundError:
 from modules.install_dependencies import install_dependencies
 from modules.download_and_models import setup_tts, setup_precise, setup_stt_model
 from modules.api_key_setup import setup_api_key
-from modules.whisperx_setup import setup_whisperx
 from modules.device_detector import (
     run_device_setup,
 )  # Import the new device setup function
@@ -78,8 +77,7 @@ SETUP_STEPS = [
     "tts",
     "precise",
     "picovoice_api_key",
-    "stt_model",  # <-- Add this step for STT model selection
-    "whisperx",
+    "stt_model",  # <-- Unified STT model selection and setup
     "db",
     "dataset",
     "model_training",
@@ -165,7 +163,7 @@ def main():
                 "prompt_message": "Enter OpenWeather API Key (or press Enter to skip): ",
             },
         ),
-        "whisperx": (setup_whisperx, {}),
+        # Removed 'whisperx' step
         "db": (setup_db, {"DB_PATH": DB_PATH}),
         "dataset": (
             lazy_create_dataset,  # Use the lazy wrapper
@@ -405,14 +403,16 @@ def main():
                 )
             if safe_globals_to_add:
                 try:
-                    if hasattr(torch.serialization, "add_safe_globals"):
-                        torch.serialization.add_safe_globals(safe_globals_to_add)
+                    # Safely get torch.serialization
+                    serialization_mod = getattr(torch, "serialization", None)
+                    if serialization_mod and hasattr(serialization_mod, "add_safe_globals"):
+                        serialization_mod.add_safe_globals(safe_globals_to_add)
                         print(
                             f"Setup Assistant (Final TTS): Applied {len(safe_globals_to_add)} identified XTTS class(es) to torch safe globals."
                         )
                     else:
                         print(
-                            "Setup Assistant (Final TTS) Warning: torch.serialization.add_safe_globals not found. This is expected for PyTorch < 2.1. XTTS models might still fail with PyTorch 2.6+ if this utility is missing."
+                            "Setup Assistant (Final TTS) Warning: torch.serialization.add_safe_globals not found. This is expected for PyTorch < 2.1 or if the API has changed. XTTS models might still fail with PyTorch 2.6+ if this utility is missing."
                         )
                 except (
                     Exception

@@ -10,9 +10,6 @@ from .config import (
     TTS_SAMPLERATE,
     DEFAULT_SPEAKER_WAV_PATH
 )
-from modules.stt_model_selection import prompt_stt_model_choice
-from modules.whisperx_setup import setup_whisperx
-from modules.whisper_setup import setup_whisper
 
 def download_file(url, dest):
     try:
@@ -64,13 +61,15 @@ def play_sample_tts(model_name_for_tts: str, speed_rate: float, sample_text: str
                 print("Sample TTS Warning: Could not import TTS.tts.models.xtts.XttsArgs.")
             except Exception as e:
                 print(f"Sample TTS Warning: Error importing XttsArgs: {e}")
-            # --- FIX: Use direct import for add_safe_globals if available ---
+            # --- FIX: Use getattr to safely access add_safe_globals if available ---
             try:
-                from torch.serialization import add_safe_globals
-                add_safe_globals(safe_globals_to_add)
-                print(f"Sample TTS: Applied {len(safe_globals_to_add)} identified XTTS class(es) to torch safe globals.")
-            except ImportError:
-                print("Sample TTS Warning: torch.serialization.add_safe_globals not found. This is expected for PyTorch < 2.1. XTTS models might still fail with PyTorch 2.6+ if this utility is missing.")
+                import torch
+                serialization_mod = getattr(torch, "serialization", None)
+                if serialization_mod and hasattr(serialization_mod, "add_safe_globals"):
+                    serialization_mod.add_safe_globals(safe_globals_to_add)
+                    print(f"Sample TTS: Applied {len(safe_globals_to_add)} identified XTTS class(es) to torch safe globals.")
+                else:
+                    print("Sample TTS Warning: torch.serialization.add_safe_globals not found. This is expected for PyTorch < 2.1. XTTS models might still fail with PyTorch 2.6+ if this utility is missing.")
             except Exception as e:
                 print(f"Sample TTS Error: Could not apply safe globals: {e}")
         # --- End block ---
@@ -240,14 +239,16 @@ def setup_tts():
                 print("TTS Setup Warning: Could not import TTS.tts.models.xtts.XttsArgs.")
             except Exception as e:
                 print(f"TTS Setup Warning: Error importing XttsArgs: {e}")
-            # --- FIX: Use direct import for add_safe_globals if available ---
+            # --- FIX: Use getattr to safely access add_safe_globals if available ---
             try:
-                from torch.serialization import add_safe_globals
-                add_safe_globals(safe_globals_to_add)
-                print(f"TTS Setup: Applied {len(safe_globals_to_add)} identified XTTS class(es) to torch safe globals.")
-            except ImportError:
-                print("TTS Setup Warning: torch.serialization.add_safe_globals not found. This is expected for PyTorch < 2.1. XTTS models might still fail with PyTorch 2.6+ if this utility is missing.")
-            except Exception as e: # Catch any exception during the add_safe_globals call
+                import torch
+                serialization_mod = getattr(torch, "serialization", None)
+                if serialization_mod and hasattr(serialization_mod, "add_safe_globals"):
+                    serialization_mod.add_safe_globals(safe_globals_to_add)
+                    print(f"TTS Setup: Applied {len(safe_globals_to_add)} identified XTTS class(es) to torch safe globals.")
+                else:
+                    print("TTS Setup Warning: torch.serialization.add_safe_globals not found. This is expected for PyTorch < 2.1. XTTS models might still fail with PyTorch 2.6+ if this utility is missing.")
+            except Exception as e:
                 print(f"TTS Setup Error: Could not apply safe globals: {e}")
         # --- End block ---
         print(f"Initializing Coqui TTS with model '{final_model_to_use}' to download (if needed)...")
@@ -272,15 +273,67 @@ def setup_precise(base_dir, model_url):
     )
 
 def setup_stt_model():
-    """Interactive setup for STT model selection (WhisperX or Whisper), model selection, and test."""
-    choice = prompt_stt_model_choice()
+    """Unified setup for STT backend and model selection (WhisperX or Whisper)."""
+    from modules.stt_model_selection import describe_stt_models
+    from modules.whisperx_setup import WHISPERX_MODELS, setup_whisperx
+    from modules.whisper_setup import WHISPER_MODEL_SIZES, setup_whisper
+
     env_path = os.path.join(_PROJECT_ROOT, ".env")
-    set_key(env_path, "STT_BACKEND", choice)
-    print(f"STT backend set to '{choice}' in .env.")
-    # After backend selection, run the appropriate model setup
-    if choice == "whisperx":
+
+    # Prompt for backend
+    models = describe_stt_models()
+    print("\nAvailable Speech-to-Text Backends:")
+    for key, info in models.items():
+        print(f"\n[{key}] {info['name']}")
+        print(f"  {info['description']}")
+    while True:
+        backend = input("\nEnter the backend you want to use (whisperx/whisper): ").strip().lower()
+        if backend in models:
+            break
+        print("Invalid choice. Please enter 'whisperx' or 'whisper'.")
+    set_key(env_path, "STT_BACKEND", backend)
+    print(f"STT backend set to '{backend}' in .env.")
+
+    # Prompt for model/version
+    if backend == "whisperx":
+        print("\nAvailable WhisperX models:")
+        for i, model_name in enumerate(WHISPERX_MODELS):
+            print(f"{i + 1}. {model_name}")
+        while True:
+            choice = input("Select a WhisperX model by number (or press Enter to keep default 'base'): ")
+            if not choice:
+                selected_model = "base"
+                break
+            try:
+                model_index = int(choice) - 1
+                if 0 <= model_index < len(WHISPERX_MODELS):
+                    selected_model = WHISPERX_MODELS[model_index]
+                    break
+            except ValueError:
+                pass
+            print("Invalid selection. Please try again.")
+        set_key(env_path, "STT_MODEL_NAME", selected_model)
+        print(f"WhisperX model set to: {selected_model} in .env")
         setup_whisperx()
-    elif choice == "whisper":
+    elif backend == "whisper":
+        print("\nAvailable Whisper models:")
+        for i, model_name in enumerate(WHISPER_MODEL_SIZES):
+            print(f"{i + 1}. {model_name}")
+        while True:
+            choice = input("Select a Whisper model by number (or press Enter to keep default 'base'): ")
+            if not choice:
+                selected_model = "base"
+                break
+            try:
+                model_index = int(choice) - 1
+                if 0 <= model_index < len(WHISPER_MODEL_SIZES):
+                    selected_model = WHISPER_MODEL_SIZES[model_index]
+                    break
+            except ValueError:
+                pass
+            print("Invalid selection. Please try again.")
+        set_key(env_path, "STT_MODEL_NAME", selected_model)
+        print(f"Whisper model set to: {selected_model} in .env")
         setup_whisper()
     else:
-        print(f"Unknown STT backend: {choice}. Skipping model setup.")
+        print(f"Unknown STT backend: {backend}. Skipping model setup.")

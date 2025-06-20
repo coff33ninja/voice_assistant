@@ -1,5 +1,8 @@
 import os
 import sys
+# Ensure project root is in sys.path for absolute imports when run as a script
+if __name__ == "__main__":
+    sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from modules.contractions import normalize_text  # Import the normalize_text function
 import argparse  # For parsing command-line arguments
 
@@ -14,7 +17,7 @@ from transformers import (  # type: ignore
     # DistilBertModel is now imported in joint_model.py
     DistilBertConfig,
 )  # Import necessary HF components
-from .joint_model import (
+from modules.joint_model import (
     JointIntentSlotModel,
 )  # Import the refactored model
 
@@ -242,10 +245,23 @@ def fine_tune_model(dataset_path, model_save_path):
     # Fine-tune
     print("Starting model training...")
     trainer.train()
-    model.save_pretrained(model_save_path)  # type: ignore
+    # Save the custom model using torch.save
+    torch.save(model.state_dict(), os.path.join(model_save_path, "pytorch_model.bin"))
+    # To load later: model.load_state_dict(torch.load(os.path.join(model_save_path, "pytorch_model.bin")))
     tokenizer.save_pretrained(model_save_path)
     print(f"Fine-tuned model saved at {model_save_path}")
     print(f"Tokenizer saved at {model_save_path}")
+
+    # Save the config with required attributes for later loading
+    config_to_save = model.config if hasattr(model, 'config') else config
+    config_to_save.num_intent_labels = config.num_intent_labels
+    config_to_save.num_slot_labels = config.num_slot_labels
+    if hasattr(config_to_save, 'save_pretrained'):
+        config_to_save.save_pretrained(model_save_path)
+    else:
+        # Fallback: save as JSON
+        with open(os.path.join(model_save_path, 'config.json'), 'w', encoding='utf-8') as f:
+            json.dump(config_to_save.to_dict(), f, indent=2)
 
 
 if __name__ == "__main__":
