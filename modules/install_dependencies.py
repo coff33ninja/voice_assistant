@@ -230,6 +230,10 @@ def install_python_dependencies():
             "pytest",
             "unittest",
             "pytest-asyncio",
+            "pytest-twisted",
+            "pytest-trio",
+            "pytest-cov",
+            "pytest-tornasync",
         ],
         "Failed to install core dependencies",
     )
