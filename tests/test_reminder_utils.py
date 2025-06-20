@@ -35,59 +35,50 @@ def sample_entities():
 class TestParseTimeFromEntitiesText:
     """Test suite for _parse_time_from_entities_text function."""
 
-    @patch('modules.reminder_utils.datetime')
-    def test_parse_time_basic_formats(self, mock_dt, mock_datetime):
+    def test_parse_time_basic_formats(self, mock_datetime):
         """Test parsing basic time formats like 3pm, 15:30."""
-        mock_dt.now.return_value = mock_datetime
-
         # Test 12-hour format with AM/PM
-        result = _parse_time_from_entities_text("3:30pm")
+        result = _parse_time_from_entities_text("3:30pm", now=mock_datetime)
         assert result is not None
         assert result.hour == 15
         assert result.minute == 30
 
         # Test 24-hour format
-        result = _parse_time_from_entities_text("15:30")
+        result = _parse_time_from_entities_text("15:30", now=mock_datetime)
         assert result is not None
         assert result.hour == 15
         assert result.minute == 30
 
         # Test AM format
-        result = _parse_time_from_entities_text("9:15am")
+        result = _parse_time_from_entities_text("9:15am", now=mock_datetime)
         assert result is not None
         assert result.hour == 9
         assert result.minute == 15
 
-    @patch('modules.reminder_utils.datetime.now')
-    def test_parse_time_relative_formats(self, mock_now, mock_datetime):
+    def test_parse_time_relative_formats(self, mock_datetime):
         """Test parsing relative time formats like 'in 2 hours'."""
-        mock_now.return_value = mock_datetime
-
         # Test 'in X hours'
-        result = _parse_time_from_entities_text("in 2 hours")
+        result = _parse_time_from_entities_text("in 2 hours", now=mock_datetime)
         assert result is not None
         expected = mock_datetime + timedelta(hours=2)
         assert result == expected
 
         # Test 'in X minutes'
-        result = _parse_time_from_entities_text("in 30 minutes")
+        result = _parse_time_from_entities_text("in 30 minutes", now=mock_datetime)
         assert result is not None
         expected = mock_datetime + timedelta(minutes=30)
         assert result == expected
 
-    @patch('modules.reminder_utils.datetime.now')
-    def test_parse_time_default_values(self, mock_now, mock_datetime):
+    def test_parse_time_default_values(self, mock_datetime):
         """Test default time values for 'tomorrow' and 'today'."""
-        mock_now.return_value = mock_datetime
-
         # Test 'tomorrow' defaults to 9 AM
-        result = _parse_time_from_entities_text("tomorrow")
+        result = _parse_time_from_entities_text("tomorrow", now=mock_datetime)
         assert result is not None
         expected = (mock_datetime + timedelta(days=1)).replace(hour=9, minute=0, second=0, microsecond=0)
         assert result == expected
 
         # Test 'today' defaults to 9 AM
-        result = _parse_time_from_entities_text("today")
+        result = _parse_time_from_entities_text("today", now=mock_datetime)
         assert result is not None
         expected = mock_datetime.replace(hour=9, minute=0, second=0, microsecond=0)
         assert result == expected
@@ -98,34 +89,22 @@ class TestParseTimeFromEntitiesText:
         assert _parse_time_from_entities_text("") is None
         assert _parse_time_from_entities_text(None) is None
 
-    @patch('modules.reminder_utils.datetime')
-    def test_parse_time_edge_cases(self, mock_dt, mock_datetime):
+    def test_parse_time_edge_cases(self, mock_datetime):
         """Test edge cases for time parsing."""
-        mock_dt.now.return_value = mock_datetime
-        mock_dt.time = dt_time_class
-        mock_dt.date = date
-        mock_dt.timedelta = timedelta # Ensure real timedelta is used
-        mock_dt.datetime = dt_class
-        def mock_strptime_side_effect(time_str_arg, format_str_arg):
-            return dt_class.strptime(time_str_arg, format_str_arg)
-        mock_dt.strptime.side_effect = mock_strptime_side_effect
-        def side_effect_combine(date_part, time_part):
-            return dt_class.combine(date_part, time_part)
-        mock_dt.combine.side_effect = side_effect_combine
         # Test midnight
-        result = _parse_time_from_entities_text("12:00am")
+        result = _parse_time_from_entities_text("12:00am", now=mock_datetime)
         assert result is not None
         assert result.hour == 0
         assert result.minute == 0
 
         # Test noon
-        result = _parse_time_from_entities_text("12:00pm")
+        result = _parse_time_from_entities_text("12:00pm", now=mock_datetime)
         assert result is not None
         assert result.hour == 12
         assert result.minute == 0
 
         # Test single digit hours
-        result = _parse_time_from_entities_text("9:00am")
+        result = _parse_time_from_entities_text("9:00am", now=mock_datetime)
         assert result is not None
         assert result.hour == 9
         assert result.minute == 0

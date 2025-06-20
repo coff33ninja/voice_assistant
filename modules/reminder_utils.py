@@ -4,13 +4,25 @@ import logging # Import logging
 from typing import Optional, Dict, Any  # Removed unused Union
 
 # Helper function to parse time string from entities
-def _parse_time_from_entities_text(time_str: Optional[str], date_ref_str: Optional[str] = None) -> Optional[datetime]:
-    if not time_str: # Add check for None or empty string
+# Added optional 'now' parameter for testability
+
+def _parse_time_from_entities_text(time_str: Optional[str], date_ref_str: Optional[str] = None, now: Optional[datetime] = None) -> Optional[datetime]:
+    if not time_str:
         return None
 
-    now = datetime.now()
+    if now is None:
+        now = datetime.now()
     parsed_time_obj = None
     base_date = now.date()
+
+    # Handle relative time first: "in X hours/minutes"
+    in_duration_match = re.fullmatch(r"in\s+(\d+)\s+(hour|hours|minute|minutes)", time_str.strip(), re.IGNORECASE)
+    if in_duration_match:
+        num, unit = int(in_duration_match.group(1)), in_duration_match.group(2).lower()
+        if "hour" in unit:
+            return now + timedelta(hours=num)
+        elif "minute" in unit:
+            return now + timedelta(minutes=num)
 
     if date_ref_str:
         date_ref_str = date_ref_str.lower()
@@ -18,78 +30,54 @@ def _parse_time_from_entities_text(time_str: Optional[str], date_ref_str: Option
             base_date = now.date() + timedelta(days=1)
         elif "today" in date_ref_str:
             base_date = now.date()
-        # Add more date_reference parsing if needed, e.g., specific days of week, "next week"
-        # For now, keeping it simple for "tomorrow" and "today" combined with a time.
-        # More complex date_references might be better handled by a full parse if `time_str` is just a time.
 
-    # If date_ref_str was not provided, check if time_str itself contains date keywords
     if not date_ref_str:
-        time_str_lower = time_str.lower()
-        if "tomorrow" in time_str_lower:
-            # Attempt to strip "tomorrow" and "at" to isolate the time part
+        time_str_lower = time_str.lower().strip()
+        # Only strip 'tomorrow' or 'today' if the string is not exactly 'tomorrow' or 'today'
+        if time_str_lower != "tomorrow" and "tomorrow" in time_str_lower:
             time_str = re.sub(r'tomorrow\s*(at\s*)?', '', time_str, flags=re.IGNORECASE).strip()
             base_date = now.date() + timedelta(days=1)
-        elif "today" in time_str_lower:
+        elif time_str_lower != "today" and "today" in time_str_lower:
             time_str = re.sub(r'today\s*(at\s*)?', '', time_str, flags=re.IGNORECASE).strip()
             base_date = now.date()
 
     # Try to parse time like "3pm", "3:30pm", "15:00" from the (potentially cleaned) time string
-    # Regex for H(H):MM am/pm or H(H) am/pm or HH:MM (24h)
-    time_pattern_match = re.search(r"(\d{1,2})(?::(\d{2}))?\s*(am|pm)?", time_str, re.IGNORECASE)
-
+    time_pattern_match = re.fullmatch(r"(\d{1,2})(?::(\d{2}))?\s*(am|pm)?", time_str.strip(), re.IGNORECASE)
     if time_pattern_match:
         hour_str = time_pattern_match.group(1)
         minute_str = time_pattern_match.group(2)
         am_pm_str = time_pattern_match.group(3)
-
         time_digits_for_strptime = f"{hour_str}:{minute_str if minute_str is not None else '00'}"
-
         try:
             if am_pm_str:
                 parsed_time_obj = datetime.strptime(time_digits_for_strptime + " " + am_pm_str, "%I:%M %p").time()
-            else: # 24 hour format if no am/pm
+            else:
                 parsed_time_obj = datetime.strptime(time_digits_for_strptime, "%H:%M").time()
         except ValueError:
+            logger = logging.getLogger(__name__)
             logger.debug(f"Could not parse time digits: {time_digits_for_strptime} with/without am/pm: {am_pm_str}")
-            pass # Could not parse time digits
+            pass
 
-    # If specific time was parsed (e.g. "3pm", "15:30"), use it
-    if parsed_time_obj: # Check if time_pattern_match was successful
+    if parsed_time_obj:
         try:
-            # This is the actual datetime object we expect
             combined_dt = datetime.combine(base_date, parsed_time_obj)
-        except TypeError: # e.g. if parsed_time_obj is not a valid time object due to mocking issues
+        except TypeError:
+            logger = logging.getLogger(__name__)
             logger.debug(f"Failed to combine base_date '{base_date}' with parsed_time_obj '{parsed_time_obj}' of type {type(parsed_time_obj)}")
             return None
-
-        # Adjust if the combined datetime is in the past and no explicit "today" reference was given
-        # that would have already set base_date correctly.
-        # This handles "remind me at 7am" (when it's 10am) -> 7am tomorrow.
         if combined_dt < now:
-            # Only adjust to next day if base_date was today's date (implying no explicit future date like "tomorrow" was parsed from time_str or given in date_ref_str)
-            # and date_ref_str (if provided) wasn't "today".
             if base_date == now.date() and not (date_ref_str and "today" in date_ref_str.lower()):
-                 return datetime.combine(now.date() + timedelta(days=1), parsed_time_obj) # Return adjusted
-        return combined_dt # Return unadjusted but valid future time
+                return datetime.combine(now.date() + timedelta(days=1), parsed_time_obj)
+        return combined_dt
 
-    # Handle simple "tomorrow", "today" (as time_phrase, defaulting to 9 AM)
-    # This part is more for when `time_phrase` itself is "tomorrow" rather than a time like "at 3pm"
-    # And if no specific time like HH:MM was parsed by time_pattern_match
-    if not parsed_time_obj: # Ensure this block is only entered if no specific time was parsed above
-        if "tomorrow" in time_str.lower() and not date_ref_str and time_str.lower() == "tomorrow": # Avoid double counting if date_ref_str is also tomorrow, and ensure it's *just* "tomorrow"
-        # This should only be hit if time_match above failed (i.e., no HH:MM found in time_str)
-            return (now + timedelta(days=1)).replace(hour=9, minute=0, second=0, microsecond=0)
-        if "today" in time_str.lower() and not date_ref_str and not re.search(r"\d", time_str): # make sure "today" is not part of "today at 3pm"
-        # This should only be hit if time_match above failed
-            return now.replace(hour=9, minute=0, second=0, microsecond=0) # Default 9 AM today if not past
-    # Add more parsing for "in X hours/minutes" if that's expected in entities.get("time_phrase")
-    in_duration_match = re.search(r"in\s+(\d+)\s+(hour|hours|minute|minutes)", time_str, re.IGNORECASE)
-    if in_duration_match:
-        num, unit = int(in_duration_match.group(1)), in_duration_match.group(2).lower()
-        if "hour" in unit:
-            return now + timedelta(hours=num)
-        elif "minute" in unit:
-            return now + timedelta(minutes=num)
+    cleaned_time_str = time_str.strip().lower()
+    if not parsed_time_obj:
+        # Accept 'tomorrow' or 'today' with extra spaces
+        if cleaned_time_str in ("tomorrow", "today") and not date_ref_str:
+            if cleaned_time_str == "tomorrow":
+                return (now + timedelta(days=1)).replace(hour=9, minute=0, second=0, microsecond=0)
+            else:
+                return now.replace(hour=9, minute=0, second=0, microsecond=0)
 
     return None
 
