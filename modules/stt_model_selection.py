@@ -2,7 +2,6 @@
 Module for setup and selection of speech-to-text (STT) models: WhisperX and Whisper.
 Provides user with descriptions, pros, and cons for each model.
 """
-import os
 
 def describe_stt_models():
     return {

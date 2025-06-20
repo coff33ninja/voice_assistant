@@ -2,7 +2,6 @@
 Module for using OpenAI Whisper (standard, not WhisperX) for speech-to-text.
 """
 import os
-import torch
 import numpy as np
 import tempfile
 import sounddevice as sd
