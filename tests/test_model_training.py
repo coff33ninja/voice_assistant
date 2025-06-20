@@ -79,21 +79,24 @@ def malformed_dataset_csv(temp_dir):
 class TestFinetuneModelHappyPath:
     """Test successful model training scenarios."""
 
-    @patch('model_training.load_dataset')
-    @patch('model_training.DistilBertTokenizer.from_pretrained')
-    @patch('model_training.DistilBertConfig.from_pretrained')
-    @patch('model_training.JointIntentSlotModel')
-    @patch('model_training.Trainer')
+    @patch('datasets.load_dataset') # Patched where it's imported from
+    @patch('modules.model_training.DistilBertTokenizer.from_pretrained')
+    @patch('modules.model_training.DistilBertConfig.from_pretrained')
+    @patch('modules.model_training.JointIntentSlotModel')
+    @patch('modules.model_training.Trainer')
     def test_fine_tune_model_with_valid_dataset_succeeds(
         self, mock_trainer, mock_model, mock_config, mock_tokenizer,
         mock_load_dataset, sample_dataset_csv, temp_dir
     ):
         """Test successful model training with valid dataset."""
-        # Setup mocks
-        mock_dataset = Mock()
-        mock_dataset.map.return_value = mock_dataset
-        mock_dataset.set_format.return_value = None
-        mock_load_dataset.return_value = {'train': mock_dataset}
+        # Setup mocks - make mock_dataset behave more like a HuggingFace Dataset
+        mock_dataset_instance = MagicMock(spec=Dataset)
+        mock_dataset_instance.map.return_value = mock_dataset_instance # map returns itself
+        mock_dataset_instance.set_format.return_value = None
+
+        mock_dataset_dict_instance = MagicMock(spec=DatasetDict)
+        mock_dataset_dict_instance.__getitem__.return_value = mock_dataset_instance # e.g. loaded_dataset['train']
+        mock_load_dataset.return_value = mock_dataset_dict_instance
 
         mock_tokenizer_instance = Mock()
         mock_tokenizer.return_value = mock_tokenizer_instance
@@ -121,21 +124,24 @@ class TestFinetuneModelHappyPath:
         mock_model_instance.save_pretrained.assert_called_once_with(model_save_path)
         mock_tokenizer_instance.save_pretrained.assert_called_once_with(model_save_path)
 
-    @patch('model_training.load_dataset')
-    @patch('model_training.DistilBertTokenizer.from_pretrained')
-    @patch('model_training.DistilBertConfig.from_pretrained')
-    @patch('model_training.JointIntentSlotModel')
-    @patch('model_training.Trainer')
+    @patch('datasets.load_dataset')
+    @patch('modules.model_training.DistilBertTokenizer.from_pretrained')
+    @patch('modules.model_training.DistilBertConfig.from_pretrained')
+    @patch('modules.model_training.JointIntentSlotModel')
+    @patch('modules.model_training.Trainer')
     def test_fine_tune_model_creates_correct_label_mappings(
         self, mock_trainer, mock_model, mock_config, mock_tokenizer,
         mock_load_dataset, sample_dataset_csv, temp_dir
     ):
         """Test that model training creates correct intent and slot label mappings."""
         # Setup mocks
-        mock_dataset = Mock()
-        mock_dataset.map.return_value = mock_dataset
-        mock_dataset.set_format.return_value = None
-        mock_load_dataset.return_value = {'train': mock_dataset}
+        mock_dataset_instance = MagicMock(spec=Dataset)
+        mock_dataset_instance.map.return_value = mock_dataset_instance
+        mock_dataset_instance.set_format.return_value = None
+
+        mock_dataset_dict_instance = MagicMock(spec=DatasetDict)
+        mock_dataset_dict_instance.__getitem__.return_value = mock_dataset_instance
+        mock_load_dataset.return_value = mock_dataset_dict_instance
 
         mock_tokenizer_instance = Mock()
         mock_tokenizer.return_value = mock_tokenizer_instance
@@ -162,25 +168,28 @@ class TestFinetuneModelHappyPath:
 class TestFinetuneModelEdgeCases:
     """Test model training with edge cases and boundary conditions."""
 
-    @patch('model_training.load_dataset')
+    @patch('datasets.load_dataset')
     def test_fine_tune_model_with_empty_dataset_handles_gracefully(
         self, mock_load_dataset, empty_dataset_csv, temp_dir
     ):
         """Test training with empty dataset handles gracefully."""
-        mock_dataset = Mock()
-        mock_dataset.map.return_value = mock_dataset
-        mock_load_dataset.return_value = {'train': mock_dataset}
+        mock_dataset_instance = MagicMock(spec=Dataset)
+        mock_dataset_instance.map.return_value = mock_dataset_instance
+
+        mock_dataset_dict_instance = MagicMock(spec=DatasetDict)
+        mock_dataset_dict_instance.__getitem__.return_value = mock_dataset_instance
+        mock_load_dataset.return_value = mock_dataset_dict_instance
 
         model_save_path = os.path.join(temp_dir, 'test_model')
 
         # Should not raise exception, but may produce warnings
         with patch('builtins.print') as mock_print:
-            fine_tune_model(empty_dataset_csv, model_save_path)
-            mock_print.assert_called()
+            with pytest.raises(ValueError, match="No columns in the dataset match the model's forward method signature"):
+                fine_tune_model(empty_dataset_csv, model_save_path)
 
-    @patch('model_training.load_dataset')
-    @patch('model_training.DistilBertTokenizer.from_pretrained')
-    @patch('model_training.DistilBertConfig.from_pretrained')
+    @patch('datasets.load_dataset')
+    @patch('modules.model_training.DistilBertTokenizer.from_pretrained')
+    @patch('modules.model_training.DistilBertConfig.from_pretrained')
     def test_fine_tune_model_with_single_label_dataset(
         self, mock_config, mock_tokenizer, mock_load_dataset, temp_dir
     ):
@@ -194,9 +203,12 @@ class TestFinetuneModelEdgeCases:
         single_label_csv = os.path.join(temp_dir, 'single_label.csv')
         df.to_csv(single_label_csv, index=False)
 
-        mock_dataset = Mock()
-        mock_dataset.map.return_value = mock_dataset
-        mock_load_dataset.return_value = {'train': mock_dataset}
+        mock_dataset_instance = MagicMock(spec=Dataset)
+        mock_dataset_instance.map.return_value = mock_dataset_instance
+
+        mock_dataset_dict_instance = MagicMock(spec=DatasetDict)
+        mock_dataset_dict_instance.__getitem__.return_value = mock_dataset_instance
+        mock_load_dataset.return_value = mock_dataset_dict_instance
 
         mock_tokenizer_instance = Mock()
         mock_tokenizer.return_value = mock_tokenizer_instance
@@ -206,13 +218,13 @@ class TestFinetuneModelEdgeCases:
 
         model_save_path = os.path.join(temp_dir, 'test_model')
 
-        with patch('model_training.JointIntentSlotModel'), \
-             patch('model_training.Trainer'):
+        with patch('modules.model_training.JointIntentSlotModel'), \
+             patch('modules.model_training.Trainer'):
             fine_tune_model(single_label_csv, model_save_path)
 
         assert mock_config_instance.num_intent_labels == 1
 
-    @patch('model_training.load_dataset')
+    @patch('datasets.load_dataset')
     def test_fine_tune_model_with_malformed_entities_json(
         self, mock_load_dataset, temp_dir
     ):
@@ -226,17 +238,20 @@ class TestFinetuneModelEdgeCases:
         malformed_json_csv = os.path.join(temp_dir, 'malformed_json.csv')
         df.to_csv(malformed_json_csv, index=False)
 
-        mock_dataset = Mock()
-        mock_dataset.map.return_value = mock_dataset
-        mock_load_dataset.return_value = {'train': mock_dataset}
+        mock_dataset_instance = MagicMock(spec=Dataset)
+        mock_dataset_instance.map.return_value = mock_dataset_instance
+
+        mock_dataset_dict_instance = MagicMock(spec=DatasetDict)
+        mock_dataset_dict_instance.__getitem__.return_value = mock_dataset_instance
+        mock_load_dataset.return_value = mock_dataset_dict_instance
 
         model_save_path = os.path.join(temp_dir, 'test_model')
 
         with patch('builtins.print') as mock_print, \
-             patch('model_training.DistilBertTokenizer.from_pretrained'), \
-             patch('model_training.DistilBertConfig.from_pretrained'), \
-             patch('model_training.JointIntentSlotModel'), \
-             patch('model_training.Trainer'):
+             patch('modules.model_training.DistilBertTokenizer.from_pretrained'), \
+             patch('modules.model_training.DistilBertConfig.from_pretrained'), \
+             patch('modules.model_training.JointIntentSlotModel'), \
+             patch('modules.model_training.Trainer'):
             fine_tune_model(malformed_json_csv, model_save_path)
             mock_print.assert_called()
 
@@ -251,43 +266,57 @@ class TestFinetuneModelFailureConditions:
         with pytest.raises((FileNotFoundError, Exception)):
             fine_tune_model(nonexistent_path, model_save_path)
 
+    @patch('datasets.load_dataset')
     def test_fine_tune_model_with_missing_required_columns_raises_error(
-        self, malformed_dataset_csv, temp_dir
+        self, mock_load_dataset, malformed_dataset_csv, temp_dir
     ):
         """Test training with dataset missing required columns raises ValueError."""
         model_save_path = os.path.join(temp_dir, 'test_model')
 
+        # Mock load_dataset to return a DatasetDict containing a Dataset
+        # that *lacks* the expected columns ('label', 'entities')
+        mock_dataset_instance = MagicMock(spec=Dataset)
+        mock_dataset_dict_instance = MagicMock(spec=DatasetDict)
+        mock_dataset_dict_instance.__getitem__.return_value = mock_dataset_instance
+        mock_load_dataset.return_value = mock_dataset_dict_instance
+
         with pytest.raises(ValueError, match="CSV must contain"):
             fine_tune_model(malformed_dataset_csv, model_save_path)
 
-    @patch('model_training.load_dataset')
+    @patch('datasets.load_dataset')
     def test_fine_tune_model_with_invalid_model_save_path_raises_error(
         self, mock_load_dataset, sample_dataset_csv
     ):
         """Test training with invalid model save path raises appropriate error."""
-        mock_dataset = Mock()
-        mock_dataset.map.return_value = mock_dataset
-        mock_load_dataset.return_value = {'train': mock_dataset}
+        mock_dataset_instance = MagicMock(spec=Dataset)
+        mock_dataset_instance.map.return_value = mock_dataset_instance
+
+        mock_dataset_dict_instance = MagicMock(spec=DatasetDict)
+        mock_dataset_dict_instance.__getitem__.return_value = mock_dataset_instance
+        mock_load_dataset.return_value = mock_dataset_dict_instance
 
         invalid_save_path = '/dev/null/invalid_path'
 
-        with patch('model_training.os.makedirs', side_effect=OSError("Permission denied")):
+        with patch('modules.model_training.os.makedirs', side_effect=OSError("Permission denied")):
             with pytest.raises(OSError):
                 fine_tune_model(sample_dataset_csv, invalid_save_path)
 
-    @patch('model_training.load_dataset')
-    @patch('model_training.DistilBertTokenizer.from_pretrained')
-    @patch('model_training.DistilBertConfig.from_pretrained')
-    @patch('model_training.JointIntentSlotModel')
+    @patch('datasets.load_dataset')
+    @patch('modules.model_training.DistilBertTokenizer.from_pretrained')
+    @patch('modules.model_training.DistilBertConfig.from_pretrained')
+    @patch('modules.model_training.JointIntentSlotModel')
     def test_fine_tune_model_with_trainer_failure_raises_error(
         self, mock_model, mock_config, mock_tokenizer, mock_load_dataset,
         sample_dataset_csv, temp_dir
     ):
         """Test training failure in Trainer.train() raises appropriate error."""
-        mock_dataset = Mock()
-        mock_dataset.map.return_value = mock_dataset
-        mock_dataset.set_format.return_value = None
-        mock_load_dataset.return_value = {'train': mock_dataset}
+        mock_dataset_instance = MagicMock(spec=Dataset)
+        mock_dataset_instance.map.return_value = mock_dataset_instance
+        mock_dataset_instance.set_format.return_value = None
+
+        mock_dataset_dict_instance = MagicMock(spec=DatasetDict)
+        mock_dataset_dict_instance.__getitem__.return_value = mock_dataset_instance
+        mock_load_dataset.return_value = mock_dataset_dict_instance
 
         mock_tokenizer_instance = Mock()
         mock_tokenizer.return_value = mock_tokenizer_instance
@@ -298,7 +327,7 @@ class TestFinetuneModelFailureConditions:
         mock_model_instance = Mock()
         mock_model.return_value = mock_model_instance
 
-        with patch('model_training.Trainer') as mock_trainer:
+        with patch('modules.model_training.Trainer') as mock_trainer:
             mock_trainer_instance = Mock()
             mock_trainer_instance.train.side_effect = RuntimeError("Training failed")
             mock_trainer.return_value = mock_trainer_instance
@@ -308,7 +337,7 @@ class TestFinetuneModelFailureConditions:
             with pytest.raises(RuntimeError, match="Training failed"):
                 fine_tune_model(sample_dataset_csv, model_save_path)
 
-    @patch('model_training.load_dataset')
+    @patch('datasets.load_dataset')
     def test_fine_tune_model_with_unsupported_dataset_type_raises_error(
         self, mock_load_dataset, sample_dataset_csv, temp_dir
     ):
@@ -323,21 +352,24 @@ class TestFinetuneModelFailureConditions:
 class TestFinetuneModelIntegration:
     """Integration tests for end-to-end model training workflows."""
 
-    @patch('model_training.torch.cuda.is_available', return_value=False)
-    @patch('model_training.load_dataset')
-    @patch('model_training.DistilBertTokenizer.from_pretrained')
-    @patch('model_training.DistilBertConfig.from_pretrained')
-    @patch('model_training.JointIntentSlotModel')
-    @patch('model_training.Trainer')
+    @patch('modules.model_training.torch.cuda.is_available', return_value=False)
+    @patch('datasets.load_dataset')
+    @patch('modules.model_training.DistilBertTokenizer.from_pretrained')
+    @patch('modules.model_training.DistilBertConfig.from_pretrained')
+    @patch('modules.model_training.JointIntentSlotModel')
+    @patch('modules.model_training.Trainer')
     def test_fine_tune_model_cpu_only_training(
         self, mock_trainer, mock_model, mock_config, mock_tokenizer,
         mock_load_dataset, mock_cuda, sample_dataset_csv, temp_dir
     ):
         """Test model training works correctly in CPU-only environment."""
-        mock_dataset = Mock()
-        mock_dataset.map.return_value = mock_dataset
-        mock_dataset.set_format.return_value = None
-        mock_load_dataset.return_value = {'train': mock_dataset}
+        mock_dataset_instance = MagicMock(spec=Dataset)
+        mock_dataset_instance.map.return_value = mock_dataset_instance
+        mock_dataset_instance.set_format.return_value = None
+
+        mock_dataset_dict_instance = MagicMock(spec=DatasetDict)
+        mock_dataset_dict_instance.__getitem__.return_value = mock_dataset_instance
+        mock_load_dataset.return_value = mock_dataset_dict_instance
 
         mock_tokenizer_instance = Mock()
         mock_tokenizer.return_value = mock_tokenizer_instance
@@ -362,20 +394,23 @@ class TestFinetuneModelIntegration:
         training_args = mock_trainer.call_args[1]['args']
         assert training_args.dataloader_pin_memory is False  # CPU
 
-    @patch('model_training.load_dataset')
-    @patch('model_training.DistilBertTokenizer.from_pretrained')
-    @patch('model_training.DistilBertConfig.from_pretrained')
-    @patch('model_training.JointIntentSlotModel')
-    @patch('model_training.Trainer')
+    @patch('datasets.load_dataset')
+    @patch('modules.model_training.DistilBertTokenizer.from_pretrained')
+    @patch('modules.model_training.DistilBertConfig.from_pretrained')
+    @patch('modules.model_training.JointIntentSlotModel')
+    @patch('modules.model_training.Trainer')
     def test_fine_tune_model_creates_directory_structure(
         self, mock_trainer, mock_model, mock_config, mock_tokenizer,
         mock_load_dataset, sample_dataset_csv, temp_dir
     ):
         """Test that model training creates proper directory structure."""
-        mock_dataset = Mock()
-        mock_dataset.map.return_value = mock_dataset
-        mock_dataset.set_format.return_value = None
-        mock_load_dataset.return_value = {'train': mock_dataset}
+        mock_dataset_instance = MagicMock(spec=Dataset)
+        mock_dataset_instance.map.return_value = mock_dataset_instance
+        mock_dataset_instance.set_format.return_value = None
+
+        mock_dataset_dict_instance = MagicMock(spec=DatasetDict)
+        mock_dataset_dict_instance.__getitem__.return_value = mock_dataset_instance
+        mock_load_dataset.return_value = mock_dataset_dict_instance
 
         mock_tokenizer_instance = Mock()
         mock_tokenizer.return_value = mock_tokenizer_instance
@@ -418,22 +453,22 @@ class TestDataProcessingFunction:
 class TestModelTrainingCommandLine:
     """Test command-line interface for model training."""
 
-    @patch('sys.argv', ['model_training.py', 'dataset.csv', 'model_path'])
-    @patch('model_training.fine_tune_model')
+    @patch('sys.argv', ['modules/model_training.py', 'dataset.csv', 'model_path'])
+    @patch('modules.model_training.fine_tune_model')
     @patch('os.path.isfile', return_value=True)
     def test_main_function_with_valid_arguments(self, mock_isfile, mock_fine_tune):
         """Test main function processes command-line arguments correctly."""
         try:
-            from model_training import __main__
+            from modules.model_training import __main__ # type: ignore
         except ImportError:
             pytest.skip("No main function found in model_training module")
 
-    @patch('sys.argv', ['model_training.py', 'nonexistent.csv', 'model_path'])
+    @patch('sys.argv', ['modules/model_training.py', 'nonexistent.csv', 'model_path'])
     @patch('os.path.isfile', return_value=False)
     def test_main_function_with_nonexistent_dataset(self, mock_isfile):
         """Test main function handles nonexistent dataset file."""
         try:
-            from model_training import __main__
+            from modules.model_training import __main__ # type: ignore
         except ImportError:
             pytest.skip("No main function found in model_training module")
         except SystemExit as e:
@@ -463,18 +498,20 @@ class TestModelTrainingTestSuite:
     def test_all_public_functions_have_tests(self):
         """Ensure all public functions in model_training module have corresponding tests."""
         import inspect
-        import model_training
+        from modules import model_training
 
         public_functions = [name for name, obj in inspect.getmembers(model_training)
                             if inspect.isfunction(obj) and not name.startswith('_')]
 
+        current_module = sys.modules[__name__]
         test_methods = []
-        for cls_name in dir():
-            cls = globals().get(cls_name)
-            if inspect.isclass(cls) and cls_name.startswith('Test'):
-                test_methods.extend([method for method in dir(cls)
-                                    if method.startswith('test_')])
+        for name, obj in inspect.getmembers(current_module):
+            if inspect.isclass(obj) and name.startswith('Test'):
+                for method_name, method_obj in inspect.getmembers(obj):
+                    if inspect.isfunction(method_obj) and method_name.startswith('test_'):
+                        test_methods.append(method_name)
 
+        # print(f"Found test methods: {test_methods}") # For debugging
         assert len(test_methods) > 0, "No test methods found"
 
         fine_tune_tests = [m for m in test_methods if 'fine_tune_model' in m]

@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import patch, MagicMock
-from datetime import datetime, timedelta, date
+from datetime import datetime as dt_class, timedelta, date, time as dt_time_class # Use an alias for datetime class
 import sys
 import os
 
@@ -18,7 +18,7 @@ from modules.reminder_utils import (
 @pytest.fixture
 def mock_datetime():
     """Fixture providing a consistent datetime for testing."""
-    return datetime(2024, 1, 15, 10, 30, 0)  # Monday, Jan 15, 2024 at 10:30 AM
+    return dt_class(2024, 1, 15, 10, 30, 0)  # Monday, Jan 15, 2024 at 10:30 AM
 
 @pytest.fixture
 def sample_entities():
@@ -40,6 +40,21 @@ class TestParseTimeFromEntitiesText:
         """Test parsing basic time formats like 3pm, 15:30."""
         mock_dt.now.return_value = mock_datetime
 
+        # Mock datetime.combine to return a proper datetime object
+        # Also mock datetime.strptime so that parsed_time_obj becomes a real datetime.time
+        def mock_strptime_and_time(time_str_arg, format_str_arg):
+            # This mock needs to return an object that has a .time() method
+            # which in turn returns a real datetime.time object.
+            real_dt_obj = dt_class.strptime(time_str_arg, format_str_arg) # Use aliased dt_class
+            return real_dt_obj # .time() will be called on this by the SUT
+
+        mock_dt.strptime.side_effect = mock_strptime_and_time
+
+        def side_effect_combine(date_part, time_part):
+            return dt_class.combine(date_part, time_part) # Call the real combine using aliased dt_class
+        mock_dt.combine.side_effect = side_effect_combine
+
+
         # Test 12-hour format with AM/PM
         result = _parse_time_from_entities_text("3:30pm")
         assert result.hour == 15
@@ -60,6 +75,16 @@ class TestParseTimeFromEntitiesText:
         """Test parsing time with date reference like 'tomorrow at 3pm'."""
         mock_dt.now.return_value = mock_datetime
 
+        def mock_strptime_and_time(time_str_arg, format_str_arg):
+            real_dt_obj = dt_class.strptime(time_str_arg, format_str_arg)
+            return real_dt_obj
+        mock_dt.strptime.side_effect = mock_strptime_and_time
+
+        def side_effect_combine(date_part, time_part):
+            return dt_class.combine(date_part, time_part) # Call the real combine
+        mock_dt.combine.side_effect = side_effect_combine
+
+
         # Test tomorrow with time
         result = _parse_time_from_entities_text("3:30pm", "tomorrow")
         expected_date = mock_datetime.date() + timedelta(days=1)
@@ -77,6 +102,16 @@ class TestParseTimeFromEntitiesText:
     def test_parse_time_past_time_adjustment(self, mock_dt, mock_datetime):
         """Test that past times are adjusted to next day."""
         mock_dt.now.return_value = mock_datetime  # 10:30 AM
+
+        def mock_strptime_and_time(time_str_arg, format_str_arg):
+            real_dt_obj = dt_class.strptime(time_str_arg, format_str_arg)
+            return real_dt_obj
+        mock_dt.strptime.side_effect = mock_strptime_and_time
+
+        def side_effect_combine(date_part, time_part):
+            return dt_class.combine(date_part, time_part) # Call the real combine
+        mock_dt.combine.side_effect = side_effect_combine
+
 
         # Test time earlier than current time (should be tomorrow)
         result = _parse_time_from_entities_text("9:00am")
@@ -127,6 +162,16 @@ class TestParseTimeFromEntitiesText:
     def test_parse_time_edge_cases(self, mock_dt, mock_datetime):
         """Test edge cases for time parsing."""
         mock_dt.now.return_value = mock_datetime
+
+        def mock_strptime_and_time(time_str_arg, format_str_arg):
+            real_dt_obj = dt_class.strptime(time_str_arg, format_str_arg)
+            return real_dt_obj
+        mock_dt.strptime.side_effect = mock_strptime_and_time
+
+        def side_effect_combine(date_part, time_part):
+            return dt_class.combine(date_part, time_part) # Call the real combine
+        mock_dt.combine.side_effect = side_effect_combine
+
 
         # Test midnight
         result = _parse_time_from_entities_text("12:00am")
@@ -294,10 +339,17 @@ class TestParseReminder:
         """Test complex time format parsing."""
         mock_dt.now.return_value = mock_datetime
 
+        # Configure the mock for datetime.combine
+        # result["time"] is expected to be a datetime object.
+        mock_combined_dt = MagicMock(spec=dt_class) # Use aliased dt_class for spec
+        mock_combined_dt.hour = 19
+        mock_combined_dt.minute = 30
+        mock_combined_dt.date.return_value = mock_datetime.date() + timedelta(days=1)
+        mock_dt.combine.return_value = mock_combined_dt
+
         result = parse_reminder("remind me to call mom tomorrow at 7:30pm", None)
         assert result["time"].hour == 19 and result["time"].minute == 30
         assert result["time"].date() == mock_datetime.date() + timedelta(days=1)
-
         result = parse_reminder("remind me to call mom at 7:30pm tomorrow", None)
         assert result["time"].hour == 19 and result["time"].minute == 30
         assert result["time"].date() == mock_datetime.date() + timedelta(days=1)
@@ -378,6 +430,13 @@ class TestParseListReminderRequest:
         """Test parsing specific month and day combinations."""
         mock_dt.now.return_value = mock_datetime  # January 15, 2024
 
+        # Mock strptime to return real datetime objects
+        def mock_strptime_for_month(date_str_arg, format_str_arg):
+            return dt_class.strptime(date_str_arg, format_str_arg) # Use aliased dt_class
+        mock_dt.strptime.side_effect = mock_strptime_for_month
+
+
+
         assert parse_list_reminder_request("show reminders for March 15th", None) == date(2024, 3, 15)
         assert parse_list_reminder_request("show reminders for July 4th, 2024", None) == date(2024, 7, 4)
         assert parse_list_reminder_request("show reminders for January 1st", None) == date(2025, 1, 1)
@@ -386,6 +445,11 @@ class TestParseListReminderRequest:
     def test_parse_list_reminder_formatted_dates(self, mock_dt, mock_datetime):
         """Test parsing formatted date strings."""
         mock_dt.now.return_value = mock_datetime
+
+        # Mock strptime to return real datetime objects
+        def mock_strptime_for_date(date_str_arg, format_str_arg):
+            return dt_class.strptime(date_str_arg, format_str_arg) # Use aliased dt_class
+        mock_dt.strptime.side_effect = mock_strptime_for_date
 
         assert parse_list_reminder_request("show reminders on 2024-03-15", None) == date(2024, 3, 15)
         assert parse_list_reminder_request("show reminders on 03/15/2024", None) == date(2024, 3, 15)
@@ -399,6 +463,11 @@ class TestParseListReminderRequest:
     def test_parse_list_reminder_all_months(self, mock_dt, mock_datetime, month_name, month_num):
         """Test parsing all month names."""
         mock_dt.now.return_value = mock_datetime
+        # Mock strptime for month name parsing
+        def mock_strptime_for_month_name(date_str_arg, format_str_arg):
+            return dt_class.strptime(date_str_arg, format_str_arg)
+        mock_dt.strptime.side_effect = mock_strptime_for_month_name
+
         expected_year = 2024 if month_num >= 1 else 2025
         result = parse_list_reminder_request(f"show reminders for {month_name} 15th", None)
         assert result == date(expected_year, month_num, 15)
@@ -423,6 +492,11 @@ class TestParseListReminderRequest:
     def test_parse_list_reminder_edge_cases(self, mock_dt, mock_datetime):
         """Test edge cases for list reminder parsing."""
         mock_dt.now.return_value = mock_datetime
+        # Mock strptime for month name parsing
+        def mock_strptime_for_month_name(date_str_arg, format_str_arg):
+            return dt_class.strptime(date_str_arg, format_str_arg)
+        mock_dt.strptime.side_effect = mock_strptime_for_month_name
+
 
         assert parse_list_reminder_request("show reminders for March 1st", None) == date(2024, 3, 1)
         assert parse_list_reminder_request("show reminders for March 2nd", None) == date(2024, 3, 2)

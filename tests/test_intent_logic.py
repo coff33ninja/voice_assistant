@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 import tempfile
 import sys
 import logging
+import numpy as np # Import numpy
 
 # Add the project root to the path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -101,7 +102,7 @@ class TestIntentHandlerDecorator:
 class TestGetResponse:
     """Test the get_response function"""
 
-    @patch('intent_logic.RESPONSE_MAP')
+    @patch('modules.intent_logic.RESPONSE_MAP')
     def test_get_response_basic_lookup(self, mock_response_map):
         """Test basic response lookup without formatting"""
         mock_response_map.get.return_value = "Hello World"
@@ -109,32 +110,32 @@ class TestGetResponse:
         assert result == "Hello World"
         mock_response_map.get.assert_called_once_with("greeting", "")
 
-    @patch('intent_logic.RESPONSE_MAP')
+    @patch('modules.intent_logic.RESPONSE_MAP')
     def test_get_response_with_formatting(self, mock_response_map):
         """Test response with string formatting"""
         mock_response_map.get.return_value = "Hello {name}, the weather is {temp}°C"
         result = get_response("weather", name="John", temp=25)
         assert result == "Hello John, the weather is 25°C"
 
-    @patch('intent_logic.RESPONSE_MAP')
+    @patch('modules.intent_logic.RESPONSE_MAP')
     def test_get_response_missing_key_in_format(self, mock_response_map):
         """Test handling of missing keys in format string"""
         mock_response_map.get.return_value = "Hello {name}, today is {day}"
-        with patch('intent_logic.logger') as mock_logger:
+        with patch('modules.intent_logic.logger') as mock_logger:
             result = get_response("greeting", name="John")  # missing 'day'
             assert result == "Hello {name}, today is {day}"
             mock_logger.warning.assert_called_once()
 
-    @patch('intent_logic.RESPONSE_MAP')
+    @patch('modules.intent_logic.RESPONSE_MAP')
     def test_get_response_formatting_error(self, mock_response_map):
         """Test handling of other formatting errors"""
-        mock_response_map.get.return_value = "Value: {value:invalid_format}"
-        with patch('intent_logic.logger') as mock_logger:
+        mock_response_map.get.return_value = "Value: {value:invalid_format}" # type: ignore
+        with patch('modules.intent_logic.logger') as mock_logger:
             result = get_response("test", value="test")
             assert result == "Value: {value:invalid_format}"
             mock_logger.warning.assert_called_once()
 
-    @patch('intent_logic.RESPONSE_MAP')
+    @patch('modules.intent_logic.RESPONSE_MAP')
     def test_get_response_nonexistent_intent(self, mock_response_map):
         """Test response for non-existent intent"""
         mock_response_map.get.return_value = ""
@@ -144,8 +145,8 @@ class TestGetResponse:
 class TestIntentHandlers:
     """Test individual intent handler functions"""
 
-    @patch('intent_logic.text_to_speech_async')
-    @patch('intent_logic.get_response')
+    @patch('modules.intent_logic.text_to_speech_async')
+    @patch('modules.intent_logic.get_response')
     @pytest.mark.asyncio
     async def test_handle_greeting_intent_success(self, mock_get_response, mock_tts):
         """Test successful greeting intent handling"""
@@ -158,8 +159,8 @@ class TestIntentHandlers:
         mock_get_response.assert_called_once_with("greeting")
         mock_tts.assert_called_once_with("Hello there!")
 
-    @patch('intent_logic.text_to_speech_async')
-    @patch('intent_logic.get_response')
+    @patch('modules.intent_logic.text_to_speech_async')
+    @patch('modules.intent_logic.get_response')
     @pytest.mark.asyncio
     async def test_handle_goodbye_intent_raises_shutdown_signal(self, mock_get_response, mock_tts):
         """Test that goodbye intent raises ShutdownSignal"""
@@ -172,9 +173,9 @@ class TestIntentHandlers:
         assert mock_tts.call_count == 2
         assert mock_get_response.call_count == 1
 
-    @patch('intent_logic.text_to_speech_async')
-    @patch('intent_logic.get_response')
-    @patch('intent_logic.run_validation_and_retrain_async')
+    @patch('modules.intent_logic.text_to_speech_async')
+    @patch('modules.intent_logic.get_response')
+    @patch('modules.intent_logic.run_validation_and_retrain_async')
     @pytest.mark.asyncio
     async def test_handle_retrain_model_intent_success(self, mock_retrain, mock_get_response, mock_tts):
         """Test successful model retraining"""
@@ -188,9 +189,9 @@ class TestIntentHandlers:
         mock_retrain.assert_called_once()
         assert mock_tts.call_count == 2
 
-    @patch('intent_logic.text_to_speech_async')
-    @patch('intent_logic.get_response')
-    @patch('intent_logic.run_validation_and_retrain_async')
+    @patch('modules.intent_logic.text_to_speech_async')
+    @patch('modules.intent_logic.get_response')
+    @patch('modules.intent_logic.run_validation_and_retrain_async')
     @pytest.mark.asyncio
     async def test_handle_retrain_model_intent_failure(self, mock_retrain, mock_get_response, mock_tts):
         """Test model retraining failure"""
@@ -204,11 +205,11 @@ class TestIntentHandlers:
         mock_retrain.assert_called_once()
         assert mock_get_response.call_count == 2
 
-    @patch('intent_logic.text_to_speech_async')
-    @patch('intent_logic.get_response')
-    @patch('intent_logic.save_reminder_async')
-    @patch('intent_logic.add_event_to_calendar')
-    @patch('intent_logic.dateparser')
+    @patch('modules.intent_logic.text_to_speech_async')
+    @patch('modules.intent_logic.get_response')
+    @patch('modules.intent_logic.save_reminder_async')
+    @patch('modules.intent_logic.add_event_to_calendar')
+    @patch('modules.intent_logic.dateparser')
     @pytest.mark.asyncio
     async def test_handle_set_reminder_intent_with_entities(self, mock_dateparser, mock_calendar, mock_save, mock_get_response, mock_tts):
         """Test setting reminder with complete entities"""
@@ -230,12 +231,12 @@ class TestIntentHandlers:
         mock_tts.assert_called_once()
         assert "call mom" in result
 
-    @patch('intent_logic.text_to_speech_async')
-    @patch('intent_logic.get_response')
-    @patch('intent_logic.get_reminders_for_date_async')
-    @patch('intent_logic.parse_list_reminder_request')
-    @patch('intent_logic.show_reminders_gui')
-    @patch('intent_logic.threading.Thread')
+    @patch('modules.intent_logic.text_to_speech_async')
+    @patch('modules.intent_logic.get_response')
+    @patch('modules.intent_logic.get_reminders_for_date_async')
+    @patch('modules.intent_logic.parse_list_reminder_request')
+    @patch('modules.intent_logic.show_reminders_gui')
+    @patch('modules.intent_logic.threading.Thread')
     @pytest.mark.asyncio
     async def test_handle_list_reminders_intent_with_reminders(self, mock_thread, mock_gui, mock_parse_request, mock_get_reminders, mock_get_response, mock_tts):
         """Test listing reminders when reminders exist"""
@@ -259,9 +260,9 @@ class TestIntentHandlers:
         mock_thread.assert_called_once()
         assert "call mom" in result
 
-    @patch('intent_logic.text_to_speech_async')
-    @patch('intent_logic.get_response')
-    @patch('intent_logic.get_weather_async')
+    @patch('modules.intent_logic.text_to_speech_async')
+    @patch('modules.intent_logic.get_response')
+    @patch('modules.intent_logic.get_weather_async')
     @pytest.mark.asyncio
     async def test_handle_get_weather_intent_current_location(self, mock_weather, mock_get_response, mock_tts):
         """Test getting weather for current location"""
@@ -284,9 +285,9 @@ class TestIntentHandlers:
 class TestProcessCommand:
     """Test the main process_command function"""
 
-    @patch('intent_logic.normalize_text')
-    @patch('intent_logic.detect_intent_async')
-    @patch('intent_logic.handle_goodbye_intent')
+    @patch('modules.intent_logic.normalize_text')
+    @patch('modules.intent_logic.detect_intent_async')
+    @patch('modules.intent_logic.handle_goodbye_intent')
     @pytest.mark.asyncio
     async def test_process_command_goodbye_heuristic(self, mock_goodbye_handler, mock_detect_intent, mock_normalize):
         """Test that goodbye heuristic triggers even with different intent detection"""
@@ -297,12 +298,12 @@ class TestProcessCommand:
         await process_command("goodbye friend")
         mock_goodbye_handler.assert_called_once_with("goodbye friend", {})
 
-    @patch('intent_logic.normalize_text')
-    @patch('intent_logic.detect_intent_async')
-    @patch('intent_logic.parse_retrain_request')
-    @patch('intent_logic.run_validation_and_retrain_async')
-    @patch('intent_logic.text_to_speech_async')
-    @patch('intent_logic.get_response')
+    @patch('modules.intent_logic.normalize_text')
+    @patch('modules.intent_logic.detect_intent_async')
+    @patch('modules.intent_logic.parse_retrain_request')
+    @patch('modules.intent_logic.run_validation_and_retrain_async')
+    @patch('modules.intent_logic.text_to_speech_async')
+    @patch('modules.intent_logic.get_response')
     @pytest.mark.asyncio
     async def test_process_command_retrain_model_special_handling(self, mock_get_response, mock_tts, mock_retrain, mock_parse_retrain, mock_detect_intent, mock_normalize):
         """Test special handling for retrain_model intent"""
@@ -317,11 +318,11 @@ class TestProcessCommand:
         mock_retrain.assert_called_once()
         assert mock_tts.call_count == 2  # initial and retrain messages
 
-    @patch('intent_logic.normalize_text')
-    @patch('intent_logic.detect_intent_async')
-    @patch('intent_logic.get_llm_response')
-    @patch('intent_logic.text_to_speech_async')
-    @patch('intent_logic.get_response')
+    @patch('modules.intent_logic.normalize_text')
+    @patch('modules.intent_logic.detect_intent_async')
+    @patch('modules.intent_logic.get_llm_response')
+    @patch('modules.intent_logic.text_to_speech_async')
+    @patch('modules.intent_logic.get_response')
     @pytest.mark.asyncio
     async def test_process_command_fallback_to_llm(self, mock_get_response, mock_tts, mock_llm, mock_detect_intent, mock_normalize):
         """Test fallback to LLM for unhandled intents"""
@@ -334,11 +335,11 @@ class TestProcessCommand:
         mock_llm.assert_called_once_with(input_text="what is the meaning of life")
         mock_tts.assert_called_once_with("42")
 
-    @patch('intent_logic.normalize_text')
-    @patch('intent_logic.detect_intent_async')
-    @patch('intent_logic.get_llm_response')
-    @patch('intent_logic.text_to_speech_async')
-    @patch('intent_logic.get_response')
+    @patch('modules.intent_logic.normalize_text')
+    @patch('modules.intent_logic.detect_intent_async')
+    @patch('modules.intent_logic.get_llm_response')
+    @patch('modules.intent_logic.text_to_speech_async')
+    @patch('modules.intent_logic.get_response')
     @pytest.mark.asyncio
     async def test_process_command_llm_service_error(self, mock_get_response, mock_tts, mock_llm, mock_detect_intent, mock_normalize):
         """Test handling when LLM service returns None"""
@@ -352,14 +353,14 @@ class TestProcessCommand:
         mock_get_response.assert_called_with("llm_service_error")
         mock_tts.assert_called_with("LLM service error")
 
-    @patch('intent_logic.text_to_speech_async')
-    @patch('intent_logic.get_response')
-    @patch('intent_logic.record_audio_async')
-    @patch('intent_logic.transcribe_audio_async')
-    @patch('intent_logic.get_llm_response')
-    @patch('intent_logic.json.dump')
-    @patch('intent_logic.open', new_callable=mock_open)
-    @patch('intent_logic.os.makedirs')
+    @patch('modules.intent_logic.text_to_speech_async')
+    @patch('modules.intent_logic.get_response')
+    @patch('modules.intent_logic.record_audio_async', new_callable=AsyncMock)
+    @patch('modules.intent_logic.transcribe_audio_async')
+    @patch('modules.intent_logic.get_llm_response')
+    @patch('modules.intent_logic.json.dump')
+    @patch('modules.intent_logic.open', new_callable=mock_open)
+    @patch('modules.intent_logic.os.makedirs')
     @pytest.mark.asyncio
     async def test_handle_start_chat_with_llm_successful_conversation(
         self, mock_makedirs, mock_file, mock_json_dump,
@@ -369,9 +370,9 @@ class TestProcessCommand:
         """Test successful chat session with LLM"""
         mock_get_response.side_effect = ["Starting chat mode...", "Chat session saved successfully"]
         mock_record.side_effect = [
-            b"audio_data_1",
-            b"audio_data_2",
-            b"audio_data_stop"
+            np.array([1, 2, 3], dtype=np.int16),  # Return np.ndarray
+            np.array([4, 5, 6], dtype=np.int16),  # Return np.ndarray
+            np.array([7, 8, 9], dtype=np.int16)   # Return np.ndarray for the stop phrase
         ]
         mock_transcribe.side_effect = [
             "Hello there",
@@ -414,10 +415,10 @@ class TestParametrizedScenarios:
         "exit",
         "quit",
         "terminate"
-    ])
-    @patch('intent_logic.normalize_text')
-    @patch('intent_logic.detect_intent_async')
-    @patch('intent_logic.handle_goodbye_intent')
+    ]) # type: ignore
+    @patch('modules.intent_logic.normalize_text')
+    @patch('modules.intent_logic.detect_intent_async')
+    @patch('modules.intent_logic.handle_goodbye_intent')
     @pytest.mark.asyncio
     async def test_goodbye_heuristic_phrases(self, mock_goodbye_handler, mock_detect_intent, mock_normalize, goodbye_phrase):
         """Test that various goodbye phrases trigger the heuristic"""
@@ -437,8 +438,8 @@ class TestErrorHandling:
         with pytest.raises(ShutdownSignal):
             raise ShutdownSignal("Test shutdown")
 
-    @patch('intent_logic.text_to_speech_async')
-    @patch('intent_logic.get_response')
+    @patch('modules.intent_logic.text_to_speech_async')
+    @patch('modules.intent_logic.get_response')
     @pytest.mark.asyncio
     async def test_intent_handler_with_tts_failure(self, mock_get_response, mock_tts):
         """Test intent handler behavior when TTS fails"""
@@ -448,15 +449,15 @@ class TestErrorHandling:
         with pytest.raises(Exception, match="TTS failed"):
             await handle_greeting_intent("hello", {})
 
-    @patch('intent_logic.normalize_text')
-    @patch('intent_logic.detect_intent_async')
+    @patch('modules.intent_logic.normalize_text')
+    @patch('modules.intent_logic.detect_intent_async')
     @pytest.mark.asyncio
     async def test_process_command_with_detection_failure(self, mock_detect_intent, mock_normalize):
         """Test process_command when intent detection fails"""
         mock_normalize.return_value = "test input"
         mock_detect_intent.side_effect = Exception("Detection failed")
 
-        with patch('intent_logic.logger') as mock_logger:
+        with patch('modules.intent_logic.logger') as mock_logger:
             await process_command("test input")
             # Error should be caught by decorator and logged
 

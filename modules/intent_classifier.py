@@ -42,6 +42,11 @@ def initialize_intent_classifier():
 
         # Load the saved weights
         model_weights_path = os.path.join(INTENT_MODEL_SAVE_PATH, "pytorch_model.bin")
+        # Validate the resolved path using realpath to prevent path traversal, including symlinks
+        resolved_model_weights_path = os.path.realpath(model_weights_path)
+        resolved_save_path = os.path.realpath(INTENT_MODEL_SAVE_PATH)
+        if not resolved_model_weights_path.startswith(resolved_save_path):
+            raise ValueError("Invalid path detected for model weights.")
         if not os.path.exists(model_weights_path):
             print(f"Error: Model weights not found at {model_weights_path}")
             print(

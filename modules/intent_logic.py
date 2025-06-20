@@ -411,10 +411,20 @@ async def handle_start_chat_with_llm(
 
     # After loop (stop phrase or error)
     if conversation_log_for_saving:
-        conversations_dir = os.path.join(_PROJECT_ROOT_INTENT_LOGIC, "conversations")
-        os.makedirs(conversations_dir, exist_ok=True)
+        # Define the base directory for saving relative to the project root
+        conversations_base_dir = os.path.join(_PROJECT_ROOT_INTENT_LOGIC, "conversations")
+        # Canonicalize the base directory path
+        resolved_conversations_base_dir = os.path.realpath(conversations_base_dir)
+        # Canonicalize the project root for comparison
+        resolved_project_root = os.path.realpath(_PROJECT_ROOT_INTENT_LOGIC)
+
+        # Validate that the resolved base directory is within the resolved project root
+        if not os.path.commonpath([resolved_project_root, resolved_conversations_base_dir]) == resolved_project_root:
+            raise ValueError("Invalid path traversal detected for conversations directory.")
+
+        os.makedirs(resolved_conversations_base_dir, exist_ok=True)
         timestamp = dt.now().strftime("%Y%m%d_%H%M%S")
-        filename = os.path.join(conversations_dir, f"chat_session_{timestamp}.json")
+        filename = os.path.join(resolved_conversations_base_dir, f"chat_session_{timestamp}.json")
         try:
             with open(filename, "w", encoding="utf-8") as f:
                 json.dump(conversation_log_for_saving, f, indent=2, ensure_ascii=False)

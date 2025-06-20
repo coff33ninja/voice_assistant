@@ -209,7 +209,7 @@ def install_python_dependencies():
             "pip",
             "install",
             "whisperx",
-            "onnxruntime==1.17.3", # Pin onnxruntime version
+            "onnxruntime==1.17.3",  # Pin onnxruntime version
             "TTS==0.22.0",
             "langchain==0.3.1",
             "langchain-community==0.3.1",
@@ -224,11 +224,12 @@ def install_python_dependencies():
             "nest_asyncio",
             "ics",
             "dateparser",
-            "pyspellchecker", # Added spell-checking library
-            "watchdog", # Added for file watching
+            "pyspellchecker",  # Added spell-checking library
+            "watchdog",  # Added for file watching
             "onnx",
             "pytest",
             "unittest",
+            "pytest-asyncio",
         ],
         "Failed to install core dependencies",
     )
@@ -261,7 +262,12 @@ def pull_ollama_model():
         # Ensure LLM_MODEL_NAME is set to a non-functional value or default if not already present
         return # Exit function if ollama is not available
 
-    dotenv_path = os.path.join(_PROJECT_ROOT, ".env")
+    # Ensure _PROJECT_ROOT is an absolute and canonical path
+    resolved_project_root = os.path.realpath(_PROJECT_ROOT)
+    if not os.path.isabs(resolved_project_root): # Double check after realpath, though realpath usually makes it absolute
+        raise ValueError(f"Invalid project root path after realpath: {resolved_project_root}. It must be an absolute path.")
+    sanitized_project_root = resolved_project_root # Use the resolved path
+    dotenv_path = os.path.join(sanitized_project_root, ".env")
     if not os.path.exists(dotenv_path):
         open(dotenv_path, 'a').close() # Ensure .env file exists for set_key
 

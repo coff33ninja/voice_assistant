@@ -3,9 +3,12 @@ import aiohttp
 import os
 from typing import Optional, Tuple, Dict, Union, Any
 from .config import get_openweather_api_key, OPENWEATHER_API_KEY_FILE_PATH
+import logging
 
-OPENWEATHER_API_URL = "http://api.openweathermap.org/data/2.5/weather"
-IP_GEOLOCATION_URL = "http://ip-api.com/json/"
+logger = logging.getLogger(__name__)
+
+OPENWEATHER_API_URL = "https://api.openweathermap.org/data/2.5/weather"
+IP_GEOLOCATION_URL = "https://ip-api.com/json/"
 api_key = None
 
 def initialize_weather_service():
@@ -58,10 +61,10 @@ async def get_current_location_coordinates_async() -> Optional[Tuple[float, floa
 async def get_weather_async(
     location_query: Optional[Union[str, Tuple[float, float]]] = None,
     entities: Optional[Dict[str, Any]] = None,
-) -> Optional[Dict[str, Any]]:
+) -> Dict[str, Any]: # Ensure it always returns a Dict
     if not api_key:
         print("Error: OpenWeather API key not configured.")
-        return None
+        return {"error": "OpenWeather API key not configured."}
 
     params = {
         "appid": api_key,
@@ -107,7 +110,7 @@ async def get_weather_async(
         print(f"Using location from location_query argument: {location_query}")
     elif isinstance(location_query, tuple) and len(location_query) == 2: # Lat/Lon from argument
         params["lat"] = str(location_query[0])
-        params["lon"] = str(location_query[1])
+        params["lon"] = f"{location_query[1]:.4f}" # Format lon to 4 decimal places
         coordinates_used = location_query
         actual_location_description_for_error = f"coordinates (lat: {location_query[0]}, lon: {location_query[1]})"
         print(f"Using coordinates from location_query argument: {location_query}")
@@ -115,8 +118,8 @@ async def get_weather_async(
         print("No location provided via entities or arguments, attempting IP geolocation.")
         coordinates_used = await get_current_location_coordinates_async()
         if coordinates_used:
-            params["lat"] = str(coordinates_used[0])
-            params["lon"] = str(coordinates_used[1])
+            params["lat"] = f"{coordinates_used[0]:.4f}" # Format lat
+            params["lon"] = f"{coordinates_used[1]:.4f}" # Format lon
             actual_location_description_for_error = f"current location (lat: {coordinates_used[0]}, lon: {coordinates_used[1]})"
         else:
             print("Error: Could not determine current location for weather.")
@@ -124,7 +127,7 @@ async def get_weather_async(
             return {"error": "Could not determine your current location for the weather."}
     else:
         print(f"Error: Invalid location_query type: {type(location_query)} and no usable entity found.")
-        return None
+        return {"error": "Invalid location query provided."}
 
     print(f"Requesting weather with params: {params}")
     try:
@@ -162,8 +165,14 @@ async def get_weather_async(
         # Check for 404 specifically for city not found, return a specific message.
         if hasattr(e, 'status') and e.status == 404 and ("q" in params): # type: ignore
             return {"error": f"Sorry, I couldn't find weather data for '{params['q']}'. Please check the location name."}
-        # Generic error for other client issues or if location was by coords.
-        return {"error": f"There was a problem fetching weather for {actual_location_description_for_error}."}
+        elif hasattr(e, 'status') and e.status == 401:
+            return {"error": "There was an authorization problem fetching weather (e.g., invalid API key)."}
+        # Generic error for other client issues (e.g. 500) or if location was by coords.
+        error_message = f"There was a problem fetching weather for {actual_location_description_for_error}."
+        if hasattr(e, 'message') and e.message: # type: ignore
+            error_message += f" (Details: {e.message})" # type: ignore
+        return {"error": error_message}
     except Exception as e:
         print(f"Unexpected error in get_weather_async for {actual_location_description_for_error}: {e}")
-    return None
+        # Generic error for truly unexpected issues
+        return {"error": f"An unexpected error occurred while fetching weather for {actual_location_description_for_error}."}

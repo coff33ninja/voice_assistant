@@ -1,12 +1,18 @@
 import re
-from datetime import datetime, timedelta, date
-from typing import Optional, Dict, Any # Added for type hints
+from datetime import datetime, timedelta, date, time as dt_time_type, datetime as dt_type_internal # Import time type and alias datetime type
+import logging # Import logging
+from typing import Optional, Dict, Any, Union # Added for type hints
 
 # Helper function to parse time string from entities
 def _parse_time_from_entities_text(time_str: str, date_ref_str: Optional[str] = None) -> Optional[datetime]:
+    if not time_str: # Add check for None or empty string
+        return None
+
     now = datetime.now()
     parsed_time_obj = None
     base_date = now.date()
+    time_str_for_actual_time_parsing = time_str # Initialize with the full string
+    time_match = None # Initialize time_match to avoid NameError
 
     if date_ref_str:
         date_ref_str = date_ref_str.lower()
@@ -18,36 +24,62 @@ def _parse_time_from_entities_text(time_str: str, date_ref_str: Optional[str] = 
         # For now, keeping it simple for "tomorrow" and "today" combined with a time.
         # More complex date_references might be better handled by a full parse if `time_str` is just a time.
 
-    # Try to parse HH:MM am/pm or HH:MM
-    time_match = re.search(r"(\d{1,2}:\d{2})\s*(am|pm)?", time_str, re.IGNORECASE)
-    if time_match:
-        time_digits = time_match.group(1)
-        am_pm = time_match.group(2)
+    # If date_ref_str was not provided, check if time_str itself contains date keywords
+    if not date_ref_str:
+        time_str_lower = time_str.lower()
+        if "tomorrow" in time_str_lower:
+            base_date = now.date() + timedelta(days=1)
+            # Attempt to strip "tomorrow" and "at" to isolate the time part
+            time_str_for_actual_time_parsing = re.sub(r'tomorrow\s*(at\s*)?', '', time_str, flags=re.IGNORECASE).strip()
+        elif "today" in time_str_lower:
+            base_date = now.date()
+            time_str_for_actual_time_parsing = re.sub(r'today\s*(at\s*)?', '', time_str, flags=re.IGNORECASE).strip()
+
+    # Try to parse time like "3pm", "3:30pm", "15:00" from the (potentially cleaned) time string
+    # Regex for H(H):MM am/pm or H(H) am/pm or HH:MM (24h)
+    time_pattern_match = re.search(r"(\d{1,2})(?::(\d{2}))?\s*(am|pm)?", time_str_for_actual_time_parsing, re.IGNORECASE)
+
+    if time_pattern_match:
+        hour_str = time_pattern_match.group(1)
+        minute_str = time_pattern_match.group(2)
+        am_pm_str = time_pattern_match.group(3)
+
+        time_digits_for_strptime = f"{hour_str}:{minute_str if minute_str else '00'}"
+
         try:
-            if am_pm:
-                parsed_time_obj = datetime.strptime(time_digits + " " + am_pm, "%I:%M %p").time()
-            else:
-                parsed_time_obj = datetime.strptime(time_digits, "%H:%M").time()
+            if am_pm_str:
+                parsed_time_obj = datetime.strptime(time_digits_for_strptime + " " + am_pm_str, "%I:%M %p").time()
+            else: # 24 hour format if no am/pm
+                parsed_time_obj = datetime.strptime(time_digits_for_strptime, "%H:%M").time()
         except ValueError:
+            logger.debug(f"Could not parse time digits: {time_digits_for_strptime} with/without am/pm: {am_pm_str}")
             pass # Could not parse time digits
 
-    if parsed_time_obj:
-        reminder_datetime = datetime.combine(base_date, parsed_time_obj)
-        # If the time refers to today but is in the past, and no explicit date reference was "today",
-        # assume it's for the next day (e.g. "remind me at 7am" when it's 10am -> 7am tomorrow)
-        # If date_ref_str was "today", respect it.
-        if reminder_datetime < now and not (date_ref_str and "today" in date_ref_str):
-            if base_date == now.date(): # only adjust if it was implicitly today
+    # If specific time was parsed (e.g. "3pm", "15:30"), use it
+    if time_match:
+        # This block was for the old regex, now parsed_time_obj is set above
+    # if parsed_time_obj: # This means time_pattern_match was successful
+        reminder_datetime = datetime.combine(base_date, parsed_time_obj) # base_date already considers "tomorrow" if date_ref_str was set
+
+        # Adjust if the combined datetime is in the past and no explicit "today" reference was given
+        # that would have already set base_date correctly.
+        # This handles "remind me at 7am" (when it's 10am) -> 7am tomorrow.
+        if isinstance(reminder_datetime, dt_type_internal) and reminder_datetime < now:
+            # Only adjust to next day if base_date was today's date (implying no explicit future date like "tomorrow" was parsed from time_str or given in date_ref_str)
+            # and date_ref_str (if provided) wasn't "today".
+            if base_date == now.date() and not (date_ref_str and "today" in date_ref_str.lower()):
                  reminder_datetime = datetime.combine(now.date() + timedelta(days=1), parsed_time_obj)
         return reminder_datetime
 
     # Handle simple "tomorrow", "today" (as time_phrase, defaulting to 9 AM)
     # This part is more for when `time_phrase` itself is "tomorrow" rather than a time like "at 3pm"
-    if "tomorrow" in time_str.lower() and not date_ref_str: # Avoid double counting if date_ref_str is also tomorrow
+    # And if no specific time like HH:MM was parsed by time_pattern_match
+    if not parsed_time_obj and "tomorrow" in time_str.lower() and not date_ref_str: # Avoid double counting if date_ref_str is also tomorrow
+        # This should only be hit if time_match above failed (i.e., no HH:MM found in time_str)
         return (now + timedelta(days=1)).replace(hour=9, minute=0, second=0, microsecond=0)
-    if "today" in time_str.lower() and not date_ref_str:
+    if not parsed_time_obj and "today" in time_str.lower() and not date_ref_str:
+        # This should only be hit if time_match above failed
         return now.replace(hour=9, minute=0, second=0, microsecond=0) # Default 9 AM today if not past
-
     # Add more parsing for "in X hours/minutes" if that's expected in entities.get("time_phrase")
     in_duration_match = re.search(r"in\s+(\d+)\s+(hour|hours|minute|minutes)", time_str, re.IGNORECASE)
     if in_duration_match:
@@ -61,6 +93,9 @@ def _parse_time_from_entities_text(time_str: str, date_ref_str: Optional[str] = 
 
 # Helper function to parse date string from entities (for list reminders)
 def _parse_date_from_entities_text(date_ref_str: str) -> Optional[date]:
+    if not date_ref_str: # Add check for None or empty string
+        return None
+
     now = datetime.now()
     date_ref_str = date_ref_str.lower()
 
@@ -94,11 +129,25 @@ def _parse_date_from_entities_text(date_ref_str: str) -> Optional[date]:
     # This would be similar to the regexes at the end of the original parse_list_reminder_request
     return None
 
+logger = logging.getLogger(__name__) # Add logger
 
-def parse_reminder(text: str, entities: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
+def parse_reminder(text: Optional[str], entities: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
+    if not text: # Handles None or empty string
+        logger.debug(f"parse_reminder called with invalid or no text ({text!r}), returning None.")
+        return None
+
+    # Ensure text is not empty for regex operations after the initial None/empty check
+    if not isinstance(text, str) or not text.strip(): # text might be "   " or non-string
+        logger.debug("parse_reminder called with whitespace-only text, returning None.")
+        return None
+
     if entities:
         task_entity = entities.get("task")
         time_phrase_entity = entities.get("time_phrase")
+        # If time_phrase contains a date reference AND a time, _parse_time_from_entities_text handles it.
+        # If time_phrase is just a date reference ("tomorrow"), _parse_time_from_entities_text handles it (defaults to 9am).
+        # If time_phrase is just a time ("3pm"), _parse_time_from_entities_text handles it (defaults to today/tomorrow).
+
         date_reference_entity = entities.get("date_reference")
         time_entity = entities.get("time") # Specific time like "3pm" or "7:00"
 
@@ -108,60 +157,69 @@ def parse_reminder(text: str, entities: Optional[Dict[str, Any]] = None) -> Opti
             parsed_reminder_time_from_entities = _parse_time_from_entities_text(time_phrase_entity)
         elif date_reference_entity and time_entity: # "remind me to X on tuesday at 7am"
             # Combine date_reference and time before parsing
-            combined_time_text = f"{date_reference_entity} at {time_entity}"
-            parsed_reminder_time_from_entities = _parse_time_from_entities_text(time_entity, date_reference_entity)
+            # Pass date_reference_entity as the date_ref_str argument to _parse_time_from_entities_text
+            parsed_reminder_time_from_entities = _parse_time_from_entities_text(
+                time_entity, date_reference_entity
+            )
         elif time_entity: # "remind me to X at 7am" (implies today or next suitable day)
-             parsed_reminder_time_from_entities = _parse_time_from_entities_text(time_entity)
+            parsed_reminder_time_from_entities = _parse_time_from_entities_text(time_entity)
+        # Note: If only date_reference_entity is present, _parse_time_from_entities_text("tomorrow") will handle it.
         elif date_reference_entity: # "remind me to X tomorrow" (implies default time e.g. 9am)
-             parsed_reminder_time_from_entities = _parse_time_from_entities_text(date_reference_entity)
-
+            parsed_reminder_time_from_entities = _parse_time_from_entities_text(date_reference_entity)
 
         if task_entity and parsed_reminder_time_from_entities:
             return {"task": str(task_entity).strip(), "time": parsed_reminder_time_from_entities}
         # If only task entity is present, could fall through to regex which might pick up time, or return task with no time?
         # For now, if entities don't give both, fall through.
 
-    # Fallback to original regex-based parsing if entities are not sufficient
+    # Fallback to regex-based parsing if entities are not sufficient or not present
+    # Ensure task extraction regex is robust
     task_match = re.search(r"remind me to (.*?)(?=(?:on|at|in|tomorrow|today|next|this|last)\b|$)", text, re.IGNORECASE)
-    if not task_match:
-        return None
+    if not task_match: # If the primary regex fails, try a simpler one if "remind me to" is present
+        if "remind me to" in text.lower():  # Check for the phrase itself
+            task_match = re.search(r"remind me to (.*)", text, re.IGNORECASE)
+        if not task_match: # If still no match
+            logger.debug(f"Could not extract task from reminder: '{text}' using regex.")
+            return None
     task = task_match.group(1).strip()
 
     time_text_part = text[task_match.end():].strip().lower()
+    # If time_text_part is empty, the time/date info might be at the beginning or elsewhere.
+    # For simplicity, let's just use the full lowercased text for time/date regex matching if time_text_part is empty.
     if not time_text_part:
-        time_text_part = text.lower() # Fallback if time phrase is not immediately after task
+        time_text_part = text.lower() # Use full text if no specific time part after task
 
-    now = datetime.now() # now needs to be defined for regex part too
+    now = datetime.now()
     reminder_time = None
 
     # tomorrow at HH:MM am/pm | at HH:MM am/pm tomorrow
-    tomorrow_at_time_match = re.search(r"(tomorrow\s+at\s+(\d{1,2}:\d{2}\s*(?:am|pm)?)|at\s+(\d{1,2}:\d{2}\s*(?:am|pm)?)\s+tomorrow)", time_text_part, re.IGNORECASE)
+    # Regex for time: H(H)(:MM)? (am/pm)?
+    time_regex_flexible = r"(\d{1,2}(?::\d{2})?\s*(?:am|pm)?)"
+    tomorrow_at_time_match = re.search(rf"(tomorrow\s+at\s+{time_regex_flexible}|at\s+{time_regex_flexible}\s+tomorrow)", time_text_part, re.IGNORECASE)
+
     if tomorrow_at_time_match:
         time_str = (tomorrow_at_time_match.group(2) or tomorrow_at_time_match.group(3)).strip()
         try:
-            parsed_time = datetime.strptime(time_str, "%I:%M %p").time()
+            # Use _parse_time_from_entities_text to handle "HH:MM am/pm" and "HH:MM"
+            parsed_dt_obj = _parse_time_from_entities_text(time_str, "tomorrow") # Pass "tomorrow" as date_ref
+            if parsed_dt_obj: # Check if it's a datetime object
+                reminder_time = parsed_dt_obj
         except ValueError:
-            try:
-                parsed_time = datetime.strptime(time_str, "%H:%M").time()
-            except ValueError:
-                return None
-        reminder_time = datetime.combine(now + timedelta(days=1), parsed_time)
+            logger.warning(f"Could not parse time '{time_str}' with 'tomorrow' context in regex.")
+            pass # Fall through
 
     # at HH:MM am/pm (today or next day if past)
     if not reminder_time:
-        at_time_match = re.search(r"at\s+(\d{1,2}:\d{2}\s*(?:am|pm)?)", time_text_part, re.IGNORECASE)
+        at_time_match = re.search(rf"at\s+{time_regex_flexible}", time_text_part, re.IGNORECASE)
         if at_time_match:
             time_str = at_time_match.group(1).strip()
             try:
-                parsed_time = datetime.strptime(time_str, "%I:%M %p").time()
+                parsed_dt_obj = _parse_time_from_entities_text(time_str) # No explicit date_ref, defaults to today/next day
+                if parsed_dt_obj: # Check if it's a datetime object
+                    reminder_time = parsed_dt_obj
             except ValueError:
-                try:
-                    parsed_time = datetime.strptime(time_str, "%H:%M").time()
-                except ValueError:
-                    return None
-
-            rt_today = datetime.combine(now.date(), parsed_time)
-            reminder_time = rt_today if rt_today >= now else datetime.combine(now.date() + timedelta(days=1), parsed_time)
+                logger.warning(f"Could not parse time '{time_str}' in regex.")
+                pass # Fall through
 
     # "tomorrow" (defaults to 9 AM)
     if not reminder_time and "tomorrow" in time_text_part: # This regex part can still be a fallback
@@ -190,7 +248,12 @@ def parse_reminder(text: str, entities: Optional[Dict[str, Any]] = None) -> Opti
     # For now, maintaining existing behavior for regex fallback.
     return None
 
-def parse_list_reminder_request(text: str, entities: Optional[Dict[str, Any]] = None) -> Optional[date]:
+def parse_list_reminder_request(text: Optional[str], entities: Optional[Dict[str, Any]] = None) -> Optional[date]:
+    if not text: # Handles None or empty string
+        logger.debug("parse_list_reminder_request called with no text, returning None.")
+        return None
+    text_lower = text.lower()  # Ensure text is lowercased for all regex/keyword checks
+
     if entities:
         date_reference_entity = entities.get("date_reference")
         if date_reference_entity:
@@ -202,10 +265,12 @@ def parse_list_reminder_request(text: str, entities: Optional[Dict[str, Any]] = 
         # For now, focusing on date_reference.
 
     # Fallback to original regex-based parsing
-    text_lower = text.lower() # Ensure text is lowercased for regex part
+
     now = datetime.now()
 
-    if "today" in text_lower:
+    if (
+        "today" in text_lower or "show reminders for today" == text_lower.strip()
+    ):  # Handle exact match too
         return now.date()
     if "tomorrow" in text_lower:
         return (now + timedelta(days=1)).date()
@@ -213,7 +278,7 @@ def parse_list_reminder_request(text: str, entities: Optional[Dict[str, Any]] = 
         return (now - timedelta(days=1)).date()
 
     rel_pattern = r"in (\d+) (day|days|week|weeks|month|months)"
-    match = re.search(rel_pattern, text_lower)
+    match = re.search(rel_pattern, text_lower)  # Search in the full lowercased text
     if match:
         num, unit = int(match.group(1)), match.group(2)
         if "day" in unit:
@@ -223,11 +288,11 @@ def parse_list_reminder_request(text: str, entities: Optional[Dict[str, Any]] = 
         if "month" in unit: # Approx
             return (now + timedelta(days=30 * num)).date()
 
-    if "next week" in text_lower:
+    if "next week" in text_lower:  # Search in the full lowercased text
         days_ahead = (0 - now.weekday() + 7) % 7 or 7
         return (now + timedelta(days=days_ahead)).date()
-    if "this week" in text_lower: # Simplified
-        return now.date()
+    if "this week" in text_lower:  # Search in the full lowercased text
+        return now.date()  # Simplified - could mean today or any day this week.
 
     days_of_week = {"monday": 0, "tuesday": 1, "wednesday": 2, "thursday": 3, "friday": 4, "saturday": 5, "sunday": 6}
     for day_name, day_idx in days_of_week.items():
@@ -237,12 +302,12 @@ def parse_list_reminder_request(text: str, entities: Optional[Dict[str, Any]] = 
             if "next" in text_lower and days_to_add == 0: # e.g. "next monday" when today is monday
                 days_to_add = 7
             if "this" in text_lower and day_idx < current_day_idx : # e.g. "this monday" when today is Wed -> past Mon.
-                 days_to_add = day_idx - current_day_idx
-            return (now + timedelta(days=days_to_add)).date()
+                days_to_add = day_idx - current_day_idx
+            return now.date() + timedelta(days=days_to_add)  # Return date object
 
     month_pattern = r"(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{1,2})(?:st|nd|rd|th)?(?:,\s*(\d{4}))?"
     match = re.search(month_pattern, text_lower, re.IGNORECASE)
-    if match:
+    if match:  # Search in the full lowercased text
         month_name, day_str, year_str = match.groups()
         try:
             month = datetime.strptime(month_name, "%B").month
@@ -250,15 +315,17 @@ def parse_list_reminder_request(text: str, entities: Optional[Dict[str, Any]] = 
             year = int(year_str) if year_str else now.year
             target_date = date(year, month, day)
             # If the parsed date is in the past, and no explicit year was given, and not "last month" etc.
-            if target_date < now.date() and not year_str and not any(kw in text_lower for kw in ["last", "past"]):
+            if target_date < now.date() and not year_str and not any(kw in text_lower for kw in ["last", "past", "yesterday"]):
                 target_date = date(year + 1, month, day) # Assume next year
             return target_date
         except ValueError:
             return None # Malformed date
 
     date_patterns = [
-        r"on (\d{4}-\d{1,2}-\d{1,2})", r"on (\d{1,2}\/\d{1,2}\/\d{4})", # YYYY-MM-DD or MM/DD/YYYY after "on"
-        r"(\d{4}-\d{1,2}-\d{1,2})", r"(\d{1,2}\/\d{1,2}\/\d{4})" # Same formats, standalone
+        r"on (\d{4}-\d{1,2}-\d{1,2})",
+        r"on (\d{1,2}\/\d{1,2}\/\d{4})",  # YYYY-MM-DD or MM/DD/YYYY after "on"
+        r"(\d{4}-\d{1,2}-\d{1,2})",
+        r"(\d{1,2}\/\d{1,2}\/\d{4})",  # Same formats, standalone (search in full text)
     ]
     for pat in date_patterns:
         match = re.search(pat, text_lower)

@@ -103,7 +103,7 @@ class TestGetWeatherAsync:
         result = await get_weather_async(location_query="New York")
 
         mock_get.assert_called_once_with(
-            "http://api.openweathermap.org/data/2.5/weather",
+            "https://api.openweathermap.org/data/2.5/weather",
             params={"appid": "test_api_key", "units": "metric", "q": "New York"}
         )
         assert isinstance(result, dict)
@@ -120,7 +120,7 @@ class TestGetWeatherAsync:
         result = await get_weather_async(location_query=(40.7128, -74.0060))
 
         mock_get.assert_called_once_with(
-            "http://api.openweathermap.org/data/2.5/weather",
+            "https://api.openweathermap.org/data/2.5/weather",
             params={"appid": "test_api_key", "units": "metric", "lat": "40.7128", "lon": "-74.0060"}
         )
         assert isinstance(result, dict)
@@ -136,7 +136,7 @@ class TestGetWeatherAsync:
         result = await get_weather_async(entities=entities)
 
         mock_get.assert_called_once_with(
-            "http://api.openweathermap.org/data/2.5/weather",
+            "https://api.openweathermap.org/data/2.5/weather",
             params={"appid": "test_api_key", "units": "metric", "q": "London"}
         )
         assert isinstance(result, dict)
@@ -151,7 +151,7 @@ class TestGetWeatherAsync:
         result = await get_weather_async(location_query="Berlin", entities=entities)
 
         mock_get.assert_called_once_with(
-            "http://api.openweathermap.org/data/2.5/weather",
+            "https://api.openweathermap.org/data/2.5/weather",
             params={"appid": "test_api_key", "units": "metric", "q": "Paris"}
         )
         assert isinstance(result, dict)
@@ -168,7 +168,7 @@ class TestGetWeatherAsync:
 
         mock_get_coords.assert_called_once()
         mock_get.assert_called_once_with(
-            "http://api.openweathermap.org/data/2.5/weather",
+            "https://api.openweathermap.org/data/2.5/weather",
             params={"appid": "test_api_key", "units": "metric", "lat": "40.7128", "lon": "-74.0060"}
         )
         assert isinstance(result, dict)
@@ -301,7 +301,7 @@ class TestGetCurrentLocationCoordinatesAsync:
 
         result = await get_current_location_coordinates_async()
 
-        mock_get.assert_called_once_with("http://ip-api.com/json/")
+        mock_get.assert_called_once_with("https://ip-api.com/json/")
         assert isinstance(result, tuple)
         assert result == (mock_ip_geo_success_payload['lat'], mock_ip_geo_success_payload['lon'])
 
@@ -312,7 +312,7 @@ class TestGetCurrentLocationCoordinatesAsync:
 
         result = await get_current_location_coordinates_async()
 
-        mock_get.assert_called_once_with("http://ip-api.com/json/")
+        mock_get.assert_called_once_with("https://ip-api.com/json/")
         assert result is None
 
     async def test_get_current_location_coordinates_http_error(self, mock_aiohttp_get):
@@ -324,7 +324,7 @@ class TestGetCurrentLocationCoordinatesAsync:
 
         result = await get_current_location_coordinates_async()
 
-        mock_get.assert_called_once_with("http://ip-api.com/json/")
+        mock_get.assert_called_once_with("https://ip-api.com/json/")
         assert result is None
 
     async def test_get_current_location_coordinates_network_error(self, mock_aiohttp_get):
@@ -333,7 +333,7 @@ class TestGetCurrentLocationCoordinatesAsync:
 
         result = await get_current_location_coordinates_async()
 
-        mock_get.assert_called_once_with("http://ip-api.com/json/")
+        mock_get.assert_called_once_with("https://ip-api.com/json/")
         assert result is None
 
     async def test_get_current_location_coordinates_invalid_json(self, mock_aiohttp_get):
@@ -343,7 +343,7 @@ class TestGetCurrentLocationCoordinatesAsync:
 
         result = await get_current_location_coordinates_async()
 
-        mock_get.assert_called_once_with("http://ip-api.com/json/")
+        mock_get.assert_called_once_with("https://ip-api.com/json/")
         assert result is None
 
     async def test_get_current_location_coordinates_missing_fields(self, mock_aiohttp_get):
@@ -353,7 +353,7 @@ class TestGetCurrentLocationCoordinatesAsync:
 
         result = await get_current_location_coordinates_async()
 
-        mock_get.assert_called_once_with("http://ip-api.com/json/")
+        mock_get.assert_called_once_with("https://ip-api.com/json/")
         assert result is None
 
 @pytest.mark.asyncio
@@ -368,7 +368,7 @@ class TestInitializeWeatherService:
         with patch('modules.weather_service.api_key', None):
             initialize_weather_service()
             mock_print.assert_any_call(
-                "Warning: OpenWeather API key not found in environment or at E:\\voice_asisstant\\modules\\openweather_api_key.txt. Weather service will not work."
+                f"Warning: OpenWeather API key not found in environment or at {os.path.join(_PROJECT_ROOT, 'models', 'openweather_api_key.txt')}. Weather service will not work."
             )
             import modules.weather_service
             assert modules.weather_service.api_key is None
@@ -402,7 +402,7 @@ class TestInitializeWeatherService:
             initialize_weather_service()
             mock_get_key.assert_called_once() # Should check env first
             mock_exists.assert_called_once()
-            mock_open.assert_called_once_with('E:\\voice_asisstant\\modules\\openweather_api_key.txt', 'r')
+            mock_open.assert_called_once_with(os.path.join(_PROJECT_ROOT, 'models', 'openweather_api_key.txt'), 'r')
             mock_print.assert_any_call("Weather service API key loaded from file.")
             import modules.weather_service
             assert modules.weather_service.api_key == "file_key"
@@ -424,7 +424,15 @@ class TestInitializeWeatherService:
             initialize_weather_service()
             mock_get_key.assert_called_once() # Should check env first
             mock_exists.assert_called_once()
-            mock_open.assert_called_once_with('E:\\voice_asisstant\\modules\\openweather_api_key.txt', 'r')
+            mock_open.assert_called_once_with(os.path.join(_PROJECT_ROOT, 'models', 'openweather_api_key.txt'), 'r')
             mock_print.assert_any_call("Warning: OpenWeather API key file is empty.")
             import modules.weather_service
             assert modules.weather_service.api_key is None
+
+# Helper to get _PROJECT_ROOT consistent with how config.py defines it
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__)) # tests directory
+GRANDPARENT_DIR = os.path.dirname(os.path.dirname(SCRIPT_DIR)) # E:\voice_asisstant
+if GRANDPARENT_DIR.endswith("voice_asisstant"): # A simple check
+    _PROJECT_ROOT = GRANDPARENT_DIR
+else: # Fallback if structure is different, though less ideal for tests
+    _PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))

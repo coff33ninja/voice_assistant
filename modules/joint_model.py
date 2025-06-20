@@ -57,8 +57,10 @@ class JointIntentSlotModel(nn.Module):
         intent_labels=None,  # These are for training
         slot_labels=None,  # These are for training
     ):
-        return_dict = (
-            return_dict if return_dict is not None else self.config.use_return_dict
+        # Determine effective_return_dict based on the forward argument, defaulting to True.
+        # Avoids relying on self.config.use_return_dict if it's problematic.
+        effective_return_dict = (
+            return_dict if return_dict is not None else True
         )
 
         outputs = self.distilbert(
@@ -72,10 +74,15 @@ class JointIntentSlotModel(nn.Module):
         )
 
         sequence_output = outputs.last_hidden_state
-        # CLS token output (for intent classification)
-        cls_output = sequence_output[:, 0, :]  # [batch_size, dim]
-        intent_logits = self.intent_classifier(cls_output)
 
+        # Handle empty batch case for sequence_output
+        if sequence_output.shape[0] == 0 or sequence_output.shape[1] == 0:
+            # For empty batch, logits should also be empty or match expected empty shape
+            intent_logits = torch.empty((0, self.num_intent_labels), device=sequence_output.device)
+            slot_logits = torch.empty((0, 0, self.num_slot_labels), device=sequence_output.device)
+        else:
+            cls_output = sequence_output[:, 0, :]  # [batch_size, dim]
+            intent_logits = self.intent_classifier(cls_output)
         # Sequence output (for slot filling)
         # Apply dropout to the sequence output before passing to the slot classifier
         sequence_output_dropout = self.dropout(sequence_output)
@@ -130,7 +137,7 @@ class JointIntentSlotModel(nn.Module):
                     intent_loss.device
                 )  # Assign zero loss for slots
 
-        if not return_dict:
+        if not effective_return_dict:
             output = (intent_logits, slot_logits) + outputs[
                 2:
             ]  # outputs[2:] are hidden_states and attentions
