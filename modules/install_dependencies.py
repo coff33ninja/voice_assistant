@@ -129,8 +129,8 @@ def install_system_dependencies():
         logger.warning(
             "For runtime dependencies like ONNXRuntime (used by WhisperX), ensure the Microsoft Visual C++ Redistributable is installed.\n"
             "Download from the official Microsoft site (Visual Studio 2015-2022 section):\n"
-            "  - For 64-bit systems: https://aka.ms/vs/17/release/vc_redist.x64.exe\n"
-            "  - For 32-bit systems: https://aka.ms/vs/17/release/vc_redist.x86.exe\n"
+            "  - For 64-bit systems: https://aka.ms/vs/17/release/vc_redist.x64.exe"
+            "  - For 32-bit systems: https://aka.ms/vs/17/release/vc_redist.x86.exe"
             "You can typically install the x64 version on modern systems. If unsure, you can install both."
         )
         if shutil.which("choco"):
@@ -228,7 +228,6 @@ def install_python_dependencies():
             "watchdog",  # Added for file watching
             "onnx",
             "pytest",
-            "unittest",
             "pytest-asyncio",
             "pytest-twisted",
             "pytest-trio",

@@ -8,7 +8,6 @@ Also detects AMD/Intel fallback and writes results to a .env file.
 import platform
 import subprocess
 import logging
-import os
 import sys
 from pathlib import Path
 
@@ -69,7 +68,7 @@ CUDA_COMPATIBILITY = {
     },  # Does not support Python 3.11; use Python 3.9, CUDA toolkit: https://developer.nvidia.com/cuda-11-4-0-download-archive
 }
 
-DEFAULT_CPU_TORCH = "2.7.1+cpu"  # Supports Python 3.11
+DEFAULT_CPU_TORCH = "2.2.2+cpu"  # For Python 3.11 compatibility
 
 
 def get_cpu_info():
@@ -91,7 +90,11 @@ def get_gpu_info():
 def detect_cuda_with_torch():
     try:
         import torch
-        return torch.cuda.is_available()
+        if hasattr(torch, "cuda") and hasattr(torch.cuda, "is_available"):
+            return torch.cuda.is_available()
+        else:
+            logger.warning("torch.cuda or torch.cuda.is_available not found in torch module.")
+            return False
     except ImportError:
         logger.warning("PyTorch is not installed. CUDA availability check via PyTorch skipped.")
         return False
@@ -101,32 +104,43 @@ def detect_cuda_with_torch():
 
 
 def get_cuda_device_name_with_torch():
-    if detect_cuda_with_torch():
+    try:
         import torch
-        try:
-            return torch.cuda.get_device_name(0)
-        except Exception as e:
-            logger.error(f"Error getting CUDA device name: {e}")
-            return "CUDA device name not accessible"
-    return "CUDA not available or PyTorch issue"
+        if hasattr(torch, "cuda") and hasattr(torch.cuda, "get_device_name"):
+            if detect_cuda_with_torch():
+                try:
+                    return torch.cuda.get_device_name(0)
+                except Exception as e:
+                    logger.error(f"Error getting CUDA device name: {e}")
+                    return "CUDA device name not accessible"
+        return "CUDA not available or PyTorch issue"
+    except ImportError:
+        return "PyTorch not installed"
+    except Exception as e:
+        logger.error(f"Error in get_cuda_device_name_with_torch: {e}")
+        return "CUDA not available or PyTorch issue"
 
 
 def recommend_torch_version():
-    # This recommendation logic might need PyTorch to be installed first to get device name.
-    # If PyTorch isn't installed, it will default to CPU or a generic CUDA.
-    # The setup script should ensure a base PyTorch is installed by the 'dependencies' step.
+    # Always use torch 2.2.2 for Python 3.11 (latest supported, avoids 3.13 wheel issue)
+    py_major = sys.version_info.major
+    py_minor = sys.version_info.minor
+    if py_major == 3 and py_minor == 11:
+        logger.info("Python 3.11 detected. Forcing torch version 2.2.2+cpu for compatibility.")
+        return {"type": "cpu", "torch": "2.2.2+cpu"}
+
     try:
         import torch
-        if torch.cuda.is_available():
-            name = torch.cuda.get_device_name(0)
-            for key, versions in CUDA_COMPATIBILITY.items():
-                if key.lower() in name.lower():
-                    logger.info(f"GPU '{name}' matched with '{key}'. Recommending Torch: {versions['torch']}, CUDA: {versions['cuda']}")
-                    return {"type": "cuda", "torch": versions['torch'], "cuda": versions['cuda']}
-            logger.warning(f"CUDA is available but GPU '{name}' not found in CUDA_COMPATIBILITY map. Recommending a default CUDA-enabled PyTorch or CPU.")
-            # Fallback to a generic recent CUDA version if available, otherwise CPU
-            # This part can be made more sophisticated
-            return {"type": "cuda", "torch": "2.0.1+cu118", "cuda": "11.8"} # Default to a common recent CUDA version
+        if hasattr(torch, "cuda") and hasattr(torch.cuda, "is_available") and torch.cuda.is_available():
+            if hasattr(torch.cuda, "get_device_name"):
+                name = torch.cuda.get_device_name(0)
+                for key, versions in CUDA_COMPATIBILITY.items():
+                    if key.lower() in name.lower():
+                        logger.info(f"GPU '{name}' matched with '{key}'. Recommending Torch: {versions['torch']}, CUDA: {versions['cuda']}")
+                        return {"type": "cuda", "torch": versions['torch'], "cuda": versions['cuda']}
+                logger.warning(f"CUDA is available but GPU '{name}' not found in CUDA_COMPATIBILITY map. Recommending a default CUDA-enabled PyTorch or CPU.")
+                return {"type": "cuda", "torch": "2.0.1+cu118", "cuda": "11.8"} # Default to a common recent CUDA version
+        # If torch.cuda is not available or no CUDA, fall through to CPU
     except ImportError:
         logger.info("PyTorch not imported, recommending CPU version.")
     except Exception as e:
