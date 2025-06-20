@@ -184,3 +184,8 @@ Add a calendar event to discuss budget with finance team on Sep 10th at 2 PM,add
 What are my reminders for this weekend?,list_reminders,"{""date_reference"": ""this weekend""}"
 Weather forecast for my current city for the next 3 days,get_weather,"{""location"": ""current"", ""date_reference"": ""next 3 days"", ""duration"": ""3 days""}"
 Get weather for Boston for this evening,get_weather,"{""location"": ""Boston"", ""time_phrase"": ""this evening""}"
+Stop the LLM,stop_ollama_llm, {}
+Stop Ollama,stop_ollama_llm, {}
+End the AI session,stop_ollama_llm, {}
+Shut down the language model,stop_ollama_llm, {}
+Please stop the LLM,stop_ollama_llm, {}

@@ -295,6 +295,9 @@ async def handle_get_weather_intent(
     response = ""
     location_name_to_fetch: Optional[str] = None
 
+    # Define 'today' at the start of the handler so it is always available
+    today = datetime.datetime.now().replace(hour=9, minute=0, second=0, microsecond=0)
+
     if location_entity:
         if location_entity.lower() in ["current", "my area", "here"]:
             use_current_location = True
@@ -331,7 +334,6 @@ async def handle_get_weather_intent(
         weather_data = await get_weather_async(location_query=None, entities=entities)
         if weather_data and "error" not in weather_data and "message" not in weather_data :
             response = get_response("get_weather_current", city=weather_data["city"], description=weather_data["description"], temp=weather_data["temp"])
-            today = datetime.datetime.now().replace(hour=9, minute=0, second=0, microsecond=0)
         elif weather_data and "message" in weather_data: # Forecast message
             response = weather_data["message"]
         elif weather_data and "error" in weather_data: # Error from service
@@ -493,5 +495,16 @@ async def handle_add_calendar_event_intent(
     else: # Summary or date missing
         response = get_response("add_calendar_event_missing")
 
+    await text_to_speech_async(response)
+    return response
+
+
+@intent_handler("stop_ollama_llm")
+async def handle_stop_ollama_llm(
+    normalized_transcription: str, entities: Dict[str, Any]
+) -> str:
+    from modules.llm_service import stop_ollama_llm  # Import here to avoid circular import
+    await stop_ollama_llm()
+    response = get_response("stop_ollama_llm")
     await text_to_speech_async(response)
     return response

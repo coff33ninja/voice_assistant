@@ -104,3 +104,12 @@ def get_llm_response_sync(input_text: str) -> str:
     except Exception as e:
         print(f"[ERROR] LLM connection failed: {e}")
         return ""
+
+async def stop_ollama_llm():
+    global llm_instance, runnable_with_history_global
+    if llm_instance is not None:
+        llm_instance = None
+        runnable_with_history_global = None
+        print("Ollama LLM instance stopped.")
+    else:
+        print("Ollama LLM was not running.")

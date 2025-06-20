@@ -61,4 +61,5 @@ music_next,"Playing the next track."
 time_query,"The current time is {time}."
 general_query,"I'm processing your general query."
 music_play,"Playing music."
+stop_ollama_llm,"Ollama LLM has been stopped."
 text,label
