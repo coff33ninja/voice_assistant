@@ -501,7 +501,7 @@ class TestJointIntentSlotModelEdgeCases:
             mock_distilbert_class.return_value = mock_distilbert_instance # The class returns the mocked instance
 
             model = JointIntentSlotModel(basic_config).to(device) # Now model uses the mocked DistilBertModel
-            output = model.forward(input_ids=input_ids, attention_mask=attention_mask)
+            _ = model.forward(input_ids=input_ids, attention_mask=attention_mask)
 
     def test_model_parameters_require_grad(self, basic_config):
         """Test that model parameters require gradients by default."""

@@ -1,28 +1,16 @@
 import pytest
-import unittest.mock as mock
-from unittest.mock import Mock, patch, MagicMock, mock_open
+from unittest.mock import Mock
 import torch
 import pandas as pd
-import numpy as np
 import os
 import sys
-import tempfile
-import shutil
-from pathlib import Path
 
 # Add the project root to sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 # Import the intent classifier module
-from modules.intent_classifier import (
-    initialize_intent_classifier,
-    intent_tokenizer,
-    intent_model,
-    INTENT_LABELS_MAP,
-    CONFIDENCE_THRESHOLD,
-)
+from modules.intent_classifier import intent_tokenizer, intent_model
 from modules.joint_model import JointIntentSlotModel
-from modules.config import INTENT_MODEL_SAVE_PATH
 
 @pytest.fixture
 def sample_csv_data():
