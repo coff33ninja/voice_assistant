@@ -4,7 +4,6 @@ import json
 import os
 import sys
 import aiohttp
-import asyncio
 
 # Ensure pytest-asyncio is installed and configured in pytest.ini
 # (You've already added the 'asyncio' marker, which is good)
@@ -211,7 +210,11 @@ class TestGetWeatherAsync:
     async def test_get_weather_api_401_unauthorized(self, mock_aiohttp_get):
         mock_get, mock_response = mock_aiohttp_get
 
-        mock_request_info = aiohttp.RequestInfo(url="https://api.openweathermap.org/data/2.5/weather", method="GET", headers={}, real_url="https://api.openweathermap.org/data/2.5/weather", human_readable="GET https://api.openweathermap.org/data/2.5/weather")
+        mock_request_info = MagicMock()
+        mock_request_info.url = "https://api.openweathermap.org/data/2.5/weather"
+        mock_request_info.method = "GET"
+        mock_request_info.headers = {}
+        mock_request_info.real_url = mock_request_info.url
 
         mock_response.raise_for_status.side_effect = aiohttp.ClientResponseError(
             request_info=mock_request_info,
@@ -224,6 +227,7 @@ class TestGetWeatherAsync:
 
         assert isinstance(result, dict)
         assert "error" in result
+
     async def test_get_weather_api_404_location_not_found(self, mock_aiohttp_get):
         mock_get, mock_response = mock_aiohttp_get
         mock_request_info = MagicMock()
@@ -239,7 +243,8 @@ class TestGetWeatherAsync:
         )
         mock_response.status = 404
 
-        result = await get_weather_async(location_query="InvalidCity")
+        await get_weather_async(location_query="InvalidCity")
+
     async def test_get_weather_api_other_http_error(self, mock_aiohttp_get):
         mock_get, mock_response = mock_aiohttp_get
         mock_request_info = MagicMock()
@@ -267,8 +272,8 @@ class TestGetWeatherAsync:
         # For ClientConnectorError, the first argument is request_info, second is the os_error
         mock_get.side_effect = aiohttp.ClientConnectorError(mock_request_info, mock_os_error)
 
+        await get_weather_async(location_query="New York")
 
-        result = await get_weather_async(location_query="New York")
     async def test_get_weather_invalid_json_response(self, mock_aiohttp_get):
         mock_get, mock_response = mock_aiohttp_get
         mock_response.status = 200
@@ -279,14 +284,15 @@ class TestGetWeatherAsync:
         mock_history_for_content_type = MagicMock() # Mock for history tuple
 
         mock_response.json.side_effect = aiohttp.ContentTypeError(mock_request_info_for_content_type, mock_history_for_content_type)
-        result = await get_weather_async(location_query="New York")
+        await get_weather_async(location_query="New York")
 
     async def test_get_weather_missing_required_fields_in_response(self, mock_aiohttp_get):
         mock_get, mock_response = mock_aiohttp_get
         mock_response.status = 200
         mock_response.json.return_value = {"coord": {}, "weather": [], "main": {}} # Missing 'description', 'temp', 'city' implicitly
 
-        result = await get_weather_async(location_query="New York")
+        await get_weather_async(location_query="New York")
+
     async def test_get_weather_empty_location_query_and_entities(self, mock_aiohttp_get):
         mock_get, mock_response = mock_aiohttp_get
         # Mock IP geo to return None for this specific test case
@@ -304,7 +310,7 @@ class TestGetCurrentLocationCoordinatesAsync:
         mock_response.json.return_value = mock_ip_geo_success_payload
         mock_response.status = 200
 
-        result = await get_current_location_coordinates_async()
+        await get_current_location_coordinates_async()
 
         mock_get.assert_called_once_with("https://ip-api.com/json/")
 
@@ -313,7 +319,7 @@ class TestGetCurrentLocationCoordinatesAsync:
         mock_response.json.return_value = mock_ip_geo_failure_payload
         mock_response.status = 200 # HTTP status is OK, but API status is 'fail'
 
-        result = await get_current_location_coordinates_async()
+        await get_current_location_coordinates_async()
 
         mock_get.assert_called_once_with("https://ip-api.com/json/")
     async def test_get_current_location_coordinates_http_error(self, mock_aiohttp_get):
@@ -323,14 +329,14 @@ class TestGetCurrentLocationCoordinatesAsync:
         )
         mock_response.status = 500
 
-        result = await get_current_location_coordinates_async()
+        await get_current_location_coordinates_async()
 
         mock_get.assert_called_once_with("https://ip-api.com/json/")
     async def test_get_current_location_coordinates_network_error(self, mock_aiohttp_get):
         mock_get, mock_response = mock_aiohttp_get
         mock_get.side_effect = aiohttp.ClientConnectorError(Mock(), Mock())
 
-        result = await get_current_location_coordinates_async()
+        await get_current_location_coordinates_async()
 
         mock_get.assert_called_once_with("https://ip-api.com/json/")
     async def test_get_current_location_coordinates_invalid_json(self, mock_aiohttp_get):
@@ -338,7 +344,7 @@ class TestGetCurrentLocationCoordinatesAsync:
         mock_response.status = 200
         mock_response.json.side_effect = json.JSONDecodeError("msg", "doc", 0)
 
-        result = await get_current_location_coordinates_async()
+        await get_current_location_coordinates_async()
 
         mock_get.assert_called_once_with("https://ip-api.com/json/")
     async def test_get_current_location_coordinates_missing_fields(self, mock_aiohttp_get):
@@ -346,7 +352,7 @@ class TestGetCurrentLocationCoordinatesAsync:
         mock_response.status = 200
         mock_response.json.return_value = {"status": "success", "city": "New York"} # Missing lat/lon
 
-        result = await get_current_location_coordinates_async()
+        await get_current_location_coordinates_async()
 
         mock_get.assert_called_once_with("https://ip-api.com/json/")
 @pytest.mark.asyncio

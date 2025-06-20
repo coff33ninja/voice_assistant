@@ -1,7 +1,7 @@
 import re
-from datetime import datetime, timedelta, date, time as dt_time_type, datetime as dt_type_internal # Import time type and alias datetime type
+from datetime import datetime, timedelta, date  # Removed unused time and datetime imports
 import logging # Import logging
-from typing import Optional, Dict, Any, Union # Added for type hints
+from typing import Optional, Dict, Any  # Removed unused Union
 
 # Helper function to parse time string from entities
 def _parse_time_from_entities_text(time_str: Optional[str], date_ref_str: Optional[str] = None) -> Optional[datetime]:
@@ -11,7 +11,6 @@ def _parse_time_from_entities_text(time_str: Optional[str], date_ref_str: Option
     now = datetime.now()
     parsed_time_obj = None
     base_date = now.date()
-    time_match = None # Initialize time_match to avoid NameError
 
     if date_ref_str:
         date_ref_str = date_ref_str.lower()
