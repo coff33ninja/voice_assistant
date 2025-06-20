@@ -9,10 +9,10 @@ import tempfile
 import sys
 import logging
 
-# Add the modules directory to the path to import intent_logic
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'modules'))
+# Add the project root to the path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from intent_logic import (
+from modules.intent_logic import (
     intent_handler,
     INTENT_HANDLERS,
     get_response,

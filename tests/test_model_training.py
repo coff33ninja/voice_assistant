@@ -11,11 +11,11 @@ import torch
 from transformers import DistilBertConfig, DistilBertTokenizer
 from datasets import Dataset, DatasetDict
 
-# Add the git/modules directory to sys.path for importing
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(__file__)), 'git', 'modules'))
+# Add the project root to sys.path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from model_training import fine_tune_model
-from joint_model import JointIntentSlotModel, JointModelOutput
+from modules.model_training import fine_tune_model
+from modules.joint_model import JointIntentSlotModel, JointModelOutput
 
 @pytest.fixture
 def temp_dir():

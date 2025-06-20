@@ -228,7 +228,7 @@ def install_python_dependencies():
             "watchdog", # Added for file watching
             "onnx",
             "pytest",
-            "unitest",
+            "unittest",
         ],
         "Failed to install core dependencies",
     )

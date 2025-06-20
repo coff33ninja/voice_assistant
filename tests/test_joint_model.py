@@ -8,9 +8,9 @@ import sys
 import os
 
 # Ensure we can import joint_model from the modules directory
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'git', 'modules'))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from joint_model import JointModelOutput, JointIntentSlotModel
+from modules.joint_model import JointModelOutput, JointIntentSlotModel
 
 @pytest.fixture
 def basic_config():
