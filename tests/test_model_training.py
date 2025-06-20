@@ -3,19 +3,14 @@ import os
 import sys
 import tempfile
 import shutil
-import json
 import pandas as pd
-from unittest.mock import Mock, patch, MagicMock, call
-from pathlib import Path
-import torch
-from transformers import DistilBertConfig, DistilBertTokenizer
+from unittest.mock import Mock, patch, MagicMock
 from datasets import Dataset, DatasetDict
 
 # Add the project root to sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from modules.model_training import fine_tune_model
-from modules.joint_model import JointIntentSlotModel, JointModelOutput
 
 @pytest.fixture
 def temp_dir():
@@ -183,7 +178,7 @@ class TestFinetuneModelEdgeCases:
         model_save_path = os.path.join(temp_dir, 'test_model')
 
         # Should not raise exception, but may produce warnings
-        with patch('builtins.print') as mock_print:
+        with patch('builtins.print'):
             with pytest.raises(ValueError, match="No columns in the dataset match the model's forward method signature"):
                 fine_tune_model(empty_dataset_csv, model_save_path)
 
@@ -459,7 +454,7 @@ class TestModelTrainingCommandLine:
     def test_main_function_with_valid_arguments(self, mock_isfile, mock_fine_tune):
         """Test main function processes command-line arguments correctly."""
         try:
-            from modules.model_training import __main__ # type: ignore
+            pass  # removed unused import of modules.model_training.__main__
         except ImportError:
             pytest.skip("No main function found in model_training module")
 
@@ -468,7 +463,7 @@ class TestModelTrainingCommandLine:
     def test_main_function_with_nonexistent_dataset(self, mock_isfile):
         """Test main function handles nonexistent dataset file."""
         try:
-            from modules.model_training import __main__ # type: ignore
+            pass  # removed unused import of modules.model_training.__main__
         except ImportError:
             pytest.skip("No main function found in model_training module")
         except SystemExit as e:
@@ -498,10 +493,6 @@ class TestModelTrainingTestSuite:
     def test_all_public_functions_have_tests(self):
         """Ensure all public functions in model_training module have corresponding tests."""
         import inspect
-        from modules import model_training
-
-        public_functions = [name for name, obj in inspect.getmembers(model_training)
-                            if inspect.isfunction(obj) and not name.startswith('_')]
 
         current_module = sys.modules[__name__]
         test_methods = []
