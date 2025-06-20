@@ -184,7 +184,6 @@ class TestJointIntentSlotModelForward:
         mock_distilbert_class.return_value = mock_instance
 
         model = JointIntentSlotModel(basic_config)
-        model.distilbert = mock_instance
 
         output = model.forward(
             input_ids=sample_inputs['input_ids'],
@@ -204,7 +203,6 @@ class TestJointIntentSlotModelForward:
         mock_distilbert_class.return_value = mock_instance
 
         model = JointIntentSlotModel(basic_config)
-        model.distilbert = mock_instance
 
         output = model.forward(
             input_ids=sample_inputs['input_ids'],
@@ -225,7 +223,6 @@ class TestJointIntentSlotModelForward:
         mock_distilbert_class.return_value = mock_instance
 
         model = JointIntentSlotModel(basic_config)
-        model.distilbert = mock_instance
 
         intent_logits, slot_logits = model.forward(
             input_ids=sample_inputs['input_ids'],
@@ -245,7 +242,6 @@ class TestJointIntentSlotModelForward:
         mock_distilbert_class.return_value = mock_instance
 
         model = JointIntentSlotModel(basic_config)
-        model.distilbert = mock_instance
 
         output = model.forward(
             input_ids=sample_inputs['input_ids'],
@@ -270,7 +266,6 @@ class TestJointIntentSlotModelLoss:
         mock_distilbert_class.return_value = mock_instance
 
         model = JointIntentSlotModel(basic_config)
-        model.distilbert = mock_instance
 
         batch_size, seq_len = 2, 10
         input_ids = torch.randint(0, 1000, (batch_size, seq_len))
@@ -296,7 +291,6 @@ class TestJointIntentSlotModelLoss:
         mock_distilbert_class.return_value = mock_instance
 
         model = JointIntentSlotModel(basic_config)
-        model.distilbert = mock_instance
 
         batch_size, seq_len = 2, 10
         input_ids = torch.randint(0, 1000, (batch_size, seq_len))
@@ -321,7 +315,6 @@ class TestJointIntentSlotModelLoss:
         mock_distilbert_class.return_value = mock_instance
 
         model = JointIntentSlotModel(basic_config)
-        model.distilbert = mock_instance
 
         batch_size, seq_len = 2, 10
         input_ids = torch.randint(0, 1000, (batch_size, seq_len))
@@ -350,7 +343,6 @@ class TestJointIntentSlotModelLoss:
         config.num_slot_labels = 0
 
         model = JointIntentSlotModel(config)
-        model.distilbert = mock_instance
 
         batch_size, seq_len = 2, 10
         input_ids = torch.randint(0, 1000, (batch_size, seq_len))
@@ -375,7 +367,6 @@ class TestJointIntentSlotModelLoss:
         mock_distilbert_class.return_value = mock_instance
 
         model = JointIntentSlotModel(basic_config)
-        model.distilbert = mock_instance
 
         batch_size, seq_len = 2, 10
         input_ids = torch.randint(0, 1000, (batch_size, seq_len))
@@ -397,7 +388,6 @@ class TestJointIntentSlotModelLoss:
         mock_distilbert_class.return_value = mock_instance
 
         model = JointIntentSlotModel(basic_config)
-        model.distilbert = mock_instance
 
         batch_size, seq_len = 2, 10
         input_ids = torch.randint(0, 1000, (batch_size, seq_len))
@@ -427,7 +417,6 @@ class TestJointIntentSlotModelEdgeCases:
         mock_distilbert_class.return_value = mock_instance
 
         model = JointIntentSlotModel(basic_config)
-        model.distilbert = mock_instance
 
         input_ids = torch.empty(0, 0, dtype=torch.long)
         attention_mask = torch.empty(0, 0)
@@ -450,7 +439,6 @@ class TestJointIntentSlotModelEdgeCases:
         mock_distilbert_class.return_value = mock_instance
 
         model = JointIntentSlotModel(basic_config)
-        model.distilbert = mock_instance
 
         input_ids = torch.randint(0, 1000, (1, 1))
         attention_mask = torch.ones(1, 1)
@@ -473,7 +461,6 @@ class TestJointIntentSlotModelEdgeCases:
         mock_distilbert_class.return_value = mock_instance
 
         model = JointIntentSlotModel(basic_config)
-        model.distilbert = mock_instance
 
         input_ids = torch.randint(0, 1000, (1, seq_len))
         attention_mask = torch.ones(1, seq_len)
@@ -539,7 +526,6 @@ class TestJointIntentSlotModelIntegration:
         mock_distilbert_class.return_value = mock_instance
 
         model = JointIntentSlotModel(basic_config)
-        model.distilbert = mock_instance
 
         input_ids = torch.randint(0, 1000, (2, 10))
         attention_mask = torch.ones(2, 10)
@@ -566,7 +552,6 @@ class TestJointIntentSlotModelIntegration:
         mock_distilbert_class.return_value = mock_instance
 
         model = JointIntentSlotModel(basic_config)
-        model.distilbert = mock_instance
 
         for batch_size in [1, 4, 8, 16]:
             seq_len = 15
@@ -597,7 +582,6 @@ class TestJointIntentSlotModelIntegration:
         mock_distilbert_class.return_value = mock_instance
 
         model = JointIntentSlotModel(basic_config)
-        model.distilbert = mock_instance
 
         input_ids = torch.randint(0, 1000, (2, seq_len))
         attention_mask = torch.ones(2, seq_len)
@@ -647,40 +631,49 @@ class TestJointIntentSlotModelIntegration:
     def test_model_reproducibility(self, basic_config):
         """Test that model produces reproducible results with same inputs and seed."""
         torch.manual_seed(42)
-        # Patch DistilBertModel for both instantiations
-        with patch('modules.joint_model.DistilBertModel') as mock_distilbert_class_for_model1, \
-             patch('modules.joint_model.DistilBertModel') as mock_distilbert_class_for_model2:
 
-            mock_output = BaseModelOutput(
+        with patch('modules.joint_model.DistilBertModel') as MockDistilBertClass:
+            # This MockDistilBertClass is what's called in JointIntentSlotModel.__init__
+
+            # Define what the DistilBertModel *instance* should do when called
+            mock_bert_output_tensor = torch.randn(2, 10, 768) # Create once for consistent output
+            mock_model_output = BaseModelOutput(
                 last_hidden_state=torch.randn(2, 10, 768),
                 hidden_states=None,
                 attentions=None
             )
 
+            # Configure MockDistilBertClass to return a new mock instance each time
+            # And that instance, when called, returns mock_model_output
+            def create_mock_distilbert_instance(*args, **kwargs):
+                instance = MagicMock(spec=DistilBertModel)
+                instance.return_value = mock_model_output
+                # If DistilBertModel instances have a 'config' attribute that JointIntentSlotModel might access
+                # from self.distilbert.config, we might need to mock it too.
+                # instance.config = basic_config # or a more specific DistilBertConfig
+                return instance
+
+            MockDistilBertClass.side_effect = create_mock_distilbert_instance
+
+            # Inputs
             torch.manual_seed(123) # Seed for input generation
-            input_ids = torch.randint(0, 1000, (2, 10))
-            attention_mask = torch.ones(2, 10)
+            input_ids_shared = torch.randint(0, 1000, (2, 10))
+            attention_mask_shared = torch.ones(2, 10)
 
-            # Configure mocks for model1
-            mock_instance1 = MagicMock(spec=DistilBertModel)
-            mock_instance1.return_value = mock_output
-            mock_distilbert_class_for_model1.return_value = mock_instance1
-            torch.manual_seed(42) # Reset seed before model instantiation
+            # Model 1
+            torch.manual_seed(42) # Seed for model's own random initializations (dropout layers, etc.)
             model1 = JointIntentSlotModel(basic_config)
-            torch.manual_seed(456)
-            out1 = model1.forward(input_ids=input_ids, attention_mask=attention_mask)
+            torch.manual_seed(456) # Seed for operations within forward (if any, like dropout)
+            out1 = model1.forward(input_ids=input_ids_shared, attention_mask=attention_mask_shared)
 
-            # Configure mocks for model2
-            mock_instance2 = MagicMock(spec=DistilBertModel)
-            mock_instance2.return_value = mock_output # Use the same mock output for consistency
-            mock_distilbert_class_for_model2.return_value = mock_instance2
-            torch.manual_seed(42) # Reset seed before model instantiation
+            # Model 2
+            torch.manual_seed(42)
             model2 = JointIntentSlotModel(basic_config)
-
             torch.manual_seed(456)
-            out2 = model2.forward(input_ids=input_ids, attention_mask=attention_mask)
+            out2 = model2.forward(input_ids=input_ids_shared, attention_mask=attention_mask_shared)
 
             torch.testing.assert_close(out1.intent_logits, out2.intent_logits, rtol=1e-5, atol=1e-5)
+            torch.testing.assert_close(out1.slot_logits, out2.slot_logits, rtol=1e-5, atol=1e-5)
 
 class TestJointIntentSlotModelUtilities:
     """Test utility functions and model properties."""
@@ -748,7 +741,6 @@ class TestJointIntentSlotModelPerformance:
         mock_distilbert_class.return_value = mock_instance
 
         model = JointIntentSlotModel(basic_config)
-        model.distilbert = mock_instance
 
         input_ids = torch.randint(0, 1000, (32, 128))
         attention_mask = torch.ones(32, 128)
@@ -777,7 +769,6 @@ class TestJointIntentSlotModelPerformance:
         mock_distilbert_class.return_value = mock_instance
 
         model = JointIntentSlotModel(basic_config)
-        model.distilbert = mock_instance
 
         input_ids = torch.randint(0, 1000, (16, 64))
         attention_mask = torch.ones(16, 64)

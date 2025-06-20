@@ -135,31 +135,40 @@ async def get_weather_async(
             async with session.get(OPENWEATHER_API_URL, params=params) as response:
                 response.raise_for_status() # Raise an exception for HTTP errors
                 data = await response.json()
-                if data.get("weather") and "main" in data:
+
+                weather_list = data.get("weather")
+                main_data = data.get("main")
+
+                if weather_list and isinstance(weather_list, list) and len(weather_list) > 0 and \
+                   main_data and isinstance(main_data, dict) and \
+                   "description" in weather_list[0] and "temp" in main_data:
+
                     returned_city_name = data.get("name")
                     final_city_name = (
                         returned_city_name
                         if returned_city_name and returned_city_name.strip()
                         else None
                     )
-
                     # Determine the best city name to return
                     if not final_city_name: # If API didn't return a name or it was empty
                         if "q" in params: # We queried by name (from entity or location_query arg)
                             final_city_name = params["q"]
                         elif coordinates_used: # We queried by coordinates
                             if location_query is None: # IP Geo was used
-                                final_city_name = f"your current area (around Lat {coordinates_used[0]:.2f}, Lon {coordinates_used[1]:.2f})"
+                                final_city_name = f"your current area (around Lat {coordinates_used[0]:.2f}, Lon {coordinates_used[1]:.2f})" # type: ignore
                             else: # Coordinates were passed as argument
-                                final_city_name = f"area at Lat {coordinates_used[0]:.2f}, Lon {coordinates_used[1]:.2f}"
+                                final_city_name = f"area at Lat {coordinates_used[0]:.2f}, Lon {coordinates_used[1]:.2f}" # type: ignore
                         else: # Should not happen if params were correctly set, but as a fallback
                             final_city_name = actual_location_description_for_error
-
                     return {
-                        "description": data["weather"][0]["description"],
-                        "temp": data["main"]["temp"],
+                        "description": weather_list[0]["description"],
+                        "temp": main_data["temp"],
                         "city": final_city_name
                     }
+                else:
+                    logger.warning(f"Weather data for {actual_location_description_for_error} is malformed or missing key fields: {data}")
+                    # Align with the test's expected error message structure for this case
+                    return {"error": f"There was a problem fetching weather for {actual_location_description_for_error} (incomplete data)."}
     except aiohttp.ClientError as e:
         print(f"Error fetching weather for {actual_location_description_for_error}: {e}")
         # Check for 404 specifically for city not found, return a specific message.
@@ -168,11 +177,20 @@ async def get_weather_async(
         elif hasattr(e, 'status') and e.status == 401:
             return {"error": "There was an authorization problem fetching weather (e.g., invalid API key)."}
         # Generic error for other client issues (e.g. 500) or if location was by coords.
-        error_message = f"There was a problem fetching weather for {actual_location_description_for_error}."
+        # Ensure actual_location_description_for_error is a string
+        location_desc_str = str(actual_location_description_for_error) if actual_location_description_for_error is not None else "an unspecified location"
+
+        error_message = f"There was a problem fetching weather for {location_desc_str}." # Default part
         if hasattr(e, 'message') and e.message: # type: ignore
             error_message += f" (Details: {e.message})" # type: ignore
+        elif str(e): # Fallback to str(e) if no .message
+            error_message += f" (Details: {str(e)})"
         return {"error": error_message}
+    except aiohttp.ContentTypeError as e: # Explicitly catch ContentTypeError
+        print(f"ContentTypeError when fetching weather for {actual_location_description_for_error}: {e}")
+        return {"error": f"Received unexpected data format when fetching weather for {actual_location_description_for_error}."}
     except Exception as e:
         print(f"Unexpected error in get_weather_async for {actual_location_description_for_error}: {e}")
         # Generic error for truly unexpected issues
-        return {"error": f"An unexpected error occurred while fetching weather for {actual_location_description_for_error}."}
+        location_desc_str = str(actual_location_description_for_error) if actual_location_description_for_error is not None else "an unspecified location"
+        return {"error": f"An unexpected error occurred while fetching weather for {location_desc_str}."}

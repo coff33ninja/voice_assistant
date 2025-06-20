@@ -210,8 +210,18 @@ class TestGetWeatherAsync:
 
     async def test_get_weather_api_401_unauthorized(self, mock_aiohttp_get):
         mock_get, mock_response = mock_aiohttp_get
+
+        mock_request_info = MagicMock()
+        mock_request_info.url = "https://api.openweathermap.org/data/2.5/weather"
+        mock_request_info.method = "GET"
+        mock_request_info.headers = {}
+        mock_request_info.real_url = mock_request_info.url
+
         mock_response.raise_for_status.side_effect = aiohttp.ClientResponseError(
-            Mock(), (), status=401, message="Unauthorized"
+            request_info=mock_request_info,
+            history=(),
+            status=401,
+            message="Unauthorized"
         )
         mock_response.status = 401 # Set status for potential logging/checking in the function
 
@@ -219,12 +229,21 @@ class TestGetWeatherAsync:
 
         assert isinstance(result, dict)
         assert "error" in result
-        assert "Unauthorized" in result["error"] # Check for message derived from error
+        # Check for the specific message returned by the SUT for 401
+        assert "There was an authorization problem fetching weather (e.g., invalid API key)." in result["error"]
 
     async def test_get_weather_api_404_location_not_found(self, mock_aiohttp_get):
         mock_get, mock_response = mock_aiohttp_get
+        mock_request_info = MagicMock()
+        mock_request_info.url = "https://api.openweathermap.org/data/2.5/weather"
+        mock_request_info.method = "GET"
+        mock_request_info.headers = {}
+        mock_request_info.real_url = mock_request_info.url
         mock_response.raise_for_status.side_effect = aiohttp.ClientResponseError(
-            Mock(), (), status=404, message="Not Found"
+            request_info=mock_request_info,
+            history=(),
+            status=404,
+            message="Not Found"
         )
         mock_response.status = 404
 
@@ -236,8 +255,16 @@ class TestGetWeatherAsync:
 
     async def test_get_weather_api_other_http_error(self, mock_aiohttp_get):
         mock_get, mock_response = mock_aiohttp_get
+        mock_request_info = MagicMock()
+        mock_request_info.url = "https://api.openweathermap.org/data/2.5/weather"
+        mock_request_info.method = "GET"
+        mock_request_info.headers = {}
+        mock_request_info.real_url = mock_request_info.url
         mock_response.raise_for_status.side_effect = aiohttp.ClientResponseError(
-            Mock(), (), status=500, message="Internal Server Error"
+            request_info=mock_request_info,
+            history=(),
+            status=500,
+            message="Internal Server Error"
         )
         mock_response.status = 500
 
@@ -245,11 +272,18 @@ class TestGetWeatherAsync:
 
         assert isinstance(result, dict)
         assert "error" in result
-        assert "problem fetching weather" in result["error"]
+        assert "problem fetching weather for New York" in result["error"]
+        assert "Internal Server Error" in result["error"]
 
     async def test_get_weather_network_error(self, mock_aiohttp_get):
         mock_get, mock_response = mock_aiohttp_get
-        mock_get.side_effect = aiohttp.ClientConnectorError(Mock(), Mock())
+
+        mock_os_error = OSError("Network unreachable")
+        mock_request_info = MagicMock()
+        mock_request_info.url = "https://api.openweathermap.org/data/2.5/weather" # etc.
+        # For ClientConnectorError, the first argument is request_info, second is the os_error
+        mock_get.side_effect = aiohttp.ClientConnectorError(mock_request_info, mock_os_error)
+
 
         result = await get_weather_async(location_query="New York")
 
@@ -260,13 +294,20 @@ class TestGetWeatherAsync:
     async def test_get_weather_invalid_json_response(self, mock_aiohttp_get):
         mock_get, mock_response = mock_aiohttp_get
         mock_response.status = 200
-        mock_response.json.side_effect = json.JSONDecodeError("msg", "doc", 0)
+        # Simulate a ContentTypeError which can happen before JSONDecodeError
+        # if the content type is not application/json
+        mock_request_info_for_content_type = MagicMock()
+        mock_request_info_for_content_type.url = "http://example.com/weather" # Dummy URL
+        mock_history_for_content_type = MagicMock() # Mock for history tuple
+
+        mock_response.json.side_effect = aiohttp.ContentTypeError(mock_request_info_for_content_type, mock_history_for_content_type)
+
 
         result = await get_weather_async(location_query="New York")
 
         assert isinstance(result, dict)
         assert "error" in result
-        assert "problem fetching weather" in result["error"] # Generic error for unexpected issues
+        assert "Received unexpected data format" in result["error"]
 
     async def test_get_weather_missing_required_fields_in_response(self, mock_aiohttp_get):
         mock_get, mock_response = mock_aiohttp_get
