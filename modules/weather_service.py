@@ -132,7 +132,7 @@ async def get_weather_async(
     print(f"Requesting weather with params: {params}")
     try:
         async with aiohttp.ClientSession() as session:
-            async with session.get(OPENWEATHER_API_URL, params=params) as response:
+            async with session.get(OPENWEATHER_API_URL, params=params, raise_for_status=True) as response: # Use raise_for_status=True
                 response.raise_for_status() # Raise an exception for HTTP errors
                 data = await response.json()
 
@@ -168,25 +168,25 @@ async def get_weather_async(
                 else:
                     logger.warning(f"Weather data for {actual_location_description_for_error} is malformed or missing key fields: {data}")
                     # Align with the test's expected error message structure for this case
-                    return {"error": f"There was a problem fetching weather for {actual_location_description_for_error} (incomplete data)."}
-    except aiohttp.ClientError as e:
-        print(f"Error fetching weather for {actual_location_description_for_error}: {e}")
+                    location_desc_str = str(actual_location_description_for_error) if actual_location_description_for_error is not None else "an unspecified location"
+                    return {"error": f"There was a problem fetching weather for {location_desc_str} (incomplete data)."}
+    except aiohttp.ClientResponseError as e: # Catch specific HTTP errors first
+        print(f"HTTP Error fetching weather for {actual_location_description_for_error}: {e.status} - {e.message}")
         # Check for 404 specifically for city not found, return a specific message.
-        if hasattr(e, 'status') and e.status == 404 and ("q" in params): # type: ignore
+        if e.status == 404 and ("q" in params):
             return {"error": f"Sorry, I couldn't find weather data for '{params['q']}'. Please check the location name."}
-        elif hasattr(e, 'status') and e.status == 401:
+        elif e.status == 401:
             return {"error": "There was an authorization problem fetching weather (e.g., invalid API key)."}
         # Generic error for other client issues (e.g. 500) or if location was by coords.
         # Ensure actual_location_description_for_error is a string
         location_desc_str = str(actual_location_description_for_error) if actual_location_description_for_error is not None else "an unspecified location"
-
-        error_message = f"There was a problem fetching weather for {location_desc_str}." # Default part
-        if hasattr(e, 'message') and e.message: # type: ignore
-            error_message += f" (Details: {e.message})" # type: ignore
-        elif str(e): # Fallback to str(e) if no .message
-            error_message += f" (Details: {str(e)})"
-        return {"error": error_message}
+        return {"error": f"There was a problem fetching weather for {location_desc_str}. (HTTP Status: {e.status})"}
+    except aiohttp.ClientConnectorError as e: # Catch network/connection errors
+        print(f"Network Error fetching weather for {actual_location_description_for_error}: {e}")
+        location_desc_str = str(actual_location_description_for_error) if actual_location_description_for_error is not None else "an unspecified location"
+        return {"error": f"There was a network problem fetching weather for {location_desc_str}."}
     except aiohttp.ContentTypeError as e: # Explicitly catch ContentTypeError
+        # This might happen if the response is not JSON, even if status is 200
         print(f"ContentTypeError when fetching weather for {actual_location_description_for_error}: {e}")
         return {"error": f"Received unexpected data format when fetching weather for {actual_location_description_for_error}."}
     except Exception as e:
