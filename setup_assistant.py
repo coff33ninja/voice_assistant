@@ -179,19 +179,6 @@ def main():
 
             is_step_complete = checkpoints.get(step_name, False)
 
-            # TTS is always interactive for model selection, so we run it and mark it complete for this pass.
-            if step_name == "tts":
-                try:
-                    func_to_call(**func_args)
-                    checkpoints[step_name] = True
-                except Exception as e:
-                    print(f"Error during TTS configuration: {e}")
-                    checkpoints[step_name] = False  # Mark as failed
-                finally:
-                    save_checkpoints(checkpoints)
-                continue  # Move to the next step in SETUP_STEPS
-
-            # For other steps:
             run_this_step = False
             if not is_step_complete:
                 print("This step is not yet marked as complete.")
