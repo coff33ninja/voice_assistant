@@ -1,101 +1,220 @@
 import asyncio
+import torch  # Added for model loading and tensor operations
 from transformers import (
     DistilBertTokenizer,
-    DistilBertForSequenceClassification,
-    pipeline,
+    DistilBertConfig,  # Added for loading model config
+    # DistilBertForSequenceClassification is no longer used directly
+    # pipeline is no longer used
 )
 from .config import INTENT_MODEL_SAVE_PATH
-from typing import Tuple, Dict, Any
+from .joint_model import JointIntentSlotModel  # Added for the new model
+from typing import Tuple, Dict, Any, Optional  # Added Optional
 import pandas as pd
 import os
 
 intent_tokenizer = None
-intent_model = None
-intent_classifier_pipeline = None
+intent_model: Optional[JointIntentSlotModel] = None  # Type hint for clarity
+# intent_classifier_pipeline is removed
 
 # Dynamically generate INTENT_LABELS_MAP from CSV
-CSV_PATH = os.path.join(os.path.dirname(__file__), '../intent_data/intent_dataset.csv')
-df = pd.read_csv(CSV_PATH, on_bad_lines='skip')
-unique_labels = sorted(df['label'].unique())
-INTENT_LABELS_MAP = {idx: label for idx, label in enumerate(unique_labels)}
+# This remains the same, but we also need to consider id2label from model config later
+CSV_PATH = os.path.join(os.path.dirname(__file__), "../intent_data/intent_dataset.csv")
+df = pd.read_csv(CSV_PATH, on_bad_lines="skip")
+unique_labels = sorted(df["label"].unique())
+INTENT_LABELS_MAP = {
+    idx: label for idx, label in enumerate(unique_labels)
+}  # Used as a fallback or reference
 
 CONFIDENCE_THRESHOLD = 0.40  # Minimum confidence to accept a classified intent
 
+
 def initialize_intent_classifier():
-    global intent_tokenizer, intent_model, intent_classifier_pipeline
-    print("Initializing Intent Classifier...")
+    global intent_tokenizer, intent_model
+    print("Initializing Intent Classifier with JointIntentSlotModel...")
     try:
         intent_tokenizer = DistilBertTokenizer.from_pretrained(INTENT_MODEL_SAVE_PATH)
-        intent_model = DistilBertForSequenceClassification.from_pretrained(INTENT_MODEL_SAVE_PATH)
-        intent_classifier_pipeline = pipeline("text-classification", model=intent_model, tokenizer=intent_tokenizer)
-        print("Intent Classifier initialized.")
+
+        # Load the configuration
+        config = DistilBertConfig.from_pretrained(INTENT_MODEL_SAVE_PATH)
+
+        # Instantiate the model using the loaded config
+        intent_model = JointIntentSlotModel(config)
+
+        # Load the saved weights
+        model_weights_path = os.path.join(INTENT_MODEL_SAVE_PATH, "pytorch_model.bin")
+        if not os.path.exists(model_weights_path):
+            print(f"Error: Model weights not found at {model_weights_path}")
+            print(
+                "Ensure the model has been trained and saved correctly via setup_assistant.py."
+            )
+            raise FileNotFoundError(f"Model weights not found at {model_weights_path}")
+
+        intent_model.load_state_dict(
+            torch.load(model_weights_path, map_location=torch.device("cpu"))
+        )
+        intent_model.eval()  # Set the model to evaluation mode
+
+        print("Intent Classifier (JointIntentSlotModel) initialized.")
     except Exception as e:
-        print(f"Error initializing Intent Classifier from {INTENT_MODEL_SAVE_PATH}: {e}")
-        print("Ensure the model has been trained and saved correctly via setup_assistant.py.")
+        print(
+            f"Error initializing JointIntentSlotModel from {INTENT_MODEL_SAVE_PATH}: {e}"
+        )
+        print(
+            "Ensure the model has been trained and saved correctly via setup_assistant.py."
+        )
         raise
 
+
 async def detect_intent_async(text: str) -> Tuple[str, Dict[str, Any]]:
-    if intent_classifier_pipeline is None:
-        raise RuntimeError("Intent Classifier not initialized. Call initialize_intent_classifier() first.")
+    if intent_model is None or intent_tokenizer is None:  # Updated check
+        raise RuntimeError(
+            "Intent Classifier (JointIntentSlotModel) not initialized. Call initialize_intent_classifier() first."
+        )
 
     default_intent = "general_query"
-    entities: Dict[str, Any] = {} # Placeholder for entities
+    entities: Dict[str, Any] = {}
 
-    # The pipeline can return a list of dicts or a single dict
-    classifier_output = await asyncio.to_thread(intent_classifier_pipeline, text)
+    # Tokenize the input text
+    # Ensure the tokenizer is called in a way that's compatible with asyncio (if it involves blocking I/O)
+    # For DistilBertTokenizer, direct call is usually fine.
+    inputs = intent_tokenizer(
+        text, return_tensors="pt", truncation=True, padding=True, max_length=128
+    )  # Max length from training
 
-    # Ensure results is a list
-    results = list(classifier_output) if isinstance(classifier_output, list) else [classifier_output]
-    if not results:
-        print("Warning: Intent classifier returned no results.")
+    # Ensure model is on the correct device (e.g., CPU) if not already
+    # inputs = {k: v.to(intent_model.device) for k, v in inputs.items()} # Assuming model has a device attribute
+
+    # Get model predictions
+    with torch.no_grad():  # Disable gradient calculations for inference
+        outputs = await asyncio.to_thread(intent_model, **inputs)
+        intent_logits = outputs.intent_logits
+        slot_logits = outputs.slot_logits
+
+    # Process Intent Logits
+    intent_probabilities = torch.softmax(intent_logits, dim=-1)
+    confidence_score, predicted_intent_id = torch.max(intent_probabilities, dim=-1)
+
+    confidence_score = confidence_score.item()
+    predicted_intent_id = predicted_intent_id.item()
+
+    if confidence_score < CONFIDENCE_THRESHOLD:
+        print(
+            f"Intent score {confidence_score:.4f} below threshold {CONFIDENCE_THRESHOLD}. Falling back to {default_intent}."
+        )
         return default_intent, entities
 
-    top_result = results[0]  # Take the first result (highest probability)
-
-    label_str = top_result.get("label") if isinstance(top_result, dict) else None
-    score = top_result.get("score") if isinstance(top_result, dict) else 0.0
-    if label_str is None:
-        print("Warning: Could not parse label_str from classifier output.")
-        return default_intent, entities
-
-    print(
-        f"Intent classifier raw output: Label='{label_str}', Score={score:.4f} for text: '{text}'"
+    # Use the model's id2label for intent (if available from config)
+    detected_intent = (
+        intent_model.config.id2intent_label.get(predicted_intent_id, default_intent)
+        if hasattr(intent_model.config, "id2intent_label")
+        else INTENT_LABELS_MAP.get(predicted_intent_id, default_intent)
     )
 
-    # Ensure score is not None before comparison
-    if score is None:
-        score = 0.0
-    if score < CONFIDENCE_THRESHOLD:
-        print(
-            f"Intent score {score:.4f} below threshold {CONFIDENCE_THRESHOLD}. Falling back to general_query."
-        )
-        return default_intent, entities
+    print(
+        f"Detected intent: '{detected_intent}' with score {confidence_score:.4f} for text: '{text}'"
+    )
 
-    try:
-        # Expecting labels like 'LABEL_0', 'LABEL_1', etc.
-        label_idx = int(label_str.split("_")[1])
-        detected_intent = INTENT_LABELS_MAP.get(label_idx)
-        if detected_intent:
-            print(f"Detected intent: '{detected_intent}' with score {score:.4f}")
-            # The 'entities' column in the CSV is primarily for training models capable of NER.
-            # The current DistilBertForSequenceClassification model does not inherently extract entities.
-            # The following lookup is very brittle as it requires an exact match of the user's raw text
-            # with a training phrase, which is unlikely.
-            # For robust entity extraction, a dedicated NER model or a joint intent-entity model is needed.
-            # For now, 'entities' remains a placeholder.
-            #
-            # matching_row = df[(df['text'] == text) & (df['label'] == detected_intent)]
-            # if not matching_row.empty and 'entities' in matching_row.columns:
-            #     entities_str = matching_row.iloc[0]['entities']
-            #     if entities_str and pd.notna(entities_str) and entities_str.strip() and entities_str != '{}':
-            #         try: entities = json.loads(entities_str)
-            #         except json.JSONDecodeError: print(f"Could not parse entities from CSV: {entities_str}")
-            return detected_intent, entities
-        else:
-            print(f"Warning: Parsed label_idx {label_idx} not in INTENT_LABELS_MAP.")
-            return default_intent, entities
-    except (IndexError, ValueError, TypeError):
-        print(
-            f"Warning: Could not parse label_str '{label_str}' or map it to a known intent."
+    # Process Slot Logits
+    predicted_slot_ids = torch.argmax(slot_logits, dim=-1)
+    input_ids_list = inputs["input_ids"].squeeze().tolist()  # Get token IDs as a list
+    tokens = intent_tokenizer.convert_ids_to_tokens(input_ids_list)
+
+    # Get id2slot_label from model config (should have been saved during training)
+    id2slot_label = (
+        intent_model.config.id2slot_label
+        if hasattr(intent_model.config, "id2slot_label")
+        else {}
+    )
+
+    current_entity_value = ""
+    current_entity_type = ""
+    in_entity = False
+
+    for token_idx, (token, predicted_slot_id_tensor) in enumerate(
+        zip(tokens, predicted_slot_ids.squeeze())
+    ):
+        if token in [
+            intent_tokenizer.cls_token,
+            intent_tokenizer.sep_token,
+            intent_tokenizer.pad_token,
+        ]:
+            continue  # Skip special tokens
+
+        predicted_slot_label = id2slot_label.get(predicted_slot_id_tensor.item(), "O")
+
+        if predicted_slot_label.startswith("B-"):
+            if (
+                in_entity
+            ):  # If already capturing an entity, store it before starting new one
+                if current_entity_type and current_entity_value:
+                    entities[current_entity_type] = (
+                        entities.get(current_entity_type, "")
+                        + current_entity_value.strip()
+                        + " "
+                    )  # Append if multiple
+                    entities[current_entity_type] = entities[
+                        current_entity_type
+                    ].strip()  # Clean up trailing space
+            current_entity_value = ""  # Reset for new entity
+            current_entity_type = predicted_slot_label[2:]  # Get type from B-TAG
+            # Handle token reconstruction (simple concatenation, may need improvement for subwords)
+            current_entity_value += (
+                token.replace("##", "")
+                if "##" not in token
+                else token.replace("##", "")
+            )
+            in_entity = True
+        elif predicted_slot_label.startswith("I-"):
+            if in_entity and current_entity_type == predicted_slot_label[2:]:
+                current_entity_value += (
+                    " " + token.replace("##", "")
+                    if not token.startswith("##")
+                    else token.replace("##", "")
+                )
+            elif in_entity and current_entity_type != predicted_slot_label[2:]:
+                # Mismatch I-TAG, current entity ends. Start a new one if this is a B-TAG (handled by B- logic)
+                if current_entity_type and current_entity_value:
+                    entities[current_entity_type] = (
+                        entities.get(current_entity_type, "")
+                        + current_entity_value.strip()
+                        + " "
+                    )
+                    entities[current_entity_type] = entities[
+                        current_entity_type
+                    ].strip()
+                in_entity = False  # Reset
+                current_entity_value = ""
+                current_entity_type = ""
+                # If this I-TAG is for a new entity type but without a B-TAG, treat as O or start new B- if logic allows
+                # For now, we effectively treat it as O by resetting and not adding to current_entity_value
+        else:  # O tag or unexpected tag
+            if in_entity:  # Entity ended with O tag
+                if current_entity_type and current_entity_value:
+                    entities[current_entity_type] = (
+                        entities.get(current_entity_type, "")
+                        + current_entity_value.strip()
+                        + " "
+                    )
+                    entities[current_entity_type] = entities[
+                        current_entity_type
+                    ].strip()
+                in_entity = False
+                current_entity_value = ""
+                current_entity_type = ""
+
+    # After loop, check if an entity was still being processed
+    if in_entity and current_entity_type and current_entity_value:
+        entities[current_entity_type] = (
+            entities.get(current_entity_type, "") + current_entity_value.strip() + " "
         )
-        return default_intent, entities
+        entities[current_entity_type] = entities[current_entity_type].strip()
+
+    # Refine entity values (remove leading/trailing spaces from concatenated parts)
+    for key in entities:
+        entities[key] = (
+            entities[key].strip().replace(" ##", "").replace("##", "")
+        )  # General cleanup for subwords
+
+    print(f"Extracted Entities: {entities}")
+
+    return detected_intent, entities

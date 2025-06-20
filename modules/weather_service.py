@@ -57,6 +57,7 @@ async def get_current_location_coordinates_async() -> Optional[Tuple[float, floa
 
 async def get_weather_async(
     location_query: Optional[Union[str, Tuple[float, float]]] = None,
+    entities: Optional[Dict[str, Any]] = None,
 ) -> Optional[Dict[str, Any]]:
     if not api_key:
         print("Error: OpenWeather API key not configured.")
@@ -66,11 +67,52 @@ async def get_weather_async(
         "appid": api_key,
         "units": "metric"  # Or "imperial" for Fahrenheit
     }
-
+    actual_location_description_for_error = "the queried location" # Default
     coordinates_used: Optional[Tuple[float, float]] = None
-    actual_location_description_for_error = "the queried location"
 
-    if location_query is None:  # Request for current location
+    # 1. Handle date_reference entity for future forecasts
+    if entities and entities.get("date_reference"):
+        date_ref = str(entities.get("date_reference", "")).lower()
+        # Simple check for "today". More robust parsing might be needed for other current-day references.
+        is_today = "today" in date_ref or date_ref == "" # Empty might imply current from context
+
+        # Check if it's not today and implies a specific future day (e.g., "tomorrow", "next tuesday")
+        is_future_unsupported = not is_today and any(kw in date_ref for kw in ["tomorrow", "next", "on", "after", "evening", "morning", "pm", "am"])
+        if is_future_unsupported:
+            # A more sophisticated check could involve parsing date_ref with datetime utils
+            # and comparing against current date if it's a specific date like "July 20th"
+            # For now, broad keywords trigger the unsupported message.
+            try:
+                # Attempt to parse with reminder_utils helper if available and applicable
+                # This is a placeholder for potential future integration if complex date parsing is needed here
+                pass
+            except Exception:
+                pass # Ignore parsing errors for this check, rely on keywords
+
+            if date_ref not in ["today", "now", "current"]: # Check if it's explicitly not for the current time
+                 print(f"Forecast requested for '{entities.get('date_reference')}', but only current weather is supported.")
+                 return {"message": f"I can only provide current weather, not forecasts for {entities.get('date_reference')}."}
+
+
+    # 2. Determine location for the API call, prioritizing entities
+    entity_location = str(entities.get("location")) if entities and entities.get("location") else None
+
+    if entity_location:
+        params["q"] = entity_location
+        actual_location_description_for_error = entity_location
+        print(f"Using location from entities: {entity_location}")
+    elif isinstance(location_query, str): # Fallback to location_query if it's a string
+        params["q"] = location_query
+        actual_location_description_for_error = location_query
+        print(f"Using location from location_query argument: {location_query}")
+    elif isinstance(location_query, tuple) and len(location_query) == 2: # Lat/Lon from argument
+        params["lat"] = str(location_query[0])
+        params["lon"] = str(location_query[1])
+        coordinates_used = location_query
+        actual_location_description_for_error = f"coordinates (lat: {location_query[0]}, lon: {location_query[1]})"
+        print(f"Using coordinates from location_query argument: {location_query}")
+    elif location_query is None: # No specific location query, try IP geolocation
+        print("No location provided via entities or arguments, attempting IP geolocation.")
         coordinates_used = await get_current_location_coordinates_async()
         if coordinates_used:
             params["lat"] = str(coordinates_used[0])
@@ -78,23 +120,13 @@ async def get_weather_async(
             actual_location_description_for_error = f"current location (lat: {coordinates_used[0]}, lon: {coordinates_used[1]})"
         else:
             print("Error: Could not determine current location for weather.")
-            return None
-    elif (
-        isinstance(location_query, tuple) and len(location_query) == 2
-    ):  # Lat/Lon provided
-        params["lat"] = str(location_query[0])
-        params["lon"] = str(location_query[1])
-        coordinates_used = location_query
-        actual_location_description_for_error = (
-            f"coordinates (lat: {location_query[0]}, lon: {location_query[1]})"
-        )
-    elif isinstance(location_query, str):  # City name provided
-        params["q"] = location_query
-        actual_location_description_for_error = location_query
+            # Return a more specific message if IP geo fails but was the intended method
+            return {"error": "Could not determine your current location for the weather."}
     else:
-        print(f"Error: Invalid location_query type: {type(location_query)}")
+        print(f"Error: Invalid location_query type: {type(location_query)} and no usable entity found.")
         return None
 
+    print(f"Requesting weather with params: {params}")
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get(OPENWEATHER_API_URL, params=params) as response:
@@ -108,15 +140,18 @@ async def get_weather_async(
                         else None
                     )
 
-                    if not final_city_name:
-                        if isinstance(location_query, str):
-                            final_city_name = location_query
-                        elif location_query is None and coordinates_used:
-                            final_city_name = f"your current area (around Lat {coordinates_used[0]:.2f}, Lon {coordinates_used[1]:.2f})"
-                        elif isinstance(location_query, tuple) and coordinates_used:
-                            final_city_name = f"area at Lat {coordinates_used[0]:.2f}, Lon {coordinates_used[1]:.2f}"
-                        else:
-                            final_city_name = "the queried location"
+                    # Determine the best city name to return
+                    if not final_city_name: # If API didn't return a name or it was empty
+                        if "q" in params: # We queried by name (from entity or location_query arg)
+                            final_city_name = params["q"]
+                        elif coordinates_used: # We queried by coordinates
+                            if location_query is None: # IP Geo was used
+                                final_city_name = f"your current area (around Lat {coordinates_used[0]:.2f}, Lon {coordinates_used[1]:.2f})"
+                            else: # Coordinates were passed as argument
+                                final_city_name = f"area at Lat {coordinates_used[0]:.2f}, Lon {coordinates_used[1]:.2f}"
+                        else: # Should not happen if params were correctly set, but as a fallback
+                            final_city_name = actual_location_description_for_error
+
                     return {
                         "description": data["weather"][0]["description"],
                         "temp": data["main"]["temp"],
@@ -124,6 +159,11 @@ async def get_weather_async(
                     }
     except aiohttp.ClientError as e:
         print(f"Error fetching weather for {actual_location_description_for_error}: {e}")
+        # Check for 404 specifically for city not found, return a specific message.
+        if hasattr(e, 'status') and e.status == 404 and ("q" in params): # type: ignore
+            return {"error": f"Sorry, I couldn't find weather data for '{params['q']}'. Please check the location name."}
+        # Generic error for other client issues or if location was by coords.
+        return {"error": f"There was a problem fetching weather for {actual_location_description_for_error}."}
     except Exception as e:
         print(f"Unexpected error in get_weather_async for {actual_location_description_for_error}: {e}")
     return None

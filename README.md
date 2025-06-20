@@ -12,11 +12,28 @@ The voice assistant uses a combination of local and cloud-based services for its
 
 * **Wakeword Detection**: Uses Porcupine (primary) or Precise (fallback) for detecting the "Hey Mika" wakeword.
 * **Speech-to-Text (STT)**: Utilizes WhisperX for transcribing spoken audio to text.
-* **Intent Classification**: Employs a fine-tuned DistilBERT model to understand the user's intent from the transcribed text.
+* **Intent Classification**: Employs a fine-tuned **joint intent and slot-filling model (based on DistilBERT)** to understand the user's intent and extract key entities (like task, time, location) from the transcribed text.
 * **Text-to-Speech (TTS)**: Uses Coqui TTS to generate spoken responses.
 * **Language Model (LLM)**: Leverages Ollama (with a model like Llama 2) for handling general queries and providing conversational responses.
 * **Task-Specific Modules**: Includes dedicated modules for weather, reminders, and potentially more in the future.
 * **Calendar**: Generates and manages an `.ics` calendar file for reminders, weather entries, and direct event additions.
+
+### Entity Extraction Details
+
+The NLU model is trained to extract the following key entity types from user commands, enabling a more nuanced understanding of requests:
+
+*   `subject`: The main description of a task or event (e.g., "call mom", "project meeting").
+*   `time_phrase`: Natural language expressions of time, date, or duration (e.g., "tomorrow at 3pm", "in an hour", "next Monday"). This is typically parsed by the system to determine specific datetime objects.
+*   `date_reference`: Specific references to dates, often relative or named (e.g., "today", "tomorrow", "July 10th").
+*   `time`: Specific references to times of day (e.g., "5 PM", "morning", "noon").
+*   `location`: Geographical places or named locations (e.g., "London", "the office", "current location").
+*   `contact_name`: Names of people or groups involved (e.g., "John", "Marketing team", "Dr. Smith").
+*   `duration`: Specific lengths of time (e.g., "1 hour", "for 30 minutes", "two days").
+*   `topic`: The subject matter of a general knowledge question (e.g., "capital of France", "how photosynthesis works").
+*   `item_to_add` / `item_to_remove`: Specific items for list management commands (e.g., "milk" for a shopping list).
+*   `text_to_translate` / `target_language`: The text to be translated and the language to translate it into.
+
+The model's ability to accurately extract these entities is directly dependent on comprehensive annotations within the `intent_data/intent_dataset.csv` training data.
 
 ## Features
 
@@ -31,6 +48,7 @@ The voice assistant uses a combination of local and cloud-based services for its
 * **Calendar File Generation**: Creates an `assistant_calendar.ics` file that can be imported/synced with most calendar applications.
 * **Greeting/Goodbye**: Handles basic conversational openings and closings.
 * **Chat with AI**: Allows open-ended conversations with the configured Ollama LLM, with an option to save the interaction.
+* **Enhanced Command Understanding**: Actively extracts details (entities) from commands, leading to more reliable interpretation of requests for reminders, weather, etc.
 
 ## Project Structure
 
@@ -54,7 +72,8 @@ voice_assistant/
 │   ├── gui_utils.py          # Simple Tkinter GUI for reminders
 │   ├── greeting_module.py    # Handles greetings and goodbyes
 │   ├── install_dependencies.py # Dependency installer
-│   ├── intent_classifier.py  # Intent detection logic
+│   ├── intent_classifier.py  # Intent classification and entity extraction logic
+│   ├── joint_model.py        # Defines the joint intent and slot-filling model architecture
 │   ├── llm_service.py        # LLM interaction
 │   ├── model_training.py     # Script to train the intent model
 │   ├── reminder_utils.py     # Parsing reminder requests
@@ -66,7 +85,7 @@ voice_assistant/
 │   ├── weather_service.py    # Weather fetching
 │   └── whisperx_setup.py     # WhisperX initial setup and test
 ├── intent_data/              # Data for intent classification and responses
-│   └── intent_dataset.csv    # CSV: utterances mapped to intents (see USER_INTENTS.md for intent details)
+│   └── intent_dataset.csv    # CSV: utterances mapped to intents and annotated with entities (see USER_INTENTS.md for intent details). Entity annotations are crucial for training the slot-filling capabilities of the model.
 │   └── intent_responses.csv  # CSV: predefined responses mapped to intents
 ├── scripts/                  # Utility scripts (e.g., data conversion, maintenance, helper tools)
 │   └── intent_validator.py   # Script to validate intent data consistency and model retraining
@@ -156,7 +175,7 @@ Please note: A folder named `not-implemented` containing modules for features li
 * `voice_assistant.py`: Main application orchestrator.
 * `wakeword_detector.py`: Handles wakeword detection using Precise or Porcupine.
 * `modules/stt_service.py`: Transcribes audio to text using WhisperX.
-* `modules/intent_classifier.py`: Determines user intent.
+* `modules/intent_classifier.py`: Determines user intent and extracts relevant entities from the command.
 * `modules/llm_service.py`: Handles general queries via Ollama.
 * `modules/tts_service.py`: Converts text responses to speech. Handles XTTS models by using assets/sample\_speaker.wav if configured.
 * `modules/contractions.py`: Normalizes user input text.

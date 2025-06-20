@@ -144,7 +144,7 @@ async def process_command(transcription: str):
 
     intent, extracted_entities = await detect_intent_async(normalized_transcription)
     logger.info(f"Detected intent: {intent}, Entities: {extracted_entities}")
-    
+
         # --- Heuristic check for "goodbye" --- Moved after the NLU
     goodbye_phrases = ["goodbye", "bye", "see you later", "farewell", "exit", "quit", "terminate"]
     if any(phrase in normalized_transcription.lower() for phrase in goodbye_phrases):
@@ -208,11 +208,12 @@ async def handle_set_reminder_intent(
         not task or not reminder_time_obj
     ):  # Fallback to full parsing if entities are insufficient
         logger.info(
-            "Entities for set_reminder not fully resolved or missing, falling back to full parse_reminder."
+            "Entities for set_reminder not fully resolved or missing, falling back to full parse_reminder with entities."
         )
-        parsed_reminder_data = parse_reminder(normalized_transcription)
+        # Pass entities to parse_reminder, which will use them or fall back to its own regex
+        parsed_reminder_data = parse_reminder(normalized_transcription, entities=entities)
         if parsed_reminder_data:
-            task = parsed_reminder_data["task"]
+            task = parsed_reminder_data["task"] # Use results from parse_reminder
             reminder_time_obj = parsed_reminder_data["time"]
         else:
             response_to_speak = get_response("set_reminder_error")
@@ -258,10 +259,10 @@ async def handle_set_reminder_intent(
 async def handle_list_reminders_intent(
     normalized_transcription: str, entities: Dict[str, Any]
 ) -> str:
-    date_reference = entities.get("date_reference")
-    target_date = parse_list_reminder_request(
-        date_reference or normalized_transcription or ""
-    )
+    # date_reference = entities.get("date_reference") # This is now handled inside parse_list_reminder_request
+    # The first argument to parse_list_reminder_request is the full text,
+    # and entities are passed as a keyword argument.
+    target_date = parse_list_reminder_request(normalized_transcription, entities=entities)
     response = ""
     if target_date:
         reminders_found = await get_reminders_for_date_async(target_date)
@@ -324,25 +325,35 @@ async def handle_get_weather_intent(
 
     weather_data = None
     if use_current_location:
-        logger.info("Fetching weather for current location...")
+        logger.info("Fetching weather for current location (entities will be passed)...")
         await text_to_speech_async("Fetching weather for current location...")
-        weather_data = await get_weather_async(None)
-        if weather_data:
+        # Pass entities to get_weather_async
+        weather_data = await get_weather_async(location_query=None, entities=entities)
+        if weather_data and "error" not in weather_data and "message" not in weather_data :
             response = get_response("get_weather_current", city=weather_data["city"], description=weather_data["description"], temp=weather_data["temp"])
             today = datetime.datetime.now().replace(hour=9, minute=0, second=0, microsecond=0)
+        elif weather_data and "message" in weather_data: # Forecast message
+            response = weather_data["message"]
+        elif weather_data and "error" in weather_data: # Error from service
+            response = weather_data["error"]
             add_event_to_calendar(f"Weather in {weather_data['city']}: {weather_data['description']}", today, description=f"Temperature: {weather_data['temp']:.1f}°C")
         else: # pragma: no cover
             response = get_response("get_weather_current_error")
     elif location_name_to_fetch:
-        logger.info(f"Fetching weather for {location_name_to_fetch}...") # Changed from print
+        logger.info(f"Fetching weather for {location_name_to_fetch} (entities will be passed)...")
         await text_to_speech_async(f"Fetching weather for {location_name_to_fetch}...")
-        weather_data = await get_weather_async(location_name_to_fetch)
-        if weather_data:
+        # Pass entities to get_weather_async
+        weather_data = await get_weather_async(location_query=location_name_to_fetch, entities=entities)
+        if weather_data and "error" not in weather_data and "message" not in weather_data:
             response = get_response("get_weather_city", city=weather_data["city"], description=weather_data["description"], temp=weather_data["temp"])
-        else:
+        elif weather_data and "message" in weather_data: # Forecast message
+            response = weather_data["message"]
+        elif weather_data and "error" in weather_data: # Error from service
+            response = weather_data["error"]
+        else: # General error if weather_data is None or unexpected
             response = get_response("get_weather_city_error", location=location_name_to_fetch)
 
-    if not response: # Fallback if no specific weather response was generated
+    if not response: # Fallback if no specific weather response (e.g. all conditions above failed)
         response = get_response("get_weather_unsure")
 
     await text_to_speech_async(response)
@@ -423,15 +434,30 @@ async def handle_add_calendar_event_intent(
     normalized_transcription: str, entities: Dict[str, Any]
 ) -> str:
     response = ""
-    summary = entities.get("event_summary")
-    date_str = entities.get("event_datetime_str")
+    summary = None
     start_time_obj = None
+    used_entities = False
 
-    if date_str and dateparser:
-        start_time_obj = dateparser.parse(date_str, settings={"PREFER_DATES_FROM": "future"})
+    # Try to get info from entities first
+    entity_summary = entities.get("summary") or entities.get("task") # Common entity keys for event description
+    entity_time_phrase = entities.get("time_phrase") or entities.get("event_datetime_str") # Common entity keys for time
 
-    if not summary or not start_time_obj:
-        logger.info("Entities for add_calendar_event not fully resolved or missing, falling back to regex.")
+    if entity_summary and entity_time_phrase and dateparser:
+        logger.info(f"Attempting to parse calendar event from entities: summary='{entity_summary}', time_phrase='{entity_time_phrase}'")
+        start_time_obj = dateparser.parse(entity_time_phrase, settings={"PREFER_DATES_FROM": "future"})
+        if start_time_obj:
+            summary = entity_summary
+            used_entities = True
+            logger.info(f"Successfully parsed event from entities: summary='{summary}', start_time='{start_time_obj}'")
+        else:
+            logger.warning(f"Failed to parse time_phrase '{entity_time_phrase}' from entities.")
+
+    if not summary or not start_time_obj: # If entities didn't provide full info or parsing failed
+        if used_entities: # Log if we tried entities but they were insufficient
+            logger.info("Entities were present but insufficient for calendar event, falling back to regex.")
+        else: # Log if entities were not even present for summary/time
+            logger.info("No suitable entities for calendar event summary/time, falling back to regex.")
+
         patterns = [
             r"add (.+?)(?:\s+on|\s+at|\s+for)\s+(.+)",
             r"schedule (.+?)(?:\s+on|\s+at|\s+for)\s+(.+)",
