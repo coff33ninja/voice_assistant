@@ -23,6 +23,44 @@ from modules.joint_model import (
 
 
 def fine_tune_model(dataset_path, model_save_path):
+    # --- Dictionary augmentation step ---
+    import subprocess
+    import os
+    PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+    DICT_AUGMENT_SCRIPT_PATH = os.path.join(PROJECT_ROOT, "scripts", "augment_dictionaries.py")
+    print("Running dictionary augmentation before training...")
+    try:
+        dict_augment_result = subprocess.run(
+            [sys.executable, DICT_AUGMENT_SCRIPT_PATH],
+            capture_output=True, text=True, check=False
+        )
+        if dict_augment_result.returncode != 0:
+            print(f"Warning: Dictionary augmentation failed. Stderr: {dict_augment_result.stderr.strip()}")
+        else:
+            print(f"Dictionary augmentation output: {dict_augment_result.stdout.strip()}")
+    except Exception as e:
+        print(f"Warning: Exception during dictionary augmentation: {e}")
+
+    # --- Dataset augmentation step ---
+    AUGMENT_SCRIPT_PATH = os.path.join(PROJECT_ROOT, "scripts", "augment_intent_dataset.py")
+    AUGMENTED_DATASET_PATH = os.path.join(PROJECT_ROOT, "intent_data", "intent_dataset_augmented.csv")
+    print("Running dataset augmentation before training...")
+    augment_command = [sys.executable, AUGMENT_SCRIPT_PATH]
+    try:
+        augment_result = subprocess.run(
+            augment_command,
+            capture_output=True, text=True, check=False
+        )
+        if augment_result.returncode != 0:
+            print(f"Warning: Augmentation failed. Stderr: {augment_result.stderr.strip()}")
+        else:
+            print(f"Augmentation output: {augment_result.stdout.strip()}")
+    except Exception as e:
+        print(f"Warning: Exception during augmentation: {e}")
+
+    # Use augmented dataset if it exists
+    dataset_path = AUGMENTED_DATASET_PATH if os.path.isfile(AUGMENTED_DATASET_PATH) else dataset_path
+
     print(f"Starting fine-tuning process... [pid={os.getpid()}]")
     print(f"Using dataset: {dataset_path}")
     print(f"Saving model to: {model_save_path}")
@@ -265,6 +303,10 @@ def fine_tune_model(dataset_path, model_save_path):
 
 
 if __name__ == "__main__":
+    PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+    AUGMENT_SCRIPT_PATH = os.path.join(PROJECT_ROOT, "scripts", "augment_intent_dataset.py")
+    AUGMENTED_DATASET_PATH = os.path.join(PROJECT_ROOT, "intent_data", "intent_dataset_augmented.csv")
+
     parser = argparse.ArgumentParser(
         description="Fine-tune an intent classification model."
     )
@@ -281,10 +323,6 @@ if __name__ == "__main__":
     print(f"Model training script ({__file__}) started.")
     print(f"Received dataset_path: {args.dataset_path}")
     print(f"Received model_save_path: {args.model_save_path}")
-
-    if not os.path.isfile(args.dataset_path):
-        print(f"Error: Dataset file not found at {args.dataset_path}")
-        sys.exit(1)  # Use sys.exit for script termination
 
     fine_tune_model(args.dataset_path, args.model_save_path)
     print("Model training script finished successfully.")

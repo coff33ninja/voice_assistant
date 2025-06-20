@@ -63,32 +63,68 @@ voice_assistant/
 │   ├── audio_utils.py
 │   ├── calendar_utils.py   # Calendar file (.ics) management
 │   ├── config.py             # Configuration variables
+│   ├── config_env.py         # Environment-specific configurations
 │   ├── contractions.py       # Text normalization
 │   ├── dataset.py            # Loads intent data from intent_data/intent_dataset.csv
 │   ├── db_manager.py         # Database interactions for reminders
 │   ├── db_setup.py
+│   ├── device_detector.py    # Network device discovery and management
 │   ├── download_and_models.py # Downloads TTS/Precise models
 │   │                           # Plays sample speaker audio for XTTS
-│   ├── gui_utils.py          # Simple Tkinter GUI for reminders
+│   ├── error_handling.py     # Centralized error handling utilities
+│   ├── file_watcher_service.py # Monitors files for changes (e.g., config, data)
 │   ├── greeting_module.py    # Handles greetings and goodbyes
+│   ├── gui_utils.py          # Simple Tkinter GUI for reminders
 │   ├── install_dependencies.py # Dependency installer
 │   ├── intent_classifier.py  # Intent classification and entity extraction logic
+│   ├── intent_logic.py       # Core intent handling logic
 │   ├── joint_model.py        # Defines the joint intent and slot-filling model architecture
 │   ├── llm_service.py        # LLM interaction
 │   ├── model_training.py     # Script to train the intent model
+│   ├── normalization_data/   # Directory for normalization and augmentation resources
+│   │   ├── common_misspellings_map.json
+│   │   ├── contractions_map.json
+│   │   ├── custom_dictionary.txt
+│   │   ├── ... (augmented/merged dictionary files)
+│   ├── not-implemented/      # Temporarily removed features under development
+│   │   ├── configs/
+│   │   ├── device_manager.py
+│   │   ├── find_devices.py
+│   │   ├── general.py
+│   │   ├── ping.py
+│   │   ├── server.py
+│   │   ├── shutdown.py
+│   │   ├── speedtest.py
+│   │   ├── system_info.py
+│   │   ├── weather.py
+│   │   ├── wol.py
+│   │   ├── __init__.py
+│   │   └── __pycache__/
+│   ├── ollama_setup.py
 │   ├── reminder_utils.py     # Parsing reminder requests
 │   ├── retrain_utils.py      # Utilities for triggering retraining
+│   ├── stt_model_selection.py # STT model selection and testing
 │   ├── stt_service.py        # Speech-to-text
 │   ├── tts_service.py        # Text-to-speech
 │   │                           # Handles XTTS with assets/sample_speaker.wav
 │   ├── utils.py
 │   ├── weather_service.py    # Weather fetching
+│   ├── whisper_setup.py
 │   └── whisperx_setup.py     # WhisperX initial setup and test
 ├── intent_data/              # Data for intent classification and responses
-│   └── intent_dataset.csv    # CSV: utterances mapped to intents and annotated with entities (see USER_INTENTS.md for intent details). Entity annotations are crucial for training the slot-filling capabilities of the model.
-│   └── intent_responses.csv  # CSV: predefined responses mapped to intents
+│   ├── intent_dataset.csv    # CSV: utterances mapped to intents and annotated with entities (see USER_INTENTS.md for intent details). Entity annotations are crucial for training the slot-filling capabilities of the model.
+│   ├── intent_dataset_augmented.csv # Augmented intent dataset with paraphrases, misspellings, etc.
+│   ├── intent_responses.csv  # CSV: predefined responses mapped to intents
+│   └── augmentation_stats.json # JSON: stats and logs from the latest data augmentation
 ├── scripts/                  # Utility scripts (e.g., data conversion, maintenance, helper tools)
-│   └── intent_validator.py   # Script to validate intent data consistency and model retraining
+│   ├── augment_dictionaries.py # Augments and merges all dictionary resources
+│   ├── augment_intent_dataset.py # Augments the intent dataset with paraphrasing, misspellings, and more
+│   ├── intent_validator.py   # Script to validate intent data consistency and model retraining
+│   ├── models/
+│   │   ├── intent_dataset.csv
+│   │   └── intent_responses.csv
+│   ├── __init__.py
+│   └── __pycache__/
 ├── setup_assistant.py        # Main setup script
 ├── voice_assistant.py        # Main application script
 ├── USER_INTENTS.md           # Describes available user commands/intents
@@ -184,9 +220,37 @@ Please note: A folder named `not-implemented` containing modules for features li
 * `setup_assistant.py`: Comprehensive setup script for all components.
 * `modules/download_and_models.py`: Handles downloading of TTS and Precise models, including sample playback for TTS which uses assets/sample\_speaker.wav for XTTS models.
 
-## P.S. Regarding the `not-implemented` Folder
+## 🛠️ Data & Resource Augmentation Pipeline
 
-**Important Note:** For users familiar with earlier versions, a `not-implemented` folder previously existed. This folder contained modules for features under development, such as device management (including Wake-on-LAN and status checks), network device discovery, system information utilities, and internet speed testing.
-It has been **temporarily removed** to facilitate a **focused refactor** of the project's core architecture.
+This project uses a robust, automated augmentation pipeline for both training data and dictionary resources. This ensures that all models and logic always use the freshest, most comprehensive data available.
 
-This refactoring aims to enhance stability and maintainability. These features are planned for **re-integration with improved functionality** in a future release. We appreciate your patience as we work to enhance the assistant.
+### Automated Augmentation Steps
+
+**Before every model training or retraining:**
+- The following scripts are run automatically:
+  - `scripts/augment_dictionaries.py`: Updates/augments all dictionary files (contractions, misspellings, synonyms, normalization, etc.). Both original and augmented versions are saved and available for use.
+  - `scripts/augment_intent_dataset.py`: Augments the intent dataset with paraphrases, contractions, misspellings, and more. The augmented dataset is always used for training if available.
+
+**Dictionary Handling:**
+- All modules that use dictionaries (e.g., `modules/contractions.py`, normalization, etc.) are designed to load the augmented version if it exists, falling back to the original if not.
+- A merged view (`merged_dictionaries.json`) is also generated for downstream use.
+
+**Intent Dataset Handling:**
+- Training and retraining always use the latest augmented dataset (`intent_dataset_augmented.csv`) if present.
+
+**Stats & Logging:**
+- Both augmentation scripts log stats (counts, file paths, etc.) for transparency and debugging.
+- Hardware info (CPU/GPU) is logged and included in augmentation stats.
+
+### Key Scripts
+
+- `scripts/augment_dictionaries.py`: Augments and merges all dictionary resources. Always run before training.
+- `scripts/augment_intent_dataset.py`: Augments the intent dataset with paraphrasing, misspellings, and more.
+- `scripts/intent_validator.py`: Validates intent data consistency and can be run after augmentation for sanity checks.
+
+### Design Strategy
+
+- **Always Up-to-Date:** All training and inference steps use the most recent, augmented data and resources.
+- **Non-Destructive:** Original files are never overwritten; augmented versions are saved separately.
+- **Extensible:** New dictionary/resource types can be added to the augmentation pipeline with minimal changes.
+- **Centralized Automation:** All augmentation and validation steps are triggered automatically from the training pipeline (`modules/model_training.py`), so no manual intervention is needed.
