@@ -165,20 +165,29 @@ def install_python_dependencies():
 
     # Step 2: Clean conflicting packages
     logger.info("Uninstalling conflicting packages...")
-    run_command(
-        [
-            sys.executable,
-            "-m",
-            "pip",
-            "uninstall",
-            "-y",
-            "torch",
-            "torchvision",
-            "torchaudio",
-            "whisperx",
-        ],
-        "Failed to uninstall conflicting packages",
-    )
+    try:
+        run_command(
+            [
+                sys.executable,
+                "-m",
+                "pip",
+                "uninstall",
+                "-y",
+                "torch",
+                "torchvision",
+                "torchaudio",
+                "whisperx",
+            ],
+            "Failed to uninstall conflicting packages",
+        )
+    except Exception as e:
+        logger.error(f"Failed to uninstall conflicting packages: {e}")
+        if platform.system() == "Windows":
+            logger.warning(
+                "Uninstall failed. On Windows, this is often due to files being in use or permission issues. "
+                "Please close all Python processes (including VS Code and terminals), run this script as administrator, "
+                "or manually delete the problematic files from .venv/Lib/site-packages. Then re-run the setup."
+            )
 
     # Step 3: Install pyaudio (for precise-runner)
     # Note: PyTorch installation is now handled by the 'device_detection' step in setup_assistant.py
@@ -208,6 +217,10 @@ def install_python_dependencies():
             "-m",
             "pip",
             "install",
+            # Pin critical dependencies for compatibility
+            "numpy<2.0.0",
+            "networkx<3.0.0",
+            "fsspec<=2024.6.1",
             "whisperx",
             "onnxruntime==1.17.3",  # Pin onnxruntime version
             "TTS==0.22.0",
@@ -238,16 +251,10 @@ def install_python_dependencies():
         "Failed to install core dependencies",
     )
 
-    # Step 4b: Install OpenAI Whisper (standard)
-    logger.info("Installing OpenAI Whisper (standard)...")
+    # Step 4b: Install OpenAI Whisper (standard, pinned for compatibility)
+    logger.info("Installing OpenAI Whisper (standard, pinned for compatibility)...")
     run_command(
-        [
-            sys.executable,
-            "-m",
-            "pip",
-            "install",
-            "openai-whisper-20231117"
-        ],
+        [sys.executable, "-m", "pip", "install", "openai-whisper==20231106"],
         "Failed to install OpenAI Whisper (standard)",
     )
 
