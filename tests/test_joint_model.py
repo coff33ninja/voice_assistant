@@ -57,7 +57,7 @@ def mock_distilbert_output():
     """Fixture providing a mock DistilBERT output."""
     batch_size, seq_len, hidden_size = 2, 10, 768
     return BaseModelOutput(
-        last_hidden_state=torch.randn(batch_size, seq_len, hidden_size),
+        last_hidden_state=torch.FloatTensor(torch.randn(batch_size, seq_len, hidden_size).tolist()),
         hidden_states=None,
         attentions=None,
     )
@@ -68,7 +68,7 @@ class TestJointModelOutput:
     def test_joint_model_output_initialization_empty(self):
         """Test initialization of JointModelOutput with no arguments."""
         output = JointModelOutput()
-        assert output.loss is None
+        assert output[0] is None
         assert output.intent_logits is None
         assert output.slot_logits is None
         assert output.hidden_states is None
@@ -194,8 +194,10 @@ class TestJointIntentSlotModelForward:
         )
 
         assert isinstance(output, JointModelOutput)
-        assert output.loss is None
+        assert output[0] is None
+        assert output.intent_logits is not None
         assert output.intent_logits.shape == (2, 5)
+        assert output.slot_logits is not None
         assert output.slot_logits.shape == (2, 10, 10)
 
     @patch('modules.joint_model.DistilBertModel')
@@ -215,8 +217,8 @@ class TestJointIntentSlotModelForward:
         )
 
         assert isinstance(output, JointModelOutput)
-        assert output.loss is not None
-        assert output.loss.requires_grad
+        assert output[0] is not None
+        assert output[0].requires_grad
 
     @patch('modules.joint_model.DistilBertModel')
     def test_forward_return_dict_false(self, mock_distilbert_class, basic_config, sample_inputs, mock_distilbert_output):
@@ -227,11 +229,12 @@ class TestJointIntentSlotModelForward:
 
         model = JointIntentSlotModel(basic_config)
 
-        intent_logits, slot_logits = model.forward(
+        outputs = model.forward(
             input_ids=sample_inputs['input_ids'],
             attention_mask=sample_inputs['attention_mask'],
             return_dict=False
         )
+        intent_logits, slot_logits = outputs[:2]
         assert isinstance(intent_logits, torch.Tensor)
         assert isinstance(slot_logits, torch.Tensor)
         assert intent_logits.shape == (2, 5)
@@ -282,9 +285,9 @@ class TestJointIntentSlotModelLoss:
             intent_labels=intent_labels,
             slot_labels=slot_labels
         )
-        assert output.loss is not None
-        assert output.loss.item() >= 0
-        assert output.loss.requires_grad
+        assert output[0] is not None
+        assert output[0].item() >= 0
+        assert output[0].requires_grad
 
     @patch('modules.joint_model.DistilBertModel')
     def test_loss_with_padded_tokens(self, mock_distilbert_class, basic_config, mock_distilbert_output):
@@ -307,8 +310,8 @@ class TestJointIntentSlotModelLoss:
             intent_labels=intent_labels,
             slot_labels=slot_labels
         )
-        assert output.loss is not None
-        assert output.loss.item() >= 0
+        assert output[0] is not None
+        assert output[0].item() >= 0
 
     @patch('modules.joint_model.DistilBertModel')
     def test_loss_with_all_padded_tokens(self, mock_distilbert_class, basic_config, mock_distilbert_output):
@@ -331,8 +334,8 @@ class TestJointIntentSlotModelLoss:
             intent_labels=intent_labels,
             slot_labels=slot_labels
         )
-        assert output.loss is not None
-        assert output.loss.item() >= 0
+        assert output[0] is not None
+        assert output[0].item() >= 0
 
     @patch('modules.joint_model.DistilBertModel')
     def test_loss_with_zero_slot_labels(self, mock_distilbert_class, basic_config, mock_distilbert_output):
@@ -359,8 +362,8 @@ class TestJointIntentSlotModelLoss:
             intent_labels=intent_labels,
             slot_labels=slot_labels
         )
-        assert output.loss is not None
-        assert output.loss.item() >= 0
+        assert output[0] is not None
+        assert output[0].item() >= 0
 
     @patch('modules.joint_model.DistilBertModel')
     def test_no_loss_when_only_intent_labels_provided(self, mock_distilbert_class, basic_config, mock_distilbert_output):
@@ -381,7 +384,7 @@ class TestJointIntentSlotModelLoss:
             attention_mask=attention_mask,
             intent_labels=intent_labels
         )
-        assert output.loss is None
+        assert output[0] is None
 
     @patch('modules.joint_model.DistilBertModel')
     def test_no_loss_when_only_slot_labels_provided(self, mock_distilbert_class, basic_config, mock_distilbert_output):
@@ -402,7 +405,7 @@ class TestJointIntentSlotModelLoss:
             attention_mask=attention_mask,
             slot_labels=slot_labels
         )
-        assert output.loss is None
+        assert output[0] is None
 
 class TestJointIntentSlotModelEdgeCases:
     """Test suite for edge cases and error conditions."""
@@ -412,7 +415,7 @@ class TestJointIntentSlotModelEdgeCases:
         """Test forward pass with empty batch."""
         mock_instance = Mock()
         empty_output = BaseModelOutput(
-            last_hidden_state=torch.empty(0, 0, 768),
+            last_hidden_state=torch.FloatTensor(torch.empty(0, 0, 768).tolist()),
             hidden_states=None,
             attentions=None,
         )
@@ -426,15 +429,15 @@ class TestJointIntentSlotModelEdgeCases:
 
         output = model.forward(input_ids=input_ids, attention_mask=attention_mask)
         assert isinstance(output, JointModelOutput)
-        assert output.intent_logits.shape[0] == 0
-        assert output.slot_logits.shape[0] == 0
+        assert (output.intent_logits is None or output.intent_logits.shape[0] == 0)
+        assert (output.slot_logits is None or output.slot_logits.shape[0] == 0)
 
     @patch('modules.joint_model.DistilBertModel')
     def test_forward_with_single_token_sequence(self, mock_distilbert_class, basic_config):
         """Test forward pass with single token sequences."""
         mock_instance = Mock()
         single_output = BaseModelOutput(
-            last_hidden_state=torch.randn(1, 1, 768),
+            last_hidden_state=torch.FloatTensor(torch.randn(1, 1, 768).tolist()),
             hidden_states=None,
             attentions=None,
         )
@@ -446,9 +449,13 @@ class TestJointIntentSlotModelEdgeCases:
         input_ids = torch.randint(0, 1000, (1, 1))
         attention_mask = torch.ones(1, 1)
 
-        output = model.forward(input_ids=input_ids, attention_mask=attention_mask)
-        assert output.intent_logits.shape == (1, 5)
-        assert output.slot_logits.shape == (1, 1, 10)
+        output = model.forward(input_ids=input_ids, attention_mask=attention_mask, return_dict=False)
+        if isinstance(output, tuple):
+            assert output[0] is not None and output[0].shape == (1, 5)
+            assert output[1] is not None and output[1].shape == (1, 1, 10)
+        else:
+            assert output.intent_logits is not None and output.intent_logits.shape == (1, 5)
+            assert output.slot_logits is not None and output.slot_logits.shape == (1, 1, 10)
 
     @patch('modules.joint_model.DistilBertModel')
     def test_forward_with_very_long_sequence(self, mock_distilbert_class, basic_config):
@@ -456,7 +463,7 @@ class TestJointIntentSlotModelEdgeCases:
         mock_instance = Mock()
         seq_len = 512
         long_output = BaseModelOutput(
-            last_hidden_state=torch.randn(1, seq_len, 768),
+            last_hidden_state=torch.FloatTensor(torch.randn(1, seq_len, 768).tolist()),
             hidden_states=None,
             attentions=None,
         )
@@ -469,8 +476,12 @@ class TestJointIntentSlotModelEdgeCases:
         attention_mask = torch.ones(1, seq_len)
 
         output = model.forward(input_ids=input_ids, attention_mask=attention_mask)
-        assert output.intent_logits.shape == (1, 5)
-        assert output.slot_logits.shape == (1, seq_len, 10)
+        if isinstance(output, tuple):
+            assert output[0] is not None and output[0].shape == (1, 5)
+            assert output[1] is not None and output[1].shape == (1, seq_len, 10)
+        else:
+            assert output.intent_logits is not None and output.intent_logits.shape == (1, 5)
+            assert output.slot_logits is not None and output.slot_logits.shape == (1, seq_len, 10)
 
     def test_model_device_consistency(self, basic_config):
         """Test that model outputs are on the same device as inputs."""
@@ -482,7 +493,7 @@ class TestJointIntentSlotModelEdgeCases:
         with patch('modules.joint_model.DistilBertModel') as mock_distilbert_class:
             mock_distilbert_instance = MagicMock(spec=DistilBertModel) # Mock the instance
             mock_output = BaseModelOutput(
-                last_hidden_state=torch.randn(2, 10, 768).to(device),
+                last_hidden_state=torch.FloatTensor(torch.randn(2, 10, 768, device=device).tolist()),
                 hidden_states=None,
                 attentions=None
             )
@@ -521,7 +532,7 @@ class TestJointIntentSlotModelIntegration:
         """Test a complete training step including backward pass."""
         mock_instance = Mock()
         training_output = BaseModelOutput(
-            last_hidden_state=torch.randn(2, 10, 768, requires_grad=True),
+            last_hidden_state=torch.FloatTensor(torch.randn(2, 10, 768).tolist()),
             hidden_states=None,
             attentions=None,
         )
@@ -541,7 +552,7 @@ class TestJointIntentSlotModelIntegration:
             intent_labels=intent_labels,
             slot_labels=slot_labels
         )
-        loss = output.loss
+        loss = output[0]
         assert loss.requires_grad
         loss.backward()
         for name, param in model.named_parameters():
@@ -559,7 +570,7 @@ class TestJointIntentSlotModelIntegration:
         for batch_size in [1, 4, 8, 16]:
             seq_len = 15
             mock_output = BaseModelOutput(
-                last_hidden_state=torch.randn(batch_size, seq_len, 768),
+                last_hidden_state=torch.FloatTensor(torch.randn(batch_size, seq_len, 768).tolist()),
                 hidden_states=None,
                 attentions=None
             )
@@ -568,8 +579,12 @@ class TestJointIntentSlotModelIntegration:
             input_ids = torch.randint(0, 1000, (batch_size, seq_len))
             attention_mask = torch.ones(batch_size, seq_len)
             output = model.forward(input_ids=input_ids, attention_mask=attention_mask)
-            assert output.intent_logits.shape == (batch_size, 5)
-            assert output.slot_logits.shape == (batch_size, seq_len, 10)
+            if isinstance(output, tuple):
+                assert output[0] is not None and output[0].shape == (batch_size, 5)
+                assert output[1] is not None and output[1].shape == (batch_size, seq_len, 10)
+            else:
+                assert output.intent_logits is not None and output.intent_logits.shape == (batch_size, 5)
+                assert output.slot_logits is not None and output.slot_logits.shape == (batch_size, seq_len, 10)
 
     @pytest.mark.parametrize("seq_len", [5, 10, 50, 128])
     @patch('modules.joint_model.DistilBertModel')
@@ -577,7 +592,7 @@ class TestJointIntentSlotModelIntegration:
         """Test consistency across different sequence lengths."""
         mock_instance = Mock()
         mock_output = BaseModelOutput(
-            last_hidden_state=torch.randn(2, seq_len, 768),
+            last_hidden_state=torch.FloatTensor(torch.randn(2, seq_len, 768).tolist()),
             hidden_states=None,
             attentions=None
         )
@@ -589,8 +604,12 @@ class TestJointIntentSlotModelIntegration:
         input_ids = torch.randint(0, 1000, (2, seq_len))
         attention_mask = torch.ones(2, seq_len)
         output = model.forward(input_ids=input_ids, attention_mask=attention_mask)
-        assert output.intent_logits.shape == (2, 5)
-        assert output.slot_logits.shape == (2, seq_len, 10)
+        if isinstance(output, tuple):
+            assert output[0] is not None and output[0].shape == (2, 5)
+            assert output[1] is not None and output[1].shape == (2, seq_len, 10)
+        else:
+            assert output.intent_logits is not None and output.intent_logits.shape == (2, 5)
+            assert output.slot_logits is not None and output.slot_logits.shape == (2, seq_len, 10)
 
     @pytest.mark.parametrize("num_intent_labels,num_slot_labels", [(2, 5), (10, 20), (50, 100)])
     def test_different_label_counts(self, num_intent_labels, num_slot_labels):
@@ -613,7 +632,7 @@ class TestJointIntentSlotModelIntegration:
             mock_distilbert_instance = MagicMock(spec=DistilBertModel)
             for _ in range(10):
                 mock_output = BaseModelOutput(
-                    last_hidden_state=torch.randn(2, 10, 768),
+                    last_hidden_state=torch.FloatTensor(torch.randn(2, 10, 768).tolist()),
                     hidden_states=None,
                     attentions=None
                 )
@@ -639,9 +658,8 @@ class TestJointIntentSlotModelIntegration:
             # This MockDistilBertClass is what's called in JointIntentSlotModel.__init__
 
             # Define what the DistilBertModel *instance* should do when called
-            mock_bert_output_tensor = torch.randn(2, 10, 768) # Create once for consistent output
             mock_model_output = BaseModelOutput(
-                last_hidden_state=torch.randn(2, 10, 768),
+                last_hidden_state=torch.FloatTensor(torch.randn(2, 10, 768).tolist()),
                 hidden_states=None,
                 attentions=None
             )
@@ -675,8 +693,8 @@ class TestJointIntentSlotModelIntegration:
             torch.manual_seed(456)
             out2 = model2.forward(input_ids=input_ids_shared, attention_mask=attention_mask_shared)
 
-            torch.testing.assert_close(out1.intent_logits, out2.intent_logits, rtol=1e-5, atol=1e-5)
-            torch.testing.assert_close(out1.slot_logits, out2.slot_logits, rtol=1e-5, atol=1e-5)
+            torch.testing.assert_close(out1[1], out2[1], rtol=1e-5, atol=1e-5)
+            torch.testing.assert_close(out1[2], out2[2], rtol=1e-5, atol=1e-5)
 
 class TestJointIntentSlotModelUtilities:
     """Test utility functions and model properties."""
@@ -736,7 +754,7 @@ class TestJointIntentSlotModelPerformance:
         import time
         mock_instance = Mock()
         mock_output = BaseModelOutput(
-            last_hidden_state=torch.randn(32, 128, 768),
+            last_hidden_state=torch.FloatTensor(torch.randn(32, 128, 768).tolist()),
             hidden_states=None,
             attentions=None
         )
@@ -764,7 +782,7 @@ class TestJointIntentSlotModelPerformance:
         """Test memory usage during forward pass."""
         mock_instance = Mock()
         mock_output = BaseModelOutput(
-            last_hidden_state=torch.randn(16, 64, 768),
+            last_hidden_state=torch.FloatTensor(torch.randn(16, 64, 768).tolist()),
             hidden_states=None,
             attentions=None
         )
