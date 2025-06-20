@@ -85,12 +85,12 @@ class JointIntentSlotModel(nn.Module):
         else:
             cls_output = sequence_output[:, 0, :]  # [batch_size, dim]
             intent_logits = self.intent_classifier(cls_output)
-        # Sequence output (for slot filling)
-        # Apply dropout to the sequence output before passing to the slot classifier
-        sequence_output_dropout = self.dropout(sequence_output)
-        slot_logits = self.slot_classifier(
-            sequence_output_dropout
-        )  # [batch_size, seq_len, num_slot_labels]
+            # Sequence output (for slot filling)
+            # Apply dropout to the sequence output before passing to the slot classifier
+            sequence_output_dropout = self.dropout(sequence_output)
+            slot_logits = self.slot_classifier(
+                sequence_output_dropout
+            )  # [batch_size, seq_len, num_slot_labels]
 
         total_loss = None
         if intent_labels is not None and slot_labels is not None:

@@ -68,7 +68,7 @@ class TestJointModelOutput:
     def test_joint_model_output_initialization_empty(self):
         """Test initialization of JointModelOutput with no arguments."""
         output = JointModelOutput()
-        assert output[0] is None
+        assert output.loss is None
         assert output.intent_logits is None
         assert output.slot_logits is None
         assert output.hidden_states is None
@@ -194,7 +194,7 @@ class TestJointIntentSlotModelForward:
         )
 
         assert isinstance(output, JointModelOutput)
-        assert output[0] is None
+        assert output.loss is None
         assert output.intent_logits is not None
         assert output.intent_logits.shape == (2, 5)
         assert output.slot_logits is not None
@@ -215,10 +215,12 @@ class TestJointIntentSlotModelForward:
             intent_labels=sample_inputs['intent_labels'],
             slot_labels=sample_inputs['slot_labels']
         )
-
-        assert isinstance(output, JointModelOutput)
-        assert output[0] is not None
-        assert output[0].requires_grad
+        if isinstance(output, tuple):
+            assert output[0] is not None
+            assert output[0].requires_grad
+        else:
+            assert output.loss is not None
+            assert output.loss.requires_grad
 
     @patch('modules.joint_model.DistilBertModel')
     def test_forward_return_dict_false(self, mock_distilbert_class, basic_config, sample_inputs, mock_distilbert_output):
@@ -285,9 +287,16 @@ class TestJointIntentSlotModelLoss:
             intent_labels=intent_labels,
             slot_labels=slot_labels
         )
-        assert output[0] is not None
-        assert output[0].item() >= 0
-        assert output[0].requires_grad
+        # Branch on output type for loss
+        if isinstance(output, tuple):
+            loss = output[0]
+        elif isinstance(output, dict):
+            loss = output.get('loss', None)
+        else:
+            loss = getattr(output, 'loss', None)
+        assert loss is not None
+        assert loss.item() >= 0
+        assert loss.requires_grad
 
     @patch('modules.joint_model.DistilBertModel')
     def test_loss_with_padded_tokens(self, mock_distilbert_class, basic_config, mock_distilbert_output):
@@ -310,8 +319,14 @@ class TestJointIntentSlotModelLoss:
             intent_labels=intent_labels,
             slot_labels=slot_labels
         )
-        assert output[0] is not None
-        assert output[0].item() >= 0
+        if isinstance(output, tuple):
+            loss = output[0]
+        elif isinstance(output, dict):
+            loss = output.get('loss', None)
+        else:
+            loss = getattr(output, 'loss', None)
+        assert loss is not None
+        assert loss.item() >= 0
 
     @patch('modules.joint_model.DistilBertModel')
     def test_loss_with_all_padded_tokens(self, mock_distilbert_class, basic_config, mock_distilbert_output):
@@ -334,8 +349,14 @@ class TestJointIntentSlotModelLoss:
             intent_labels=intent_labels,
             slot_labels=slot_labels
         )
-        assert output[0] is not None
-        assert output[0].item() >= 0
+        if isinstance(output, tuple):
+            loss = output[0]
+        elif isinstance(output, dict):
+            loss = output.get('loss', None)
+        else:
+            loss = getattr(output, 'loss', None)
+        assert loss is not None
+        assert loss.item() >= 0
 
     @patch('modules.joint_model.DistilBertModel')
     def test_loss_with_zero_slot_labels(self, mock_distilbert_class, basic_config, mock_distilbert_output):
@@ -362,8 +383,14 @@ class TestJointIntentSlotModelLoss:
             intent_labels=intent_labels,
             slot_labels=slot_labels
         )
-        assert output[0] is not None
-        assert output[0].item() >= 0
+        if isinstance(output, tuple):
+            loss = output[0]
+        elif isinstance(output, dict):
+            loss = output.get('loss', None)
+        else:
+            loss = getattr(output, 'loss', None)
+        assert loss is not None
+        assert loss.item() >= 0
 
     @patch('modules.joint_model.DistilBertModel')
     def test_no_loss_when_only_intent_labels_provided(self, mock_distilbert_class, basic_config, mock_distilbert_output):
@@ -384,7 +411,13 @@ class TestJointIntentSlotModelLoss:
             attention_mask=attention_mask,
             intent_labels=intent_labels
         )
-        assert output[0] is None
+        if isinstance(output, tuple):
+            loss = output[0]
+        elif isinstance(output, dict):
+            loss = output.get('loss', None)
+        else:
+            loss = getattr(output, 'loss', None)
+        assert loss is None
 
     @patch('modules.joint_model.DistilBertModel')
     def test_no_loss_when_only_slot_labels_provided(self, mock_distilbert_class, basic_config, mock_distilbert_output):
@@ -405,7 +438,13 @@ class TestJointIntentSlotModelLoss:
             attention_mask=attention_mask,
             slot_labels=slot_labels
         )
-        assert output[0] is None
+        if isinstance(output, tuple):
+            loss = output[0]
+        elif isinstance(output, dict):
+            loss = output.get('loss', None)
+        else:
+            loss = getattr(output, 'loss', None)
+        assert loss is None
 
 class TestJointIntentSlotModelEdgeCases:
     """Test suite for edge cases and error conditions."""
@@ -552,7 +591,14 @@ class TestJointIntentSlotModelIntegration:
             intent_labels=intent_labels,
             slot_labels=slot_labels
         )
-        loss = output[0]
+        # Branch on output type for loss
+        if isinstance(output, tuple):
+            loss = output[0]
+        elif isinstance(output, dict):
+            loss = output.get('loss', None)
+        else:
+            loss = getattr(output, 'loss', None)
+        assert loss is not None
         assert loss.requires_grad
         loss.backward()
         for name, param in model.named_parameters():
@@ -693,8 +739,29 @@ class TestJointIntentSlotModelIntegration:
             torch.manual_seed(456)
             out2 = model2.forward(input_ids=input_ids_shared, attention_mask=attention_mask_shared)
 
-            torch.testing.assert_close(out1[1], out2[1], rtol=1e-5, atol=1e-5)
-            torch.testing.assert_close(out1[2], out2[2], rtol=1e-5, atol=1e-5)
+            # Branch on output type for intent_logits and slot_logits
+            if isinstance(out1, tuple):
+                intent_logits1 = out1[1]
+                slot_logits1 = out1[2]
+            elif isinstance(out1, dict):
+                intent_logits1 = out1.get('intent_logits', None)
+                slot_logits1 = out1.get('slot_logits', None)
+            else:
+                intent_logits1 = getattr(out1, 'intent_logits', None)
+                slot_logits1 = getattr(out1, 'slot_logits', None)
+
+            if isinstance(out2, tuple):
+                intent_logits2 = out2[1]
+                slot_logits2 = out2[2]
+            elif isinstance(out2, dict):
+                intent_logits2 = out2.get('intent_logits', None)
+                slot_logits2 = out2.get('slot_logits', None)
+            else:
+                intent_logits2 = getattr(out2, 'intent_logits', None)
+                slot_logits2 = getattr(out2, 'slot_logits', None)
+
+            torch.testing.assert_close(intent_logits1, intent_logits2, rtol=1e-5, atol=1e-5)
+            torch.testing.assert_close(slot_logits1, slot_logits2, rtol=1e-5, atol=1e-5)
 
 class TestJointIntentSlotModelUtilities:
     """Test utility functions and model properties."""

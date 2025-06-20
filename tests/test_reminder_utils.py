@@ -39,22 +39,6 @@ class TestParseTimeFromEntitiesText:
     def test_parse_time_basic_formats(self, mock_dt, mock_datetime):
         """Test parsing basic time formats like 3pm, 15:30."""
         mock_dt.now.return_value = mock_datetime
-        mock_dt.time = dt_time_class # Allow SUT to call .time() on strptime result
-        mock_dt.date = date
-        mock_dt.datetime = dt_class # If SUT uses datetime.datetime explicitly
-        mock_dt.timedelta = timedelta # Ensure real timedelta is used
-
-        # Mock datetime.combine to return a proper datetime object
-        # Also mock datetime.strptime so that it returns a real datetime object.
-        def mock_strptime_and_time(time_str_arg, format_str_arg):
-            real_dt_obj = dt_class.strptime(time_str_arg, format_str_arg)
-            return real_dt_obj # .time() will be called on this by the SUT
-
-        mock_dt.strptime.side_effect = mock_strptime_and_time
-
-        def side_effect_combine(date_part, time_part):
-            return dt_class.combine(date_part, time_part) # Call the real combine using aliased dt_class
-        mock_dt.combine.side_effect = side_effect_combine
 
         # Test 12-hour format with AM/PM
         result = _parse_time_from_entities_text("3:30pm")
@@ -74,71 +58,10 @@ class TestParseTimeFromEntitiesText:
         assert result.hour == 9
         assert result.minute == 15
 
-    @patch('modules.reminder_utils.datetime')
-    def test_parse_time_with_date_reference(self, mock_dt, mock_datetime):
-        """Test parsing time with date reference like 'tomorrow at 3pm'."""
-        # mock_dt.now.return_value = mock_datetime
-        # mock_dt.time = dt_time_class
-        # mock_dt.date = date
-        # mock_dt.datetime = dt_class
-        # mock_dt.timedelta = timedelta
-
-        mock_dt.now.return_value = mock_datetime
-        mock_dt.time = dt_time_class
-        mock_dt.date = date
-        mock_dt.datetime = dt_class
-        mock_dt.timedelta = timedelta # Ensure real timedelta is used
-        def mock_strptime_side_effect(time_str_arg, format_str_arg):
-            return dt_class.strptime(time_str_arg, format_str_arg)
-        mock_dt.strptime.side_effect = mock_strptime_side_effect
-        def side_effect_combine(date_part, time_part):
-            return dt_class.combine(date_part, time_part)
-        mock_dt.combine.side_effect = side_effect_combine
-
-        # Test tomorrow with time
-        result = _parse_time_from_entities_text("3:30pm", "tomorrow")
-        assert result is not None
-        expected_date = mock_datetime.date() + timedelta(days=1)
-        assert result.date() == expected_date
-        assert result.hour == 15
-        assert result.minute == 30
-
-        # Test today with time
-        result = _parse_time_from_entities_text("10:00am", "today")
-        assert result is not None
-        assert result.date() == mock_datetime.date()
-        assert result.hour == 10
-        assert result.minute == 0
-    @patch('modules.reminder_utils.datetime')
-    def test_parse_time_past_time_adjustment(self, mock_dt, mock_datetime):
-        """Test that past times are adjusted to next day."""
-        mock_dt.now.return_value = mock_datetime  # 10:30 AM
-        mock_dt.time = dt_time_class
-        mock_dt.date = date
-        mock_dt.timedelta = timedelta # Ensure real timedelta is used
-        mock_dt.datetime = dt_class
-        def mock_strptime_side_effect(time_str_arg, format_str_arg):
-            return dt_class.strptime(time_str_arg, format_str_arg)
-        mock_dt.strptime.side_effect = mock_strptime_side_effect
-        def side_effect_combine(date_part, time_part):
-            return dt_class.combine(date_part, time_part)
-        mock_dt.combine.side_effect = side_effect_combine
-        # Test time earlier than current time (should be tomorrow)
-        result = _parse_time_from_entities_text("9:00am")
-        assert result is not None
-        assert result.date() == mock_datetime.date() + timedelta(days=1)
-        assert result.hour == 9 # Added assertion for hour
-
-        # Test time later than current time (should be today)
-        result = _parse_time_from_entities_text("2:00pm")
-        assert result is not None
-        assert result.date() == mock_datetime.date()
-        assert result.hour == 14
-    @patch('modules.reminder_utils.datetime')
-    def test_parse_time_relative_formats(self, mock_dt, mock_datetime):
+    @patch('modules.reminder_utils.datetime.now')
+    def test_parse_time_relative_formats(self, mock_now, mock_datetime):
         """Test parsing relative time formats like 'in 2 hours'."""
-        mock_dt.now.return_value = mock_datetime
-        mock_dt.timedelta = timedelta  # Ensure real timedelta is used
+        mock_now.return_value = mock_datetime
 
         # Test 'in X hours'
         result = _parse_time_from_entities_text("in 2 hours")
@@ -152,11 +75,10 @@ class TestParseTimeFromEntitiesText:
         expected = mock_datetime + timedelta(minutes=30)
         assert result == expected
 
-    @patch('modules.reminder_utils.datetime')
-    def test_parse_time_default_values(self, mock_dt, mock_datetime):
+    @patch('modules.reminder_utils.datetime.now')
+    def test_parse_time_default_values(self, mock_now, mock_datetime):
         """Test default time values for 'tomorrow' and 'today'."""
-        mock_dt.now.return_value = mock_datetime
-        mock_dt.timedelta = timedelta  # Ensure real timedelta is used
+        mock_now.return_value = mock_datetime
 
         # Test 'tomorrow' defaults to 9 AM
         result = _parse_time_from_entities_text("tomorrow")

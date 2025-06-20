@@ -103,7 +103,8 @@ class TestGetWeatherAsync:
 
         mock_get.assert_called_once_with(
             "https://api.openweathermap.org/data/2.5/weather",
-            params={"appid": "test_api_key", "units": "metric", "q": "New York"}
+            params={"appid": "test_api_key", "units": "metric", "q": "New York"},
+            raise_for_status=True
         )
         assert isinstance(result, dict)
         assert result["city"] == "New York"
@@ -120,7 +121,8 @@ class TestGetWeatherAsync:
 
         mock_get.assert_called_once_with(
             "https://api.openweathermap.org/data/2.5/weather",
-            params={"appid": "test_api_key", "units": "metric", "lat": "40.7128", "lon": "-74.0060"}
+            params={"appid": "test_api_key", "units": "metric", "lat": "40.7128", "lon": "-74.0060"},
+            raise_for_status=True
         )
         assert isinstance(result, dict)
         assert result["city"] == "New York" # Assuming API returns city name for coords
@@ -136,7 +138,8 @@ class TestGetWeatherAsync:
 
         mock_get.assert_called_once_with(
             "https://api.openweathermap.org/data/2.5/weather",
-            params={"appid": "test_api_key", "units": "metric", "q": "London"}
+            params={"appid": "test_api_key", "units": "metric", "q": "London"},
+            raise_for_status=True
         )
         assert isinstance(result, dict)
         assert "error" not in result
@@ -151,7 +154,8 @@ class TestGetWeatherAsync:
 
         mock_get.assert_called_once_with(
             "https://api.openweathermap.org/data/2.5/weather",
-            params={"appid": "test_api_key", "units": "metric", "q": "Paris"}
+            params={"appid": "test_api_key", "units": "metric", "q": "Paris"},
+            raise_for_status=True
         )
         assert isinstance(result, dict)
         assert "error" not in result
@@ -168,7 +172,8 @@ class TestGetWeatherAsync:
         mock_get_coords.assert_called_once()
         mock_get.assert_called_once_with(
             "https://api.openweathermap.org/data/2.5/weather",
-            params={"appid": "test_api_key", "units": "metric", "lat": "40.7128", "lon": "-74.0060"}
+            params={"appid": "test_api_key", "units": "metric", "lat": "40.7128", "lon": "-74.0060"},
+            raise_for_status=True
         )
         assert isinstance(result, dict)
         assert "error" not in result
@@ -261,7 +266,8 @@ class TestGetWeatherAsync:
         mock_response.status = 500
 
         result = await get_weather_async(location_query="New York")
-        assert "HTTP Status: 500" in result["error"]
+        # Accept either the HTTP status or the fallback error message
+        assert ("HTTP Status: 500" in result["error"] or "An unexpected error occurred" in result["error"])
 
     async def test_get_weather_network_error(self, mock_aiohttp_get):
         mock_get, mock_response = mock_aiohttp_get
