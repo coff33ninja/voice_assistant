@@ -7,8 +7,8 @@ from transformers import (
     # pipeline is no longer used
 )
 from .config import INTENT_MODEL_SAVE_PATH
-from .joint_model import JointIntentSlotModel  # Added for the new model
-from typing import Tuple, Dict, Any, Optional  # Added Optional
+from .joint_model import JointIntentSlotModel
+from typing import Tuple, Dict, Any, Optional, cast  # Added cast
 import pandas as pd
 import os
 
@@ -35,10 +35,34 @@ def initialize_intent_classifier():
         intent_tokenizer = DistilBertTokenizer.from_pretrained(INTENT_MODEL_SAVE_PATH)
 
         # Load the configuration
-        config = DistilBertConfig.from_pretrained(INTENT_MODEL_SAVE_PATH)
+        loaded_config_obj = DistilBertConfig.from_pretrained(INTENT_MODEL_SAVE_PATH)
+
+        # Ensure config_to_pass is explicitly DistilBertConfig to satisfy Pylance
+        config_to_pass: DistilBertConfig
+        if isinstance(loaded_config_obj, DistilBertConfig):
+            config_to_pass = loaded_config_obj
+        else:
+            # This branch is taken if loaded_config_obj is PretrainedConfig but not DistilBertConfig.
+            # This implies the saved config might not have been strictly DistilBert,
+            # or from_pretrained returned a more generic type.
+            # We attempt to convert it using its dictionary representation.
+            # We assume loaded_config_obj has a .to_dict() method (true for PretrainedConfig).
+            if hasattr(loaded_config_obj, "to_dict") and callable(
+                getattr(loaded_config_obj, "to_dict")
+            ):
+                # Cast the result of from_dict to assure Pylance of the type.
+                # The JointIntentSlotModel will validate necessary attributes.
+                config_from_dict = DistilBertConfig.from_dict(
+                    loaded_config_obj.to_dict()
+                )
+                config_to_pass = cast(DistilBertConfig, config_from_dict)
+            else:
+                raise TypeError(
+                    f"Loaded config (type: {type(loaded_config_obj)}) is not DistilBertConfig and cannot be converted via to_dict()."
+                )
 
         # Instantiate the model using the loaded config
-        intent_model = JointIntentSlotModel(config)
+        intent_model = JointIntentSlotModel(config_to_pass)
 
         # Load the saved weights
         model_weights_path = os.path.join(INTENT_MODEL_SAVE_PATH, "pytorch_model.bin")
@@ -97,10 +121,15 @@ async def detect_intent_async(text: str) -> Tuple[str, Dict[str, Any]]:
 
     # Process Intent Logits
     intent_probabilities = torch.softmax(intent_logits, dim=-1)
-    confidence_score, predicted_intent_id = torch.max(intent_probabilities, dim=-1)
 
-    confidence_score = confidence_score.item()
-    predicted_intent_id = predicted_intent_id.item()
+    # Get both values and indices from torch.max
+    intent_predictions = torch.max(intent_probabilities, dim=-1)
+    confidence_score_tensor = intent_predictions.values
+    predicted_intent_id_tensor = intent_predictions.indices
+
+    confidence_score = confidence_score_tensor.item()  # Should be float
+    # .item() on a LongTensor (like indices) should return an int
+    predicted_intent_id = predicted_intent_id_tensor.item()
 
     if confidence_score < CONFIDENCE_THRESHOLD:
         print(
@@ -108,11 +137,14 @@ async def detect_intent_async(text: str) -> Tuple[str, Dict[str, Any]]:
         )
         return default_intent, entities
 
+    predicted_intent_id_int = int(
+        predicted_intent_id
+    )  # Ensure it's an int for dict keys
     # Use the model's id2label for intent (if available from config)
     detected_intent = (
-        intent_model.config.id2intent_label.get(predicted_intent_id, default_intent)
+        intent_model.config.id2intent_label.get(predicted_intent_id_int, default_intent)
         if hasattr(intent_model.config, "id2intent_label")
-        else INTENT_LABELS_MAP.get(predicted_intent_id, default_intent)
+        else INTENT_LABELS_MAP.get(predicted_intent_id_int, default_intent)
     )
 
     print(
@@ -145,7 +177,9 @@ async def detect_intent_async(text: str) -> Tuple[str, Dict[str, Any]]:
         ]:
             continue  # Skip special tokens
 
-        predicted_slot_label = id2slot_label.get(predicted_slot_id_tensor.item(), "O")
+        predicted_slot_label = id2slot_label.get(
+            int(predicted_slot_id_tensor.item()), "O"
+        )
 
         if predicted_slot_label.startswith("B-"):
             if (

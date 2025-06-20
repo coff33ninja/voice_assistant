@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from datetime import datetime as dt_class, timedelta, date, time as dt_time_class # Use an alias for datetime class
 import sys
 import os
@@ -58,29 +58,36 @@ class TestParseTimeFromEntitiesText:
 
         # Test 12-hour format with AM/PM
         result = _parse_time_from_entities_text("3:30pm")
+        assert result is not None
         assert result.hour == 15
         assert result.minute == 30
 
         # Test 24-hour format
         result = _parse_time_from_entities_text("15:30")
+        assert result is not None
         assert result.hour == 15
         assert result.minute == 30
 
         # Test AM format
         result = _parse_time_from_entities_text("9:15am")
+        assert result is not None
         assert result.hour == 9
         assert result.minute == 15
 
     @patch('modules.reminder_utils.datetime')
     def test_parse_time_with_date_reference(self, mock_dt, mock_datetime):
         """Test parsing time with date reference like 'tomorrow at 3pm'."""
+        # mock_dt.now.return_value = mock_datetime
+        # mock_dt.time = dt_time_class
+        # mock_dt.date = date
+        # mock_dt.datetime = dt_class
+        # mock_dt.timedelta = timedelta
+
         mock_dt.now.return_value = mock_datetime
         mock_dt.time = dt_time_class
         mock_dt.date = date
         mock_dt.datetime = dt_class
         mock_dt.timedelta = timedelta # Ensure real timedelta is used
-
-
         def mock_strptime_side_effect(time_str_arg, format_str_arg):
             return dt_class.strptime(time_str_arg, format_str_arg)
         mock_dt.strptime.side_effect = mock_strptime_side_effect
@@ -88,9 +95,9 @@ class TestParseTimeFromEntitiesText:
             return dt_class.combine(date_part, time_part)
         mock_dt.combine.side_effect = side_effect_combine
 
-
         # Test tomorrow with time
         result = _parse_time_from_entities_text("3:30pm", "tomorrow")
+        assert result is not None
         expected_date = mock_datetime.date() + timedelta(days=1)
         assert result.date() == expected_date
         assert result.hour == 15
@@ -98,10 +105,10 @@ class TestParseTimeFromEntitiesText:
 
         # Test today with time
         result = _parse_time_from_entities_text("10:00am", "today")
+        assert result is not None
         assert result.date() == mock_datetime.date()
         assert result.hour == 10
         assert result.minute == 0
-
     @patch('modules.reminder_utils.datetime')
     def test_parse_time_past_time_adjustment(self, mock_dt, mock_datetime):
         """Test that past times are adjusted to next day."""
@@ -110,25 +117,23 @@ class TestParseTimeFromEntitiesText:
         mock_dt.date = date
         mock_dt.timedelta = timedelta # Ensure real timedelta is used
         mock_dt.datetime = dt_class
-
-
         def mock_strptime_side_effect(time_str_arg, format_str_arg):
             return dt_class.strptime(time_str_arg, format_str_arg)
         mock_dt.strptime.side_effect = mock_strptime_side_effect
         def side_effect_combine(date_part, time_part):
             return dt_class.combine(date_part, time_part)
         mock_dt.combine.side_effect = side_effect_combine
-
-
         # Test time earlier than current time (should be tomorrow)
         result = _parse_time_from_entities_text("9:00am")
+        assert result is not None
         assert result.date() == mock_datetime.date() + timedelta(days=1)
+        assert result.hour == 9 # Added assertion for hour
 
         # Test time later than current time (should be today)
         result = _parse_time_from_entities_text("2:00pm")
+        assert result is not None
         assert result.date() == mock_datetime.date()
         assert result.hour == 14
-
     @patch('modules.reminder_utils.datetime')
     def test_parse_time_relative_formats(self, mock_dt, mock_datetime):
         """Test parsing relative time formats like 'in 2 hours'."""
@@ -137,11 +142,13 @@ class TestParseTimeFromEntitiesText:
 
         # Test 'in X hours'
         result = _parse_time_from_entities_text("in 2 hours")
+        assert result is not None
         expected = mock_datetime + timedelta(hours=2)
         assert result == expected
 
         # Test 'in X minutes'
         result = _parse_time_from_entities_text("in 30 minutes")
+        assert result is not None
         expected = mock_datetime + timedelta(minutes=30)
         assert result == expected
 
@@ -153,11 +160,13 @@ class TestParseTimeFromEntitiesText:
 
         # Test 'tomorrow' defaults to 9 AM
         result = _parse_time_from_entities_text("tomorrow")
+        assert result is not None
         expected = (mock_datetime + timedelta(days=1)).replace(hour=9, minute=0, second=0, microsecond=0)
         assert result == expected
 
         # Test 'today' defaults to 9 AM
         result = _parse_time_from_entities_text("today")
+        assert result is not None
         expected = mock_datetime.replace(hour=9, minute=0, second=0, microsecond=0)
         assert result == expected
 
@@ -175,28 +184,27 @@ class TestParseTimeFromEntitiesText:
         mock_dt.date = date
         mock_dt.timedelta = timedelta # Ensure real timedelta is used
         mock_dt.datetime = dt_class
-
-
         def mock_strptime_side_effect(time_str_arg, format_str_arg):
             return dt_class.strptime(time_str_arg, format_str_arg)
         mock_dt.strptime.side_effect = mock_strptime_side_effect
         def side_effect_combine(date_part, time_part):
             return dt_class.combine(date_part, time_part)
         mock_dt.combine.side_effect = side_effect_combine
-
-
         # Test midnight
         result = _parse_time_from_entities_text("12:00am")
+        assert result is not None
         assert result.hour == 0
         assert result.minute == 0
 
         # Test noon
         result = _parse_time_from_entities_text("12:00pm")
+        assert result is not None
         assert result.hour == 12
         assert result.minute == 0
 
         # Test single digit hours
         result = _parse_time_from_entities_text("9:00am")
+        assert result is not None
         assert result.hour == 9
         assert result.minute == 0
 
@@ -285,6 +293,7 @@ class TestParseReminder:
 
         assert result is not None
         assert result["task"] == "call mom"
+        assert result["time"] is not None
         assert result["time"].hour == 15
         assert result["time"].date() == mock_datetime.date() + timedelta(days=1)
 
@@ -303,6 +312,7 @@ class TestParseReminder:
 
         assert result is not None
         assert result["task"] == "meeting"
+        assert result["time"] is not None
         assert result["time"].hour == 9
         assert result["time"].date() == mock_datetime.date() + timedelta(days=1)
 
@@ -320,6 +330,7 @@ class TestParseReminder:
 
         assert result is not None
         assert result["task"] == "call mom"
+        assert result["time"] is not None
         assert result["time"].hour == 15
         assert result["time"].date() == mock_datetime.date() + timedelta(days=1)
 
@@ -334,12 +345,18 @@ class TestParseReminder:
         mock_dt.timedelta = timedelta # Ensure real timedelta is used
 
         result = parse_reminder("remind me to call mom at 3pm", None)
+        assert result is not None
+        assert result["time"] is not None
         assert result is not None and result["time"].hour == 15
 
         result = parse_reminder("remind me to call mom tomorrow", None)
+        assert result is not None
+        assert result["time"] is not None
         assert result is not None and result["time"].hour == 9
 
         result = parse_reminder("remind me to call mom in 2 hours", None)
+        assert result is not None
+        assert result["time"] is not None
         expected_time = mock_datetime + timedelta(hours=2)
         assert result["time"] == expected_time
 
@@ -386,6 +403,7 @@ class TestParseReminder:
         result1 = parse_reminder("remind me to call mom at 9am", None)
         assert result1 is not None
         assert result1["task"] == "call mom"
+        assert result1["time"] is not None
         assert result1["time"].hour == 9
         assert result1["time"].minute == 0
         assert result1["time"].date() == mock_datetime.date() + timedelta(days=1)
@@ -395,6 +413,7 @@ class TestParseReminder:
         result2 = parse_reminder("remind me to call mom at 7:30pm", None)
         assert result2 is not None
         assert result2["task"] == "call mom"
+        assert result2["time"] is not None
         assert result2["time"].hour == 19
         assert result2["time"].minute == 30
         assert result2["time"].date() == mock_datetime.date()
@@ -416,6 +435,7 @@ class TestParseReminder:
         ]
         for text, expected_delta in test_cases:
             result = parse_reminder(text, None)
+            assert result is not None
             expected_time = mock_datetime + expected_delta
             assert result["time"] == expected_time
 
@@ -430,6 +450,7 @@ class TestParseListReminderRequest:
         mock_dt.timedelta = timedelta # Ensure real timedelta is used
         entities = {"date_reference": "tomorrow"}
         result = parse_list_reminder_request("show reminders for tomorrow", entities)
+        assert result is not None
         assert result == mock_datetime.date() + timedelta(days=1)
 
     @patch('modules.reminder_utils.datetime')
@@ -438,8 +459,11 @@ class TestParseListReminderRequest:
         mock_dt.now.return_value = mock_datetime
         mock_dt.timedelta = timedelta # Ensure real timedelta is used
 
+        assert parse_list_reminder_request("show reminders for today", None) is not None
         assert parse_list_reminder_request("show reminders for today", None) == mock_datetime.date()
+        assert parse_list_reminder_request("show reminders for tomorrow", None) is not None
         assert parse_list_reminder_request("show reminders for tomorrow", None) == mock_datetime.date() + timedelta(days=1)
+        assert parse_list_reminder_request("show reminders for yesterday", None) is not None
         assert parse_list_reminder_request("show reminders for yesterday", None) == mock_datetime.date() - timedelta(days=1)
 
     @patch('modules.reminder_utils.datetime')
@@ -448,8 +472,11 @@ class TestParseListReminderRequest:
         mock_dt.now.return_value = mock_datetime
         mock_dt.timedelta = timedelta # Ensure real timedelta is used
 
+        assert parse_list_reminder_request("show reminders in 3 days", None) is not None
         assert parse_list_reminder_request("show reminders in 3 days", None) == mock_datetime.date() + timedelta(days=3)
+        assert parse_list_reminder_request("show reminders in 2 weeks", None) is not None
         assert parse_list_reminder_request("show reminders in 2 weeks", None) == mock_datetime.date() + timedelta(weeks=2)
+        assert parse_list_reminder_request("show reminders in 1 month", None) is not None
         assert parse_list_reminder_request("show reminders in 1 month", None) == mock_datetime.date() + timedelta(days=30)
 
     @patch('modules.reminder_utils.datetime')
@@ -463,6 +490,7 @@ class TestParseListReminderRequest:
         ]
         for day, offset in weekday_tests:
             result = parse_list_reminder_request(f"show reminders for {day}", None)
+            assert result is not None
             expected = mock_datetime.date() + timedelta(days=offset)
             assert result == expected
 
@@ -472,8 +500,11 @@ class TestParseListReminderRequest:
         mock_dt.now.return_value = mock_datetime  # Monday
         mock_dt.timedelta = timedelta # Ensure real timedelta is used
 
+        assert parse_list_reminder_request("show reminders for next monday", None) is not None
         assert parse_list_reminder_request("show reminders for next monday", None) == mock_datetime.date() + timedelta(days=7)
+        assert parse_list_reminder_request("show reminders for this friday", None) is not None
         assert parse_list_reminder_request("show reminders for this friday", None) == mock_datetime.date() + timedelta(days=4)
+        assert parse_list_reminder_request("show reminders for next week", None) is not None
         assert parse_list_reminder_request("show reminders for next week", None) == mock_datetime.date() + timedelta(days=7)
 
     @patch('modules.reminder_utils.datetime')
@@ -483,10 +514,11 @@ class TestParseListReminderRequest:
         mock_dt.strptime.side_effect = lambda s, f: dt_class.strptime(s, f) # Use real strptime
         mock_dt.timedelta = timedelta # Ensure real timedelta is used
 
-
-
+        assert parse_list_reminder_request("show reminders for March 15th", None) is not None
         assert parse_list_reminder_request("show reminders for March 15th", None) == date(2024, 3, 15)
+        assert parse_list_reminder_request("show reminders for July 4th, 2024", None) is not None
         assert parse_list_reminder_request("show reminders for July 4th, 2024", None) == date(2024, 7, 4)
+        assert parse_list_reminder_request("show reminders for January 1st", None) is not None
         assert parse_list_reminder_request("show reminders for January 1st", None) == date(2025, 1, 1)
 
     @patch('modules.reminder_utils.datetime')
@@ -496,7 +528,9 @@ class TestParseListReminderRequest:
         mock_dt.strptime.side_effect = lambda s, f: dt_class.strptime(s, f) # Use real strptime
         mock_dt.timedelta = timedelta # Ensure real timedelta is used
 
+        assert parse_list_reminder_request("show reminders on 2024-03-15", None) is not None
         assert parse_list_reminder_request("show reminders on 2024-03-15", None) == date(2024, 3, 15)
+        assert parse_list_reminder_request("show reminders on 03/15/2024", None) is not None
         assert parse_list_reminder_request("show reminders on 03/15/2024", None) == date(2024, 3, 15)
 
     @pytest.mark.parametrize("month_name,month_num", [
@@ -513,6 +547,7 @@ class TestParseListReminderRequest:
 
         expected_year = 2024 if month_num >= 1 else 2025
         result = parse_list_reminder_request(f"show reminders for {month_name} 15th", None)
+        assert result is not None
         assert result == date(expected_year, month_num, 15)
 
     def test_parse_list_reminder_invalid_inputs(self):
@@ -527,8 +562,11 @@ class TestParseListReminderRequest:
         """Test that date parsing is case insensitive."""
         mock_dt.now.return_value = mock_datetime # January 15, 2024
         mock_dt.timedelta = timedelta # Ensure real timedelta is used
+        assert parse_list_reminder_request("show reminders for TODAY", None) is not None
         assert parse_list_reminder_request("show reminders for TODAY", None) == mock_datetime.date()
+        assert parse_list_reminder_request("show reminders for Tomorrow", None) is not None
         assert parse_list_reminder_request("show reminders for Tomorrow", None) == mock_datetime.date() + timedelta(days=1)
+        assert parse_list_reminder_request("show reminders for FRIDAY", None) is not None
         assert parse_list_reminder_request("show reminders for FRIDAY", None) == mock_datetime.date() + timedelta(days=4)
 
     @patch('modules.reminder_utils.datetime')
@@ -538,12 +576,14 @@ class TestParseListReminderRequest:
         mock_dt.strptime.side_effect = lambda s, f: dt_class.strptime(s, f) # Use real strptime
         mock_dt.timedelta = timedelta # Ensure real timedelta is used
 
-
+        assert parse_list_reminder_request("show reminders for March 1st", None) is not None
         assert parse_list_reminder_request("show reminders for March 1st", None) == date(2024, 3, 1)
+        assert parse_list_reminder_request("show reminders for March 2nd", None) is not None
         assert parse_list_reminder_request("show reminders for March 2nd", None) == date(2024, 3, 2)
+        assert parse_list_reminder_request("show reminders for March 3rd", None) is not None
         assert parse_list_reminder_request("show reminders for March 3rd", None) == date(2024, 3, 3)
+        assert parse_list_reminder_request("show reminders for March 4th", None) is not None
         assert parse_list_reminder_request("show reminders for March 4th", None) == date(2024, 3, 4)
-
 
 class TestIntegrationAndPerformance:
     """Integration and performance tests for reminder_utils module."""
@@ -562,6 +602,7 @@ class TestIntegrationAndPerformance:
         reminder = parse_reminder("remind me to call mom tomorrow at 3pm", None)
         list_date = parse_list_reminder_request("show reminders for tomorrow", None)
         assert reminder is not None
+        assert reminder["time"] is not None
         assert list_date == reminder["time"].date()
 
     @patch('modules.reminder_utils.datetime')
@@ -580,9 +621,10 @@ class TestIntegrationAndPerformance:
 
         result_entities = parse_reminder(text, entities)
         result_regex = parse_reminder(text, None)
+        assert result_entities is not None
+        assert result_regex is not None
         assert result_entities["task"] == result_regex["task"]
         assert result_entities["time"] == result_regex["time"]
-
     def test_performance_large_text_input(self):
         """Test performance with large text inputs."""
         import time
@@ -625,8 +667,10 @@ class TestIntegrationAndPerformance:
             results.append(res)
 
         threads = [threading.Thread(target=worker, args=(i,)) for i in range(10)]
-        for t in threads: t.start()
-        for t in threads: t.join()
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
 
         assert len(results) == 10
         for r in results:
@@ -680,7 +724,7 @@ def reset_datetime_mock():
 def test_module_imports():
     """Test that all required modules can be imported correctly."""
     try:
-        from modules.reminder_utils import (
+        from modules.reminder_utils import ( # noqa: F401
             parse_reminder,
             parse_list_reminder_request,
             _parse_time_from_entities_text,
@@ -688,14 +732,14 @@ def test_module_imports():
         )
     except ImportError as e:
         pytest.fail(f"Failed to import modules: {e}")
-
 def test_function_signatures():
     """Test that all functions have the expected signatures."""
     import inspect
-    sig1 = inspect.signature(parse_reminder)
+    from modules.reminder_utils import parse_reminder, parse_list_reminder_request # noqa: F401
+    sig1 = inspect.signature(parse_reminder) # noqa: F821
     assert "text" in sig1.parameters and "entities" in sig1.parameters
 
-    sig2 = inspect.signature(parse_list_reminder_request)
+    sig2 = inspect.signature(parse_list_reminder_request) # noqa: F821
     assert "text" in sig2.parameters and "entities" in sig2.parameters
 if __name__ == "__main__":
     pytest.main([__file__, "-v", "--tb=short"])

@@ -19,8 +19,10 @@ def show_reminders_gui(reminders: list[dict], date_str: str):
             if isinstance(time_val, datetime):
                 time_str_display = time_val.strftime('%I:%M %p')
             elif isinstance(time_val, str): # If already stringified
-                try: time_str_display = datetime.fromisoformat(time_val).strftime('%I:%M %p')
-                except ValueError: time_str_display = time_val # show as is
+                try:
+                    time_str_display = datetime.fromisoformat(time_val).strftime('%I:%M %p')
+                except ValueError:
+                    time_str_display = time_val # show as is
             else:
                 time_str_display = "Unknown time"
             text_widget.insert(tk.END, f"- {task} at {time_str_display}\n")

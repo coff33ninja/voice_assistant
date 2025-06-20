@@ -93,9 +93,8 @@ async def get_weather_async(
                 pass # Ignore parsing errors for this check, rely on keywords
 
             if date_ref not in ["today", "now", "current"]: # Check if it's explicitly not for the current time
-                 print(f"Forecast requested for '{entities.get('date_reference')}', but only current weather is supported.")
-                 return {"message": f"I can only provide current weather, not forecasts for {entities.get('date_reference')}."}
-
+                print(f"Forecast requested for '{entities.get('date_reference')}', but only current weather is supported.")
+                return {"message": f"I can only provide current weather, not forecasts for {entities.get('date_reference')}."}
 
     # 2. Determine location for the API call, prioritizing entities
     entity_location = str(entities.get("location")) if entities and entities.get("location") else None
@@ -132,8 +131,12 @@ async def get_weather_async(
     print(f"Requesting weather with params: {params}")
     try:
         async with aiohttp.ClientSession() as session:
-            async with session.get(OPENWEATHER_API_URL, params=params, raise_for_status=True) as response: # Use raise_for_status=True
-                response.raise_for_status() # Raise an exception for HTTP errors
+            # Explicitly catch ContentTypeError before ClientResponseError
+            # as ContentTypeError is a subclass of ClientResponseError
+            async with session.get(
+                OPENWEATHER_API_URL, params=params, raise_for_status=True
+            ) as response:  # Use raise_for_status=True
+                response.raise_for_status()  # Raise an exception for HTTP errors
                 data = await response.json()
 
                 weather_list = data.get("weather")
@@ -170,6 +173,10 @@ async def get_weather_async(
                     # Align with the test's expected error message structure for this case
                     location_desc_str = str(actual_location_description_for_error) if actual_location_description_for_error is not None else "an unspecified location"
                     return {"error": f"There was a problem fetching weather for {location_desc_str} (incomplete data)."}
+    except aiohttp.ContentTypeError as e: # Explicitly catch ContentTypeError
+        # This might happen if the response is not JSON, even if status is 200
+        print(f"ContentTypeError when fetching weather for {actual_location_description_for_error}: {e}")
+        return {"error": f"Received unexpected data format when fetching weather for {actual_location_description_for_error}."}
     except aiohttp.ClientResponseError as e: # Catch specific HTTP errors first
         print(f"HTTP Error fetching weather for {actual_location_description_for_error}: {e.status} - {e.message}")
         # Check for 404 specifically for city not found, return a specific message.
@@ -185,10 +192,6 @@ async def get_weather_async(
         print(f"Network Error fetching weather for {actual_location_description_for_error}: {e}")
         location_desc_str = str(actual_location_description_for_error) if actual_location_description_for_error is not None else "an unspecified location"
         return {"error": f"There was a network problem fetching weather for {location_desc_str}."}
-    except aiohttp.ContentTypeError as e: # Explicitly catch ContentTypeError
-        # This might happen if the response is not JSON, even if status is 200
-        print(f"ContentTypeError when fetching weather for {actual_location_description_for_error}: {e}")
-        return {"error": f"Received unexpected data format when fetching weather for {actual_location_description_for_error}."}
     except Exception as e:
         print(f"Unexpected error in get_weather_async for {actual_location_description_for_error}: {e}")
         # Generic error for truly unexpected issues

@@ -4,7 +4,7 @@ import logging # Import logging
 from typing import Optional, Dict, Any, Union # Added for type hints
 
 # Helper function to parse time string from entities
-def _parse_time_from_entities_text(time_str: str, date_ref_str: Optional[str] = None) -> Optional[datetime]:
+def _parse_time_from_entities_text(time_str: Optional[str], date_ref_str: Optional[str] = None) -> Optional[datetime]:
     if not time_str: # Add check for None or empty string
         return None
 
@@ -95,7 +95,7 @@ def _parse_time_from_entities_text(time_str: str, date_ref_str: Optional[str] = 
     return None
 
 # Helper function to parse date string from entities (for list reminders)
-def _parse_date_from_entities_text(date_ref_str: str) -> Optional[date]:
+def _parse_date_from_entities_text(date_ref_str: Optional[str]) -> Optional[date]:
     if not date_ref_str: # Add check for None or empty string
         return None
 

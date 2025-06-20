@@ -3,7 +3,7 @@ from torch import nn
 from transformers import DistilBertModel, DistilBertConfig
 from transformers.utils import ModelOutput
 from dataclasses import dataclass
-from typing import Optional, Tuple
+from typing import Optional, Tuple, cast
 
 
 @dataclass
@@ -59,9 +59,7 @@ class JointIntentSlotModel(nn.Module):
     ):
         # Determine effective_return_dict based on the forward argument, defaulting to True.
         # Avoids relying on self.config.use_return_dict if it's problematic.
-        effective_return_dict = (
-            return_dict if return_dict is not None else True
-        )
+        effective_return_dict = return_dict if return_dict is not None else True
 
         outputs = self.distilbert(
             input_ids,
@@ -78,8 +76,12 @@ class JointIntentSlotModel(nn.Module):
         # Handle empty batch case for sequence_output
         if sequence_output.shape[0] == 0 or sequence_output.shape[1] == 0:
             # For empty batch, logits should also be empty or match expected empty shape
-            intent_logits = torch.empty((0, self.num_intent_labels), device=sequence_output.device)
-            slot_logits = torch.empty((0, 0, self.num_slot_labels), device=sequence_output.device)
+            intent_logits = torch.empty(
+                (0, self.num_intent_labels), device=sequence_output.device
+            )
+            slot_logits = torch.empty(
+                (0, 0, self.num_slot_labels), device=sequence_output.device
+            )
         else:
             cls_output = sequence_output[:, 0, :]  # [batch_size, dim]
             intent_logits = self.intent_classifier(cls_output)
@@ -95,18 +97,41 @@ class JointIntentSlotModel(nn.Module):
             loss_fct = nn.CrossEntropyLoss()
 
             # Intent loss
+            # Add assert to clarify to Pylance that intent_labels is not None here,
+            # as it might struggle with type narrowing in complex conditional blocks.
+            assert (
+                intent_labels is not None
+            ), "intent_labels should be a Tensor due to the preceding 'if' condition."
+            # Cast intent_logits to assure Pylance it's a Tensor here
+            intent_logits_tensor = cast(torch.FloatTensor, intent_logits)
             intent_loss = loss_fct(
-                intent_logits.view(-1, self.num_intent_labels), intent_labels.view(-1)
+                intent_logits_tensor.view(-1, self.num_intent_labels),
+                intent_labels.view(-1),
             )
 
+            # Add assert to clarify to Pylance that slot_logits is not None before casting
+            assert (
+                slot_logits is not None
+            ), "slot_logits should be a Tensor at this point."
+            # Cast slot_logits to assure Pylance it's a Tensor here
+            slot_logits_tensor = cast(torch.FloatTensor, slot_logits)
             # Slot loss
             # Only calculate loss for tokens that are not padding (where slot_labels != -100)
             if self.config.num_slot_labels > 0:  # Ensure there are slot labels
+                assert (
+                    slot_labels is not None
+                ), "slot_labels should be a Tensor due to the preceding 'if' condition."
                 active_loss = (
-                    attention_mask.view(-1) == 1
-                )  # Consider active tokens based on attention mask
-                active_logits = slot_logits.view(-1, self.num_slot_labels)[active_loss]
-                active_labels = slot_labels.view(-1)[active_loss]
+                    (attention_mask.view(-1) == 1)
+                    if attention_mask is not None
+                    else torch.ones_like(slot_labels.view(-1), dtype=torch.bool)
+                )  # Consider active tokens based on attention mask, handle None attention_mask
+                active_logits = slot_logits_tensor.view(-1, self.num_slot_labels)[
+                    active_loss
+                ]
+                # Cast slot_labels to Tensor to assure Pylance it's not None here and use a distinct variable name
+                slot_labels_casted = cast(torch.Tensor, slot_labels)
+                active_labels = slot_labels_casted.view(-1)[active_loss]
 
                 # Ensure there are active labels to compute loss on, to avoid issues with empty tensors
                 if active_logits.shape[0] > 0 and active_labels.shape[0] > 0:
@@ -138,15 +163,28 @@ class JointIntentSlotModel(nn.Module):
                 )  # Assign zero loss for slots
 
         if not effective_return_dict:
-            output = (intent_logits, slot_logits) + outputs[
-                2:
-            ]  # outputs[2:] are hidden_states and attentions
-            return ((total_loss,) + output) if total_loss is not None else output
+            # Construct tuple similar to standard Hugging Face model outputs
+            # (loss, intent_logits, slot_logits, hidden_states, attentions)
+            output_tuple = (
+                intent_logits,
+                slot_logits,
+                outputs.hidden_states,
+                outputs.attentions,
+            )
+            return (
+                ((total_loss,) + output_tuple)
+                if total_loss is not None
+                else output_tuple
+            )
 
         return JointModelOutput(
             loss=total_loss,
-            intent_logits=intent_logits,
-            slot_logits=slot_logits,
+            intent_logits=cast(
+                torch.FloatTensor, intent_logits
+            ),  # Cast to satisfy Pylance's specific type expectation
+            slot_logits=cast(
+                torch.FloatTensor, slot_logits
+            ),  # Cast to satisfy Pylance's specific type expectation
             hidden_states=outputs.hidden_states,
             attentions=outputs.attentions,
         )
