@@ -249,6 +249,7 @@ def install_python_dependencies():
             "twisted",
             "nltk",
             "hf_xet",
+            "language_tool_python",
         ],
         "Failed to install core dependencies",
     )

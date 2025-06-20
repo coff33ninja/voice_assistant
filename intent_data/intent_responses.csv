@@ -30,6 +30,7 @@ get_weather_unsure,"I'm not sure which location you're asking about for the weat
 add_calendar_event_success,"{calendar_response}"
 add_calendar_event_parse_error,"Sorry, I couldn't understand the date and time for the event. Please try again, like 'add meeting on June 20th at 3pm'."
 add_calendar_event_missing,"Please specify the event and date, for example: 'add meeting with John on June 20th at 3pm' or 'schedule project update for next Tuesday at 2pm'."
+add_calendar_event,"Event added to your calendar. Let me know if you want to add more details."
 llm_fallback_sorry,"I'm sorry, I didn't understand that. You can ask me to set reminders, check the weather, or answer questions. Try rephrasing your request or say 'help' for examples."
 llm_service_error,"I couldn't reach the language model service. Please make sure Ollama is running, then try again."
 no_speech_detected,"I didn't catch that. If you need something, please call me again."

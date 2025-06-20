@@ -11,6 +11,7 @@ from modules.device_detector import (
     detect_cuda_with_torch,
     detect_cpu_vendor
 )
+from tqdm import tqdm
 
 # Helper: Levenshtein distance (edit distance)
 def edit_distance(s1, s2):
@@ -128,6 +129,15 @@ def archive_augmented_data_before_augmentation():
 # Call the archive function at the start
 archive_augmented_data_before_augmentation()
 
+# Run sentence validation and auto-correction before loading data
+print("[Automation] Running sentence validation and auto-correction...")
+subprocess.run([sys.executable, 'scripts/validate_and_clean_sentences.py'], check=False)
+# Replace original dataset with cleaned version if it exists
+CLEANED_PATH = "intent_data/intent_dataset_cleaned.csv"
+if os.path.exists(CLEANED_PATH):
+    DATASET_PATH = CLEANED_PATH
+    print(f"[Automation] Using cleaned dataset: {CLEANED_PATH}")
+
 # Load data
 intent_df = pd.read_csv(DATASET_PATH)
 responses_df = pd.read_csv(RESPONSES_PATH)
@@ -240,10 +250,10 @@ def generate_paraphrases(text):
 
 # Generate new rows
 new_rows = []
-for idx, row in intent_df.iterrows():
-    text = row['text']
-    label = row['label']
-    entities = row['entities']
+for idx, row in tqdm(enumerate(intent_df.itertuples()), total=len(intent_df), desc="Augmenting"):
+    text = row.text
+    label = row.label
+    entities = row.entities
     paraphrases, sources, difficulties = generate_paraphrases(text)
     for para in paraphrases:
         if para != text:

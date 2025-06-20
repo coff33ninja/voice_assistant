@@ -23,6 +23,26 @@ from modules.joint_model import (
 
 
 def fine_tune_model(dataset_path, model_save_path):
+    import os
+    import subprocess
+    # --- Sentence cleaning step (always required) ---
+    PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+    CLEANED_DATASET_PATH = os.path.join(PROJECT_ROOT, "intent_data", "intent_dataset_cleaned.csv")
+    RAW_DATASET_PATH = os.path.join(PROJECT_ROOT, "intent_data", "intent_dataset.csv")
+    CLEAN_SCRIPT_PATH = os.path.join(PROJECT_ROOT, "scripts", "validate_and_clean_sentences.py")
+    if not os.path.exists(CLEANED_DATASET_PATH):
+        print("Running sentence validation and auto-correction before training...")
+        clean_result = subprocess.run([sys.executable, CLEAN_SCRIPT_PATH], capture_output=True, text=True, check=False)
+        print(clean_result.stdout)
+        if clean_result.returncode != 0:
+            print(f"Warning: Cleaning script failed. Stderr: {clean_result.stderr.strip()}")
+    if os.path.exists(CLEANED_DATASET_PATH):
+        print(f"Using cleaned dataset: {CLEANED_DATASET_PATH}")
+        dataset_path = CLEANED_DATASET_PATH
+    else:
+        print("Warning: Cleaned dataset not found, using raw dataset.")
+        dataset_path = RAW_DATASET_PATH
+
     # --- Dictionary augmentation step ---
     import subprocess
     import os
@@ -42,6 +62,7 @@ def fine_tune_model(dataset_path, model_save_path):
         print(f"Warning: Exception during dictionary augmentation: {e}")
 
     # --- Dataset augmentation step ---
+    # Always augment the cleaned dataset
     AUGMENT_SCRIPT_PATH = os.path.join(PROJECT_ROOT, "scripts", "augment_intent_dataset.py")
     AUGMENTED_DATASET_PATH = os.path.join(PROJECT_ROOT, "intent_data", "intent_dataset_augmented.csv")
     print("Running dataset augmentation before training...")
