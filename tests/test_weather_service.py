@@ -35,9 +35,11 @@ def mock_aiohttp_get():
     """
     with patch('aiohttp.ClientSession.get', new_callable=AsyncMock) as mock_get:
         mock_response = MagicMock(spec=aiohttp.ClientResponse)
-        # mock_response.raise_for_status is not mocked here; it's configured in individual tests
-        mock_response.json = AsyncMock()
         # Properly mock async context manager protocol
+        async def async_json():
+            return mock_response._json_payload
+        mock_response.json = AsyncMock(side_effect=async_json)
+        mock_response._json_payload = None  # Will be set in each test
         mock_get.return_value.__aenter__.return_value = mock_response
         mock_get.return_value.__aexit__.return_value = False
         yield mock_get, mock_response
@@ -97,6 +99,7 @@ class TestGetWeatherAsync:
     async def test_get_weather_by_city_success(self, mock_aiohttp_get, mock_weather_success_payload):
         mock_get, mock_response = mock_aiohttp_get
         mock_response.json.return_value = mock_weather_success_payload
+        mock_response._json_payload = mock_weather_success_payload
         mock_response.status = 200 # Set status code for raise_for_status
 
         result = await get_weather_async(location_query="New York")
@@ -115,6 +118,7 @@ class TestGetWeatherAsync:
     async def test_get_weather_by_coordinates_success(self, mock_aiohttp_get, mock_weather_success_payload):
         mock_get, mock_response = mock_aiohttp_get
         mock_response.json.return_value = mock_weather_success_payload
+        mock_response._json_payload = mock_weather_success_payload
         mock_response.status = 200
 
         result = await get_weather_async(location_query=(40.7128, -74.0060))
@@ -131,6 +135,7 @@ class TestGetWeatherAsync:
     async def test_get_weather_with_entities_location(self, mock_aiohttp_get, mock_weather_success_payload):
         mock_get, mock_response = mock_aiohttp_get
         mock_response.json.return_value = mock_weather_success_payload
+        mock_response._json_payload = mock_weather_success_payload
         mock_response.status = 200
 
         entities = {"location": "London"}
@@ -147,6 +152,7 @@ class TestGetWeatherAsync:
     async def test_get_weather_prefers_entities_location_over_query(self, mock_aiohttp_get, mock_weather_success_payload):
         mock_get, mock_response = mock_aiohttp_get
         mock_response.json.return_value = mock_weather_success_payload
+        mock_response._json_payload = mock_weather_success_payload
         mock_response.status = 200
 
         entities = {"location": "Paris"}
@@ -164,6 +170,7 @@ class TestGetWeatherAsync:
     async def test_get_weather_falls_back_to_ip_geo(self, mock_get_coords, mock_aiohttp_get, mock_weather_success_payload, mock_ip_geo_success_payload):
         mock_get, mock_response = mock_aiohttp_get
         mock_response.json.return_value = mock_weather_success_payload
+        mock_response._json_payload = mock_weather_success_payload
         mock_response.status = 200
         mock_get_coords.return_value = (mock_ip_geo_success_payload['lat'], mock_ip_geo_success_payload['lon'])
 
