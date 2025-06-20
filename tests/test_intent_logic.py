@@ -1,14 +1,9 @@
 import pytest
-from unittest.mock import Mock, patch, MagicMock, AsyncMock, mock_open
-import asyncio
-import pandas as pd
+from unittest.mock import patch, AsyncMock, mock_open
 import os
-import json
-from datetime import datetime, timedelta
-import tempfile
 import sys
-import logging
-import numpy as np # Import numpy
+from datetime import datetime
+import numpy as np  # Only import here for the test that needs it
 
 # Add the project root to the path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -17,7 +12,6 @@ from modules.intent_logic import (
     intent_handler,
     INTENT_HANDLERS,
     get_response,
-    RESPONSE_MAP,
     ShutdownSignal,
     process_command,
     handle_greeting_intent,
@@ -26,9 +20,6 @@ from modules.intent_logic import (
     handle_list_reminders_intent,
     handle_get_weather_intent,
     handle_start_chat_with_llm,
-    handle_add_calendar_event_intent,
-    handle_cancel_task,
-    handle_calendar_query,
     handle_retrain_model_intent
 )
 
@@ -457,7 +448,7 @@ class TestErrorHandling:
         mock_normalize.return_value = "test input"
         mock_detect_intent.side_effect = Exception("Detection failed")
 
-        with patch('modules.intent_logic.logger') as mock_logger:
+        with patch('modules.intent_logic.logger'):
             await process_command("test input")
             # Error should be caught by decorator and logged
 
