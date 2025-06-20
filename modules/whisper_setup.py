@@ -4,6 +4,11 @@ Module for using OpenAI Whisper (standard, not WhisperX) for speech-to-text.
 import os
 import torch
 import numpy as np
+import sys
+import subprocess
+from dotenv import set_key
+import tempfile
+from modules.config import STT_MODEL_NAME
 
 try:
     import whisper
@@ -45,3 +50,69 @@ def get_whisper_model_descriptions():
         "medium": "Slower, more accurate, larger size.",
         "large": "Slowest, highest accuracy, largest size. Best for quality, needs most resources."
     }
+
+
+def get_project_root():
+    """Infer the project root directory."""
+    return os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+
+
+def setup_whisper():
+    try:
+        import whisper
+        import sounddevice as sd
+        import scipy.io.wavfile as wav
+    except ImportError as e:
+        print(f"A required module for Whisper setup is missing: {e}")
+        print("Please ensure openai-whisper, sounddevice, and scipy are installed (e.g., via 'pip install openai-whisper sounddevice scipy') or re-run the full dependency installation.")
+        raise
+    project_root = get_project_root()
+    dotenv_path = os.path.join(project_root, '.env')
+    if not os.path.exists(dotenv_path):
+        open(dotenv_path, 'a').close()
+        print(f"Created .env file at {dotenv_path}")
+    current_stt_model = os.getenv("STT_MODEL_NAME", STT_MODEL_NAME)
+    print(f"Current Whisper model: {current_stt_model}")
+    print("\nAvailable Whisper models:")
+    for i, model_name in enumerate(WHISPER_MODEL_SIZES):
+        print(f"{i + 1}. {model_name}")
+    selected_model_name = current_stt_model
+    while True:
+        try:
+            choice = input(f"Select a model by number (or press Enter to keep '{current_stt_model}'): ")
+            if not choice:
+                break
+            model_index = int(choice) - 1
+            if 0 <= model_index < len(WHISPER_MODEL_SIZES):
+                selected_model_name = WHISPER_MODEL_SIZES[model_index]
+                break
+            else:
+                print("Invalid selection. Please try again.")
+        except ValueError:
+            print("Invalid input. Please enter a number.")
+    if selected_model_name != current_stt_model:
+        set_key(dotenv_path, "STT_MODEL_NAME", selected_model_name)
+        print(f"Whisper model set to: {selected_model_name} in {dotenv_path}")
+        os.environ["STT_MODEL_NAME"] = selected_model_name
+    else:
+        print(f"Keeping current model: {selected_model_name}")
+    try:
+        print(f"\nLoading Whisper model: {selected_model_name}...")
+        model = whisper.load_model(selected_model_name, device="cpu")
+        print(f"Model {selected_model_name} loaded successfully.")
+        print("Whisper setup complete. Models will download on first use if not already present.")
+        duration = 5  # seconds
+        fs = 16000
+        print("Please say something after the beep...")
+        sd.sleep(500)
+        print("Beep!")
+        recording = sd.rec(int(duration * fs), samplerate=fs, channels=1, dtype='int16')
+        sd.wait()
+        with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as tmpfile:
+            wav.write(tmpfile.name, fs, recording)
+            tmp_wav_path = tmpfile.name
+        result = model.transcribe(tmp_wav_path)
+        print("Transcription result:", result)
+        os.remove(tmp_wav_path)
+    except Exception as e:
+        print(f"Whisper setup or test failed: {e}")
