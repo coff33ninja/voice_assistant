@@ -227,6 +227,8 @@ def install_python_dependencies():
             "pyspellchecker", # Added spell-checking library
             "watchdog", # Added for file watching
             "onnx",
+            "pytest",
+            "unitest",
         ],
         "Failed to install core dependencies",
     )
