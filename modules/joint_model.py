@@ -8,11 +8,11 @@ from typing import Optional, Tuple, cast
 
 @dataclass
 class JointModelOutput(ModelOutput):
-    loss: Optional[torch.FloatTensor] = None
-    intent_logits: Optional[torch.FloatTensor] = None
-    slot_logits: Optional[torch.FloatTensor] = None
-    hidden_states: Optional[Tuple[torch.FloatTensor]] = None
-    attentions: Optional[Tuple[torch.FloatTensor]] = None
+    loss: Optional[torch.Tensor] = None
+    intent_logits: Optional[torch.Tensor] = None
+    slot_logits: Optional[torch.Tensor] = None
+    hidden_states: Optional[Tuple[torch.Tensor]] = None
+    attentions: Optional[Tuple[torch.Tensor]] = None
 
 
 class JointIntentSlotModel(nn.Module):

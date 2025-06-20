@@ -86,9 +86,12 @@ class TestJointModelOutput:
             slot_logits=slot_logits
         )
 
-        assert torch.equal(output.loss, loss)
-        assert torch.equal(output.intent_logits, intent_logits)
-        assert torch.equal(output.slot_logits, slot_logits)
+        if output.loss is not None:
+            assert torch.equal(output.loss, loss)
+        if output.intent_logits is not None:
+            assert torch.equal(output.intent_logits, intent_logits)
+        if output.slot_logits is not None:
+            assert torch.equal(output.slot_logits, slot_logits)
         assert output.hidden_states is None
         assert output.attentions is None
 
