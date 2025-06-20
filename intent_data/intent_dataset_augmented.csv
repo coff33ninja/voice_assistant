@@ -1,0 +1,505 @@
+text,label,entities,source_method,difficulty_level
+Remind me to call mom tomorrow at 2:30 pm,set_reminder,"{""task"": ""call mom"", ""time_phrase"": ""tomorrow at 2:30 pm""}",original,easy
+Set a reminder for meeting at 5 pm,set_reminder,"{""task"": ""meeting"", ""time_phrase"": ""at 5 pm""}",original,easy
+Remind me to buy groceries in 2 hours,set_reminder,"{""task"": ""buy groceries"", ""time_phrase"": ""in 2 hours""}",original,easy
+Remind me to take medicine at 8 pm,set_reminder,"{""task"": ""take medicine"", ""time_phrase"": ""at 8 pm""}",original,easy
+set a reminder for 3pm,set_reminder,"{""task"": ""reminder"", ""time_phrase"": ""3pm""}",original,easy
+I want to set a reminder,set_reminder,{},original,easy
+Add reminder to prepare slides for presentation next week,set_reminder,"{""subject"": ""prepare slides for presentation"", ""time_phrase"": ""next week""}",original,easy
+Remind me about the quarterly budget meeting Tuesday morning,set_reminder,"{""subject"": ""quarterly budget meeting"", ""time_phrase"": ""Tuesday morning""}",original,easy
+I need to set a reminder to follow up with client X in two days,set_reminder,"{""subject"": ""follow up with client X"", ""contact_name"": ""client X"", ""time_phrase"": ""in two days""}",original,easy
+Set a reminder: pick up prescription at 3pm today,set_reminder,"{""subject"": ""pick up prescription"", ""time_phrase"": ""3pm today""}",original,easy
+Remind me to call the garage this afternoon,set_reminder,"{""subject"": ""call the garage"", ""time_phrase"": ""this afternoon""}",original,easy
+Remind me to buy milk and eggs,set_reminder,"{""subject"": ""buy milk and eggs""}",original,easy
+Set an alarm for tomorrow at 6 AM to go for a run,set_reminder,"{""subject"": ""go for a run"", ""time_phrase"": ""tomorrow at 6 AM""}",original,easy
+Remind me to check emails in 15 minutes,set_reminder,"{""subject"": ""check emails"", ""time_phrase"": ""in 15 minutes"", ""duration"": ""15 minutes""}",original,easy
+Remind Maine to call mom tomorrow at 2:30 pm,set_reminder,"{""task"": ""call mom"", ""time_phrase"": ""tomorrow at 2:30 pm""}",synonym_replace,hard
+Set angstrom reminder for meeting at 5 pm,set_reminder,"{""task"": ""meeting"", ""time_phrase"": ""at 5 pm""}",synonym_replace,hard
+Remind Maine to buy groceries in 2 hours,set_reminder,"{""task"": ""buy groceries"", ""time_phrase"": ""in 2 hours""}",synonym_replace,hard
+Remind Maine to take medicine at 8 pm,set_reminder,"{""task"": ""take medicine"", ""time_phrase"": ""at 8 pm""}",synonym_replace,hard
+set a reminder for pm,set_reminder,"{""task"": ""reminder"", ""time_phrase"": ""3pm""}",spellchecker_correction,medium
+set angstrom reminder for 3pm,set_reminder,"{""task"": ""reminder"", ""time_phrase"": ""3pm""}",synonym_replace,hard
+I wanna set a reminder,set_reminder,{},misspelling_common,medium
+iodine want to set a reminder,set_reminder,{},synonym_replace,hard
+attention deficit disorder reminder to prepare slides for presentation next week,set_reminder,"{""subject"": ""prepare slides for presentation"", ""time_phrase"": ""next week""}",synonym_replace,hard
+Remind Maine about the quarterly budget meeting Tuesday morning,set_reminder,"{""subject"": ""quarterly budget meeting"", ""time_phrase"": ""Tuesday morning""}",synonym_replace,hard
+Remind me bout the quarterly budget meeting Tuesday morning,set_reminder,"{""subject"": ""quarterly budget meeting"", ""time_phrase"": ""Tuesday morning""}",misspelling_common,medium
+iodine need to set a reminder to follow up with client X in two days,set_reminder,"{""subject"": ""follow up with client X"", ""contact_name"": ""client X"", ""time_phrase"": ""in two days""}",synonym_replace,hard
+Set a reminder pick up prescription at 3pm today,set_reminder,"{""subject"": ""pick up prescription"", ""time_phrase"": ""3pm today""}",spellchecker_correction,medium
+Set angstrom reminder: pick up prescription at 3pm today,set_reminder,"{""subject"": ""pick up prescription"", ""time_phrase"": ""3pm today""}",synonym_replace,hard
+Set a reminder: pick up prescription at pm today,set_reminder,"{""subject"": ""pick up prescription"", ""time_phrase"": ""3pm today""}",spellchecker_correction,medium
+Remind Maine to call the garage this afternoon,set_reminder,"{""subject"": ""call the garage"", ""time_phrase"": ""this afternoon""}",synonym_replace,hard
+Remind Maine to buy milk and eggs,set_reminder,"{""subject"": ""buy milk and eggs""}",synonym_replace,hard
+Set Associate in Nursing alarm for tomorrow at 6 AM to go for a run,set_reminder,"{""subject"": ""go for a run"", ""time_phrase"": ""tomorrow at 6 AM""}",synonym_replace,hard
+Remind Maine to check emails in 15 minutes,set_reminder,"{""subject"": ""check emails"", ""time_phrase"": ""in 15 minutes"", ""duration"": ""15 minutes""}",synonym_replace,hard
+What’s on my calendar this week?,calendar_query,"{""date_reference"": ""this week""}",original,easy
+Check my calendar for tomorrow,calendar_query,"{""date_reference"": ""tomorrow""}",original,easy
+Show me my schedule for Friday,calendar_query,"{""date_reference"": ""Friday""}",original,easy
+What's my next appointment?,calendar_query,{},original,easy
+what's on my calendar this week?,calendar_query,"{""date_reference"": ""this week""}",spellchecker_correction,medium
+What’s on my calendar this week,calendar_query,"{""date_reference"": ""this week""}",spellchecker_correction,medium
+bank check my calendar for tomorrow,calendar_query,"{""date_reference"": ""tomorrow""}",synonym_replace,hard
+Show Maine my schedule for Friday,calendar_query,"{""date_reference"": ""Friday""}",synonym_replace,hard
+What's my next appointment,calendar_query,{},spellchecker_correction,medium
+what is my next appointment?,calendar_query,{},contraction_expand,easy
+What's my following appointment?,calendar_query,{},synonym_replace,hard
+What’s the weather like today?,get_weather,"{""date_reference"": ""today"", ""location"": ""current""}",original,easy
+Tell me the weather forecast for tomorrow,get_weather,"{""date_reference"": ""tomorrow"", ""location"": ""current""}",original,easy
+Is it going to rain this afternoon?,get_weather,"{""date_reference"": ""this afternoon"", ""location"": ""current""}",original,easy
+Will it rain tomorrow?,get_weather,"{""date_reference"": ""tomorrow"", ""location"": ""current""}",original,easy
+What's the temperature outside?,get_weather,"{""location"": ""current""}",original,easy
+Is it sunny today?,get_weather,"{""date_reference"": ""today"", ""location"": ""current""}",original,easy
+Will it be rainy tomorrow?,get_weather,"{""date_reference"": ""tomorrow"", ""location"": ""current""}",original,easy
+How about the rain tomorrow?,get_weather,"{""date_reference"": ""tomorrow"", ""location"": ""current""}",original,easy
+What's the weather in San Francisco tomorrow?,get_weather,"{""location"": ""San Francisco"", ""date_reference"": ""tomorrow""}",original,easy
+Tell me the weather forecast for London next Sunday,get_weather,"{""location"": ""London"", ""date_reference"": ""next Sunday""}",original,easy
+Is it going to rain in my current location the day after tomorrow?,get_weather,"{""location"": ""current"", ""date_reference"": ""the day after tomorrow""}",original,easy
+Weather for Paris on the 15th,get_weather,"{""location"": ""Paris"", ""date_reference"": ""the 15th""}",original,easy
+What is the weather like in New York City next Friday?,get_weather,"{""location"": ""New York City"", ""date_reference"": ""next Friday""}",original,easy
+Weather forecast for my current city for the next 3 days,get_weather,"{""location"": ""current"", ""date_reference"": ""next 3 days"", ""duration"": ""3 days""}",original,easy
+Get weather for Boston for this evening,get_weather,"{""location"": ""Boston"", ""time_phrase"": ""this evening""}",original,easy
+What’s the weather like today,get_weather,"{""date_reference"": ""today"", ""location"": ""current""}",spellchecker_correction,medium
+what's the weather like today?,get_weather,"{""date_reference"": ""today"", ""location"": ""current""}",spellchecker_correction,medium
+What’s the weather condition like today?,get_weather,"{""date_reference"": ""today"", ""location"": ""current""}",synonym_replace,hard
+William Tell me the weather forecast for tomorrow,get_weather,"{""date_reference"": ""tomorrow"", ""location"": ""current""}",synonym_replace,hard
+Is it going to rain this afternoon,get_weather,"{""date_reference"": ""this afternoon"", ""location"": ""current""}",spellchecker_correction,medium
+Is it gonna rain this afternoon?,get_weather,"{""date_reference"": ""this afternoon"", ""location"": ""current""}",misspelling_common,medium
+be it going to rain this afternoon?,get_weather,"{""date_reference"": ""this afternoon"", ""location"": ""current""}",synonym_replace,hard
+volition it rain tomorrow?,get_weather,"{""date_reference"": ""tomorrow"", ""location"": ""current""}",synonym_replace,hard
+Will it rain tomorrow,get_weather,"{""date_reference"": ""tomorrow"", ""location"": ""current""}",spellchecker_correction,medium
+What's the temperature outside,get_weather,"{""location"": ""current""}",spellchecker_correction,medium
+what is the temperature outside?,get_weather,"{""location"": ""current""}",contraction_expand,easy
+Is it sunny today,get_weather,"{""date_reference"": ""today"", ""location"": ""current""}",spellchecker_correction,medium
+be it sunny today?,get_weather,"{""date_reference"": ""today"", ""location"": ""current""}",synonym_replace,hard
+Will it be rainy tomorrow,get_weather,"{""date_reference"": ""tomorrow"", ""location"": ""current""}",spellchecker_correction,medium
+volition it be rainy tomorrow?,get_weather,"{""date_reference"": ""tomorrow"", ""location"": ""current""}",synonym_replace,hard
+How astir the rain tomorrow?,get_weather,"{""date_reference"": ""tomorrow"", ""location"": ""current""}",synonym_replace,hard
+How bout the rain tomorrow?,get_weather,"{""date_reference"": ""tomorrow"", ""location"": ""current""}",misspelling_common,medium
+How about the rain tomorrow,get_weather,"{""date_reference"": ""tomorrow"", ""location"": ""current""}",spellchecker_correction,medium
+what is the weather in San Francisco tomorrow?,get_weather,"{""location"": ""San Francisco"", ""date_reference"": ""tomorrow""}",contraction_expand,easy
+What's the weather in San Francisco tomorrow,get_weather,"{""location"": ""San Francisco"", ""date_reference"": ""tomorrow""}",spellchecker_correction,medium
+What's the weather condition in San Francisco tomorrow?,get_weather,"{""location"": ""San Francisco"", ""date_reference"": ""tomorrow""}",synonym_replace,hard
+William Tell me the weather forecast for London next Sunday,get_weather,"{""location"": ""London"", ""date_reference"": ""next Sunday""}",synonym_replace,hard
+Is it gonna rain in my current location the day after tomorrow?,get_weather,"{""location"": ""current"", ""date_reference"": ""the day after tomorrow""}",misspelling_common,medium
+be it going to rain in my current location the day after tomorrow?,get_weather,"{""location"": ""current"", ""date_reference"": ""the day after tomorrow""}",synonym_replace,hard
+Is it going to rain in my current location the day after tomorrow,get_weather,"{""location"": ""current"", ""date_reference"": ""the day after tomorrow""}",spellchecker_correction,medium
+Weather for Paris on the with,get_weather,"{""location"": ""Paris"", ""date_reference"": ""the 15th""}",spellchecker_correction,medium
+weather condition for Paris on the 15th,get_weather,"{""location"": ""Paris"", ""date_reference"": ""the 15th""}",synonym_replace,hard
+What is the weather like in New York City next friday,get_weather,"{""location"": ""New York City"", ""date_reference"": ""next Friday""}",spellchecker_correction,medium
+What be the weather like in New York City next Friday?,get_weather,"{""location"": ""New York City"", ""date_reference"": ""next Friday""}",synonym_replace,hard
+weather condition forecast for my current city for the next 3 days,get_weather,"{""location"": ""current"", ""date_reference"": ""next 3 days"", ""duration"": ""3 days""}",synonym_replace,hard
+Get weather condition for Boston for this evening,get_weather,"{""location"": ""Boston"", ""time_phrase"": ""this evening""}",synonym_replace,hard
+What are my reminders for today?,list_reminders,"{""date_reference"": ""today""}",original,easy
+Show me reminders for tomorrow,list_reminders,"{""date_reference"": ""tomorrow""}",original,easy
+List my reminders for next Monday,list_reminders,"{""date_reference"": ""next Monday""}",original,easy
+Any reminders for July 4th?,list_reminders,"{""date_reference"": ""July 4th""}",original,easy
+Do I have any reminders for tomorrow?,list_reminders,"{""date_reference"": ""tomorrow""}",original,easy
+Show my reminders for the day after tomorrow,list_reminders,"{""date_reference"": ""the day after tomorrow""}",original,easy
+List all reminders for next month,list_reminders,"{""date_reference"": ""next month""}",original,easy
+Are there any reminders for August 10th?,list_reminders,"{""date_reference"": ""August 10th""}",original,easy
+What are my reminders for this weekend?,list_reminders,"{""date_reference"": ""this weekend""}",original,easy
+What ar my reminders for today?,list_reminders,"{""date_reference"": ""today""}",synonym_replace,hard
+What are my reminders for today,list_reminders,"{""date_reference"": ""today""}",spellchecker_correction,medium
+Show Maine reminders for tomorrow,list_reminders,"{""date_reference"": ""tomorrow""}",synonym_replace,hard
+listing my reminders for next Monday,list_reminders,"{""date_reference"": ""next Monday""}",synonym_replace,hard
+whatever reminders for July 4th?,list_reminders,"{""date_reference"": ""July 4th""}",synonym_replace,hard
+Any reminders for July the,list_reminders,"{""date_reference"": ""July 4th""}",spellchecker_correction,medium
+Do I have any reminders for tomorrow,list_reminders,"{""date_reference"": ""tomorrow""}",spellchecker_correction,medium
+bash I have any reminders for tomorrow?,list_reminders,"{""date_reference"": ""tomorrow""}",synonym_replace,hard
+Show my reminder for the day after tomorrow,list_reminders,"{""date_reference"": ""the day after tomorrow""}",synonym_replace,hard
+listing all reminders for next month,list_reminders,"{""date_reference"": ""next month""}",synonym_replace,hard
+ar there any reminders for August 10th?,list_reminders,"{""date_reference"": ""August 10th""}",synonym_replace,hard
+What are my reminders for this weekend,list_reminders,"{""date_reference"": ""this weekend""}",spellchecker_correction,medium
+What ar my reminders for this weekend?,list_reminders,"{""date_reference"": ""this weekend""}",synonym_replace,hard
+What’s the capital of France?,general_query,"{""topic"": ""capital of France""}",original,easy
+Who won the World Cup in 2022?,general_query,"{""topic"": ""World Cup 2022 winner""}",original,easy
+How does photosynthesis work?,general_query,"{""topic"": ""photosynthesis""}",original,easy
+How far is the moon?,general_query,"{""topic"": ""distance to moon""}",original,easy
+Who is the president of the United States?,general_query,"{""topic"": ""US president""}",original,easy
+How tall is Mount Everest?,general_query,"{""topic"": ""height of Mount Everest""}",original,easy
+What's the stock price of Apple?,general_query,"{""company_name"": ""Apple"", ""query_type"": ""stock_price""}",original,easy
+How did the stock market do today?,general_query,"{""query_type"": ""stock_market_performance"", ""date_reference"": ""today""}",original,easy
+What’s the working capital of France?,general_query,"{""topic"": ""capital of France""}",synonym_replace,hard
+what's the capital of France?,general_query,"{""topic"": ""capital of France""}",spellchecker_correction,medium
+What’s the capital of frances,general_query,"{""topic"": ""capital of France""}",spellchecker_correction,medium
+World Health Organization won the World Cup in 2022?,general_query,"{""topic"": ""World Cup 2022 winner""}",synonym_replace,hard
+How Department of Energy photosynthesis work?,general_query,"{""topic"": ""photosynthesis""}",synonym_replace,hard
+How does photosynthesis work,general_query,"{""topic"": ""photosynthesis""}",spellchecker_correction,medium
+How far is the moon,general_query,"{""topic"": ""distance to moon""}",spellchecker_correction,medium
+How Army for the Liberation of Rwanda is the moon?,general_query,"{""topic"": ""distance to moon""}",synonym_replace,hard
+World Health Organization is the president of the United States?,general_query,"{""topic"": ""US president""}",synonym_replace,hard
+Who is the president of the United states,general_query,"{""topic"": ""US president""}",spellchecker_correction,medium
+How tall be Mount Everest?,general_query,"{""topic"": ""height of Mount Everest""}",synonym_replace,hard
+How tall is Mount everest,general_query,"{""topic"": ""height of Mount Everest""}",spellchecker_correction,medium
+What's the stock monetary value of Apple?,general_query,"{""company_name"": ""Apple"", ""query_type"": ""stock_price""}",synonym_replace,hard
+What's the stock price of apple,general_query,"{""company_name"": ""Apple"", ""query_type"": ""stock_price""}",spellchecker_correction,medium
+what is the stock price of Apple?,general_query,"{""company_name"": ""Apple"", ""query_type"": ""stock_price""}",contraction_expand,easy
+How make the stock market do today?,general_query,"{""query_type"": ""stock_market_performance"", ""date_reference"": ""today""}",synonym_replace,hard
+How did the stock market do today,general_query,"{""query_type"": ""stock_market_performance"", ""date_reference"": ""today""}",spellchecker_correction,medium
+Retrain the model,retrain_model,{},original,easy
+Update my assistant,retrain_model,{},original,easy
+Retrain intent classifier,retrain_model,{},original,easy
+Could you retrain the intent model?,retrain_model,{},original,easy
+It's time to update the training data,retrain_model,{},original,easy
+Refresh the model,retrain_model,{},original,easy
+Retrain assistant,retrain_model,{},original,easy
+Train model,retrain_model,{},original,easy
+Update model,retrain_model,{},original,easy
+Retrain the theoretical account,retrain_model,{},synonym_replace,hard
+Update my helper,retrain_model,{},synonym_replace,hard
+Retrain purpose classifier,retrain_model,{},synonym_replace,hard
+Could you retrain the intent model,retrain_model,{},spellchecker_correction,medium
+Could you retrain the purpose model?,retrain_model,{},synonym_replace,hard
+Could ya retrain the intent model?,retrain_model,{},misspelling_common,medium
+it has / it is time to update the training data,retrain_model,{},contraction_expand,easy
+It's clip to update the training data,retrain_model,{},synonym_replace,hard
+review the model,retrain_model,{},synonym_replace,hard
+Retrain helper,retrain_model,{},synonym_replace,hard
+railroad train model,retrain_model,{},synonym_replace,hard
+Update theoretical account,retrain_model,{},synonym_replace,hard
+Cancel my last request,cancel_task,{},original,easy
+Never mind,cancel_task,{},original,easy
+Stop that,cancel_task,{},original,easy
+Cancel that,cancel_task,{},original,easy
+Stop,cancel_task,{},original,easy
+Don't do that,cancel_task,{},original,easy
+I don't need that anymore,cancel_task,{},original,easy
+Don't set that reminder,cancel_task,{},original,easy
+Cancel the reminder I just asked for,cancel_task,{},original,easy
+natural my last request,cancel_task,{},synonym_replace,hard
+ne'er mind,cancel_task,{},synonym_replace,hard
+halt that,cancel_task,{},synonym_replace,hard
+natural that,cancel_task,{},synonym_replace,hard
+halt,cancel_task,{},synonym_replace,hard
+Don't bash that,cancel_task,{},synonym_replace,hard
+do not do that,cancel_task,{},contraction_expand,easy
+I do not need that anymore,cancel_task,{},contraction_expand,easy
+iodine don't need that anymore,cancel_task,{},synonym_replace,hard
+do not set that reminder,cancel_task,{},contraction_expand,easy
+natural the reminder I just asked for,cancel_task,{},synonym_replace,hard
+Hello,greeting,{},original,easy
+Hi there,greeting,{},original,easy
+Hi,greeting,{},original,easy
+Hey,greeting,{},original,easy
+Good morning,greeting,{},original,easy
+Good afternoon,greeting,{},original,easy
+Good evening,greeting,{},original,easy
+Greetings,greeting,{},original,easy
+Howdy,greeting,{},original,easy
+What's up,greeting,{},original,easy
+Hiya,greeting,{},original,easy
+Hello assistant,greeting,{},original,easy
+hullo,greeting,{},synonym_replace,hard
+hello there,greeting,{},synonym_replace,hard
+hello,greeting,{},synonym_replace,hard
+Good morn,greeting,{},synonym_replace,hard
+Good eve,greeting,{},synonym_replace,hard
+greeting,greeting,{},synonym_replace,hard
+what is up,greeting,{},contraction_expand,easy
+hullo assistant,greeting,{},synonym_replace,hard
+bye,goodbye,{},original,easy
+Goodbye,goodbye,{},original,easy
+See you,goodbye,{},original,easy
+See you later,goodbye,{},original,easy
+Farewell,goodbye,{},original,easy
+Take care,goodbye,{},original,easy
+Catch you later,goodbye,{},original,easy
+Bye bye,goodbye,{},original,easy
+Talk to you later,goodbye,{},original,easy
+Have a good one,goodbye,{},original,easy
+I'm off,goodbye,{},original,easy
+See you soon,goodbye,{},original,easy
+See ya,goodbye,{},original,easy
+Shut down,goodbye,{},original,easy
+pass,goodbye,{},synonym_replace,hard
+adieu,goodbye,{},synonym_replace,hard
+See ya later,goodbye,{},misspelling_common,medium
+See you ulterior,goodbye,{},synonym_replace,hard
+word of farewell,goodbye,{},synonym_replace,hard
+return care,goodbye,{},synonym_replace,hard
+Catch ya later,goodbye,{},misspelling_common,medium
+gimmick you later,goodbye,{},synonym_replace,hard
+pass bye,goodbye,{},synonym_replace,hard
+Talk to ya later,goodbye,{},misspelling_common,medium
+talking to you later,goodbye,{},synonym_replace,hard
+rich person a good one,goodbye,{},synonym_replace,hard
+i am off,goodbye,{},contraction_expand,easy
+I'm murder,goodbye,{},synonym_replace,hard
+See ya soon,goodbye,{},misspelling_common,medium
+See you shortly,goodbye,{},synonym_replace,hard
+close down,goodbye,{},synonym_replace,hard
+Tell me a joke,joke_query,{},original,easy
+Make me laugh,joke_query,{},original,easy
+Do you know any jokes?,joke_query,{},original,easy
+William Tell me a joke,joke_query,{},synonym_replace,hard
+brand me laugh,joke_query,{},synonym_replace,hard
+bash you know any jokes?,joke_query,{},synonym_replace,hard
+Do ya know any jokes?,joke_query,{},misspelling_common,medium
+Do you know any jokes,joke_query,{},spellchecker_correction,medium
+Play some music,music_play,{},original,easy
+Play jazz music,music_play,"{""genre"": ""jazz""}",original,easy
+Play my favorite playlist,music_play,"{""playlist_name"": ""my favorite playlist""}",original,easy
+drama some music,music_play,{},synonym_replace,hard
+drama jazz music,music_play,"{""genre"": ""jazz""}",synonym_replace,hard
+drama my favorite playlist,music_play,"{""playlist_name"": ""my favorite playlist""}",synonym_replace,hard
+Play my favorite playlet,music_play,"{""playlist_name"": ""my favorite playlist""}",spellchecker_correction,medium
+Pause the music,music_pause,{},original,easy
+intermission the music,music_pause,{},synonym_replace,hard
+"Hey, can you do this: pausing the music.?",music_pause,{},template_response,easy
+Stop the music,music_stop,{},original,easy
+halt the music,music_stop,{},synonym_replace,hard
+"Hey, can you do this: stopping the music.?",music_stop,{},template_response,easy
+Next song,music_next,{},original,easy
+following song,music_next,{},synonym_replace,hard
+"Hey, can you do this: playing the next track.?",music_next,{},template_response,easy
+Previous song,music_previous,{},original,easy
+old song,music_previous,{},synonym_replace,hard
+"Hey, can you do this: playing the previous track.?",music_previous,{},template_response,easy
+What's the news today?,news_query,"{""date_reference"": ""today""}",original,easy
+Tell me the latest news,news_query,{},original,easy
+What's the news today,news_query,"{""date_reference"": ""today""}",spellchecker_correction,medium
+What's the intelligence today?,news_query,"{""date_reference"": ""today""}",synonym_replace,hard
+what is the news today?,news_query,"{""date_reference"": ""today""}",contraction_expand,easy
+William Tell me the latest news,news_query,{},synonym_replace,hard
+Turn on the lights,smarthome_on,"{""device"": ""lights""}",original,easy
+bend on the lights,smarthome_on,"{""device"": ""lights""}",synonym_replace,hard
+"Hey, can you do this: turning on the smart home device.?",smarthome_on,{},template_response,easy
+Turn off the lights,smarthome_off,"{""device"": ""lights""}",original,easy
+bend off the lights,smarthome_off,"{""device"": ""lights""}",synonym_replace,hard
+"Hey, can you do this: turning off the smart home device.?",smarthome_off,{},template_response,easy
+Set the thermostat to 72 degrees,smarthome_set,"{""device"": ""thermostat"", ""setting_value"": ""72 degrees""}",original,easy
+Set the thermoregulator to 72 degrees,smarthome_set,"{""device"": ""thermostat"", ""setting_value"": ""72 degrees""}",synonym_replace,hard
+"Hey, can you do this: setting the smart home device.?",smarthome_set,{},template_response,easy
+Lock the front door,smarthome_lock,"{""device"": ""front door""}",original,easy
+Lock the front end door,smarthome_lock,"{""device"": ""front door""}",synonym_replace,hard
+"Hey, can you do this: locking the smart home device.?",smarthome_lock,{},template_response,easy
+Unlock the front door,smarthome_unlock,"{""device"": ""front door""}",original,easy
+Unlock the front end door,smarthome_unlock,"{""device"": ""front door""}",synonym_replace,hard
+"Hey, can you do this: unlocking the smart home device.?",smarthome_unlock,{},template_response,easy
+Set an alarm for 7 am,alarm_set,"{""time_phrase"": ""7 am""}",original,easy
+Set Associate in Nursing alarm for 7 am,alarm_set,"{""time_phrase"": ""7 am""}",synonym_replace,hard
+"Hey, can you do this: alarm has been set.?",alarm_set,{},template_response,easy
+Cancel my alarm,alarm_cancel,{},original,easy
+natural my alarm,alarm_cancel,{},synonym_replace,hard
+"Hey, can you do this: alarm cancelled.?",alarm_cancel,{},template_response,easy
+Snooze the alarm,alarm_snooze,{},original,easy
+nap the alarm,alarm_snooze,{},synonym_replace,hard
+"Hey, can you do this: alarm snoozed.?",alarm_snooze,{},template_response,easy
+What's the traffic like?,traffic_query,{},original,easy
+How's the traffic to downtown?,traffic_query,"{""destination"": ""downtown""}",original,easy
+What's the traffic like,traffic_query,{},spellchecker_correction,medium
+what is the traffic like?,traffic_query,{},contraction_expand,easy
+How's the traffic to downtown,traffic_query,"{""destination"": ""downtown""}",spellchecker_correction,medium
+how has / how is / how does the traffic to downtown?,traffic_query,"{""destination"": ""downtown""}",contraction_expand,easy
+Add milk to my shopping list,shopping_add,"{""item"": ""milk""}",original,easy
+Add apples to my shopping list,shopping_add,"{""item_to_add"": ""apples""}",original,easy
+Add bread and cheese to shopping,shopping_add,"{""item_to_add"": ""bread and cheese""}",original,easy
+attention deficit disorder milk to my shopping list,shopping_add,"{""item"": ""milk""}",synonym_replace,hard
+attention deficit disorder apples to my shopping list,shopping_add,"{""item_to_add"": ""apples""}",synonym_replace,hard
+attention deficit disorder bread and cheese to shopping,shopping_add,"{""item_to_add"": ""bread and cheese""}",synonym_replace,hard
+What's on my shopping list?,shopping_list,{},original,easy
+What's on my shopping list,shopping_list,{},spellchecker_correction,medium
+what is on my shopping list?,shopping_list,{},contraction_expand,easy
+"Hey, can you do this: here is your shopping list.?",shopping_list,{},template_response,easy
+Remove eggs from my shopping list,shopping_remove,"{""item"": ""eggs""}",original,easy
+Remove egg from my shopping list,shopping_remove,"{""item"": ""eggs""}",synonym_replace,hard
+"Hey, can you do this: item removed from your shopping list.?",shopping_remove,{},template_response,easy
+Translate hello to Spanish,translate_query,"{""text_to_translate"": ""hello"", ""target_language"": ""Spanish""}",original,easy
+"How do you say ""goodbye"" in French?",translate_query,"{""text_to_translate"": ""goodbye"", ""target_language"": ""French""}",original,easy
+interpret hello to Spanish,translate_query,"{""text_to_translate"": ""hello"", ""target_language"": ""Spanish""}",synonym_replace,hard
+How do you say goodbye in French?,translate_query,"{""text_to_translate"": ""goodbye"", ""target_language"": ""French""}",spellchecker_correction,medium
+"How bash you say ""goodbye"" in French?",translate_query,"{""text_to_translate"": ""goodbye"", ""target_language"": ""French""}",synonym_replace,hard
+"How do ya say ""goodbye"" in French?",translate_query,"{""text_to_translate"": ""goodbye"", ""target_language"": ""French""}",misspelling_common,medium
+"How do you say ""goodbye"" in french",translate_query,"{""text_to_translate"": ""goodbye"", ""target_language"": ""French""}",spellchecker_correction,medium
+What time is it?,get_time,{},original,easy
+What is the current time?,get_time,{},original,easy
+Tell me the time,get_time,{},original,easy
+Could you tell me the time?,get_time,{},original,easy
+Time please,get_time,{},original,easy
+Do you have the time?,get_time,{},original,easy
+What clip is it?,get_time,{},synonym_replace,hard
+What time is it,get_time,{},spellchecker_correction,medium
+What is the current time,get_time,{},spellchecker_correction,medium
+What be the current time?,get_time,{},synonym_replace,hard
+William Tell me the time,get_time,{},synonym_replace,hard
+Could you tell me the time,get_time,{},spellchecker_correction,medium
+Could ya tell me the time?,get_time,{},misspelling_common,medium
+Could you William Tell me the time?,get_time,{},synonym_replace,hard
+clip please,get_time,{},synonym_replace,hard
+Do you've the time?,get_time,{},contraction_contract,easy
+Do you have the time,get_time,{},spellchecker_correction,medium
+bash you have the time?,get_time,{},synonym_replace,hard
+Do ya have the time?,get_time,{},misspelling_common,medium
+What day is it?,get_date,{},original,easy
+What's today's date?,get_date,{},original,easy
+Tell me the date,get_date,{},original,easy
+What's the date today?,get_date,{},original,easy
+Date,get_date,{},original,easy
+What twenty-four hours is it?,get_date,{},synonym_replace,hard
+What day is it,get_date,{},spellchecker_correction,medium
+what is today's date?,get_date,{},contraction_expand,easy
+What's today's date,get_date,{},spellchecker_correction,medium
+William Tell me the date,get_date,{},synonym_replace,hard
+What's the day of the month today?,get_date,{},synonym_replace,hard
+what is the date today?,get_date,{},contraction_expand,easy
+What's the date today,get_date,{},spellchecker_correction,medium
+day of the month,get_date,{},synonym_replace,hard
+I want to add an event,add_calendar_event_success,{},original,easy
+add an event to my calendar,add_calendar_event_success,{},original,easy
+I wanna add an event,add_calendar_event_success,{},misspelling_common,medium
+iodine want to add an event,add_calendar_event_success,{},synonym_replace,hard
+attention deficit disorder an event to my calendar,add_calendar_event_success,{},synonym_replace,hard
+I can't hear you,no_speech_detected,{},original,easy
+I didn't say anything,no_speech_detected,{},original,easy
+I can't hear ya,no_speech_detected,{},misspelling_common,medium
+I cannot hear you,no_speech_detected,{},contraction_expand,easy
+iodine can't hear you,no_speech_detected,{},synonym_replace,hard
+iodine didn't say anything,no_speech_detected,{},synonym_replace,hard
+I did not say anything,no_speech_detected,{},contraction_expand,easy
+what's the weather in Paris,get_weather_city,"{""location"": ""Paris""}",original,easy
+weather in New York,get_weather_city,"{""location"": ""New York""}",original,easy
+what is the weather in Paris,get_weather_city,"{""location"": ""Paris""}",contraction_expand,easy
+what's the weather condition in Paris,get_weather_city,"{""location"": ""Paris""}",synonym_replace,hard
+weather condition in New York,get_weather_city,"{""location"": ""New York""}",synonym_replace,hard
+I don't know the city,get_weather_city_error,{},original,easy
+I don't know the location,get_weather_city_error,{},original,easy
+I do not know the city,get_weather_city_error,{},contraction_expand,easy
+iodine don't know the city,get_weather_city_error,{},synonym_replace,hard
+I do not know the location,get_weather_city_error,{},contraction_expand,easy
+iodine don't know the location,get_weather_city_error,{},synonym_replace,hard
+My current location weather is not working,get_weather_current_error,{},original,easy
+Cannot fetch weather for my area,get_weather_current_error,{},original,easy
+My electric current location weather is not working,get_weather_current_error,{},synonym_replace,hard
+My current location weather isn't working,get_weather_current_error,{},contraction_contract,easy
+Cannot fetch weather condition for my area,get_weather_current_error,{},synonym_replace,hard
+what's the weather,get_weather_current,"{""location"": ""current""}",original,easy
+current weather,get_weather_current,"{""location"": ""current""}",original,easy
+what is the weather,get_weather_current,"{""location"": ""current""}",contraction_expand,easy
+what's the weather condition,get_weather_current,"{""location"": ""current""}",synonym_replace,hard
+electric current weather,get_weather_current,"{""location"": ""current""}",synonym_replace,hard
+I don't understand the weather,get_weather_unsure,{},original,easy
+I need help with the weather,get_weather_unsure,{},original,easy
+I do not understand the weather,get_weather_unsure,{},contraction_expand,easy
+iodine don't understand the weather,get_weather_unsure,{},synonym_replace,hard
+iodine need help with the weather,get_weather_unsure,{},synonym_replace,hard
+I want to add an event but didn't say when,add_calendar_event_missing,{},original,easy
+add an event but no date,add_calendar_event_missing,{},original,easy
+I want to add an event but did not say when,add_calendar_event_missing,{},contraction_expand,easy
+I wanna add an event but didn't say when,add_calendar_event_missing,{},misspelling_common,medium
+iodine want to add an event but didn't say when,add_calendar_event_missing,{},synonym_replace,hard
+attention deficit disorder an event but no date,add_calendar_event_missing,{},synonym_replace,hard
+I said the wrong date for the event,add_calendar_event_parse_error,{},original,easy
+wrong date for calendar event,add_calendar_event_parse_error,{},original,easy
+iodine said the wrong date for the event,add_calendar_event_parse_error,{},synonym_replace,hard
+wrongfulness date for calendar event,add_calendar_event_parse_error,{},synonym_replace,hard
+"Hey, can you do this: sorry, i couldn't understand the date and time for the event. please try again, like 'add meeting on june 20th at 3pm'.?",add_calendar_event_parse_error,{},template_response,easy
+list my reminders,list_reminders_error,{},original,easy
+show reminders for today,list_reminders_error,"{""date_reference"": ""today""}",original,easy
+listing my reminders,list_reminders_error,{},synonym_replace,hard
+show reminder for today,list_reminders_error,"{""date_reference"": ""today""}",synonym_replace,hard
+"Hey, can you do this: i couldn't understand which date you want reminders for. please specify a day like 'today', 'tomorrow', or a specific date.?",list_reminders_error,{},template_response,easy
+I have no reminders,list_reminders_none,{},original,easy
+no reminders for today,list_reminders_none,"{""date_reference"": ""today""}",original,easy
+iodine have no reminders,list_reminders_none,{},synonym_replace,hard
+no reminder for today,list_reminders_none,"{""date_reference"": ""today""}",synonym_replace,hard
+"Hey, can you do this: you have no reminders scheduled for {date}.?",list_reminders_none,{},template_response,easy
+"sorry, I don't understand",llm_fallback_sorry,{},original,easy
+"sorry, iodine don't understand",llm_fallback_sorry,{},synonym_replace,hard
+"sorry, I do not understand",llm_fallback_sorry,{},contraction_expand,easy
+sorry I don't understand,llm_fallback_sorry,{},spellchecker_correction,medium
+"Hey, can you do this: i'm sorry, i didn't understand that. you can ask me to set reminders, check the weather, or answer questions. try rephrasing your request or say 'help' for examples.?",llm_fallback_sorry,{},template_response,easy
+language model error,llm_service_error,{},original,easy
+linguistic communication model error,llm_service_error,{},synonym_replace,hard
+"Hey, can you do this: i couldn't reach the language model service. please make sure ollama is running, then try again.?",llm_service_error,{},template_response,easy
+retrain the model,retrain_model_error,{},original,easy
+I want to retrain,retrain_model_error,{},original,easy
+retrain the theoretical account,retrain_model_error,{},synonym_replace,hard
+I wanna retrain,retrain_model_error,{},misspelling_common,medium
+iodine want to retrain,retrain_model_error,{},synonym_replace,hard
+what's the weather location prompt,get_weather_location_prompt,{},original,easy
+which city for weather,get_weather_location_prompt,{},original,easy
+what is the weather location prompt,get_weather_location_prompt,{},contraction_expand,easy
+what's the weather condition location prompt,get_weather_location_prompt,{},synonym_replace,hard
+which metropolis for weather,get_weather_location_prompt,{},synonym_replace,hard
+set reminder failed,set_reminder_error,{},original,easy
+couldn't set reminder,set_reminder_error,{},original,easy
+set reminder fail,set_reminder_error,{},synonym_replace,hard
+could not set reminder,set_reminder_error,{},contraction_expand,easy
+"Hey, can you do this: i couldn't quite understand the reminder. please try saying something like 'remind me to call john tomorrow at 2 pm'.?",set_reminder_error,{},template_response,easy
+let's chat with the AI,start_chat_with_llm,,original,easy
+I want to talk to the language model,start_chat_with_llm,{},original,easy
+start a conversation with the AI,start_chat_with_llm,{},original,easy
+open chat with AI,start_chat_with_llm,{},original,easy
+begin chat session,start_chat_with_llm,{},original,easy
+let's confab with the AI,start_chat_with_llm,,synonym_replace,hard
+let us chat with the AI,start_chat_with_llm,,contraction_expand,easy
+iodine want to talk to the language model,start_chat_with_llm,{},synonym_replace,hard
+I wanna talk to the language model,start_chat_with_llm,{},misspelling_common,medium
+start angstrom conversation with the AI,start_chat_with_llm,{},synonym_replace,hard
+clear chat with AI,start_chat_with_llm,{},synonym_replace,hard
+Menachem Begin chat session,start_chat_with_llm,{},synonym_replace,hard
+Schedule a project sync for next Monday at 10am,add_calendar_event,"{""subject"": ""project sync"", ""time_phrase"": ""next Monday at 10am""}",original,easy
+Add dentist appointment on July 5th 2pm to my calendar,add_calendar_event,"{""subject"": ""dentist appointment"", ""time_phrase"": ""July 5th 2pm""}",original,easy
+Put weekly review in my calendar for Friday at 4,add_calendar_event,"{""subject"": ""weekly review"", ""time_phrase"": ""Friday at 4""}",original,easy
+I want to add an event: team lunch this Wednesday at 1pm,add_calendar_event,"{""subject"": ""team lunch"", ""time_phrase"": ""this Wednesday at 1pm""}",original,easy
+Can you add a meeting with marketing team on the 10th of August at three thirty pm?,add_calendar_event,"{""subject"": ""meeting with marketing team"", ""time_phrase"": ""the 10th of August at three thirty pm""}",original,easy
+Book a slot for code review tomorrow morning 9am,add_calendar_event,"{""subject"": ""code review"", ""time_phrase"": ""tomorrow morning 9am""}",original,easy
+Add an event called Birthday Party for Mike on August 22nd at 7 PM,add_calendar_event,"{""subject"": ""Birthday Party for Mike"", ""contact_name"": ""Mike"", ""time_phrase"": ""August 22nd at 7 PM""}",original,easy
+Schedule a 1-hour meeting with Dr. Smith next Monday at 10 AM,add_calendar_event,"{""subject"": ""meeting with Dr. Smith"", ""contact_name"": ""Dr. Smith"", ""time_phrase"": ""next Monday at 10 AM"", ""duration"": ""1-hour""}",original,easy
+Plan a yoga session for Wednesday evening for 45 minutes,add_calendar_event,"{""subject"": ""yoga session"", ""time_phrase"": ""Wednesday evening"", ""duration"": ""45 minutes""}",original,easy
+Confirm dinner with Sarah for Saturday night,add_calendar_event,"{""subject"": ""Confirm dinner with Sarah"", ""contact_name"": ""Sarah"", ""time_phrase"": ""Saturday night""}",original,easy
+Book flight to Tokyo for next month,add_calendar_event,"{""subject"": ""Book flight to Tokyo"", ""location"": ""Tokyo"", ""time_phrase"": ""next month""}",original,easy
+Add a calendar event to discuss budget with finance team on Sep 10th at 2 PM,add_calendar_event,"{""subject"": ""discuss budget with finance team"", ""contact_name"": ""finance team"", ""time_phrase"": ""Sep 10th at 2 PM""}",original,easy
+Schedule a project sync for next Monday at am,add_calendar_event,"{""subject"": ""project sync"", ""time_phrase"": ""next Monday at 10am""}",spellchecker_correction,medium
+agenda a project sync for next Monday at 10am,add_calendar_event,"{""subject"": ""project sync"", ""time_phrase"": ""next Monday at 10am""}",synonym_replace,hard
+attention deficit disorder dentist appointment on July 5th 2pm to my calendar,add_calendar_event,"{""subject"": ""dentist appointment"", ""time_phrase"": ""July 5th 2pm""}",synonym_replace,hard
+Add dentist appointment on July 5th pm to my calendar,add_calendar_event,"{""subject"": ""dentist appointment"", ""time_phrase"": ""July 5th 2pm""}",spellchecker_correction,medium
+Add dentist appointment on July eth 2pm to my calendar,add_calendar_event,"{""subject"": ""dentist appointment"", ""time_phrase"": ""July 5th 2pm""}",spellchecker_correction,medium
+put option weekly review in my calendar for Friday at 4,add_calendar_event,"{""subject"": ""weekly review"", ""time_phrase"": ""Friday at 4""}",synonym_replace,hard
+iodine want to add an event: team lunch this Wednesday at 1pm,add_calendar_event,"{""subject"": ""team lunch"", ""time_phrase"": ""this Wednesday at 1pm""}",synonym_replace,hard
+I want to add an event team lunch this Wednesday at 1pm,add_calendar_event,"{""subject"": ""team lunch"", ""time_phrase"": ""this Wednesday at 1pm""}",spellchecker_correction,medium
+I want to add an event: team lunch this Wednesday at pm,add_calendar_event,"{""subject"": ""team lunch"", ""time_phrase"": ""this Wednesday at 1pm""}",spellchecker_correction,medium
+I wanna add an event: team lunch this Wednesday at 1pm,add_calendar_event,"{""subject"": ""team lunch"", ""time_phrase"": ""this Wednesday at 1pm""}",misspelling_common,medium
+Can you add a meeting with marketing team on the with of August at three thirty pm?,add_calendar_event,"{""subject"": ""meeting with marketing team"", ""time_phrase"": ""the 10th of August at three thirty pm""}",spellchecker_correction,medium
+tin you add a meeting with marketing team on the 10th of August at three thirty pm?,add_calendar_event,"{""subject"": ""meeting with marketing team"", ""time_phrase"": ""the 10th of August at three thirty pm""}",synonym_replace,hard
+Can ya add a meeting with marketing team on the 10th of August at three thirty pm?,add_calendar_event,"{""subject"": ""meeting with marketing team"", ""time_phrase"": ""the 10th of August at three thirty pm""}",misspelling_common,medium
+Can you add a meeting with marketing team on the 10th of August at three thirty pm,add_calendar_event,"{""subject"": ""meeting with marketing team"", ""time_phrase"": ""the 10th of August at three thirty pm""}",spellchecker_correction,medium
+Book angstrom slot for code review tomorrow morning 9am,add_calendar_event,"{""subject"": ""code review"", ""time_phrase"": ""tomorrow morning 9am""}",synonym_replace,hard
+Book a slot for code review tomorrow morning am,add_calendar_event,"{""subject"": ""code review"", ""time_phrase"": ""tomorrow morning 9am""}",spellchecker_correction,medium
+Add an event called Birthday Party for Mike on August and at 7 PM,add_calendar_event,"{""subject"": ""Birthday Party for Mike"", ""contact_name"": ""Mike"", ""time_phrase"": ""August 22nd at 7 PM""}",spellchecker_correction,medium
+attention deficit disorder an event called Birthday Party for Mike on August 22nd at 7 PM,add_calendar_event,"{""subject"": ""Birthday Party for Mike"", ""contact_name"": ""Mike"", ""time_phrase"": ""August 22nd at 7 PM""}",synonym_replace,hard
+Schedule a 1-hour meeting with dry Smith next Monday at 10 AM,add_calendar_event,"{""subject"": ""meeting with Dr. Smith"", ""contact_name"": ""Dr. Smith"", ""time_phrase"": ""next Monday at 10 AM"", ""duration"": ""1-hour""}",spellchecker_correction,medium
+agenda a 1-hour meeting with Dr. Smith next Monday at 10 AM,add_calendar_event,"{""subject"": ""meeting with Dr. Smith"", ""contact_name"": ""Dr. Smith"", ""time_phrase"": ""next Monday at 10 AM"", ""duration"": ""1-hour""}",synonym_replace,hard
+Schedule a hour meeting with Dr. Smith next Monday at 10 AM,add_calendar_event,"{""subject"": ""meeting with Dr. Smith"", ""contact_name"": ""Dr. Smith"", ""time_phrase"": ""next Monday at 10 AM"", ""duration"": ""1-hour""}",spellchecker_correction,medium
+program a yoga session for Wednesday evening for 45 minutes,add_calendar_event,"{""subject"": ""yoga session"", ""time_phrase"": ""Wednesday evening"", ""duration"": ""45 minutes""}",synonym_replace,hard
+corroborate dinner with Sarah for Saturday night,add_calendar_event,"{""subject"": ""Confirm dinner with Sarah"", ""contact_name"": ""Sarah"", ""time_phrase"": ""Saturday night""}",synonym_replace,hard
+Book flight to Tokio for next month,add_calendar_event,"{""subject"": ""Book flight to Tokyo"", ""location"": ""Tokyo"", ""time_phrase"": ""next month""}",synonym_replace,hard
+attention deficit disorder a calendar event to discuss budget with finance team on Sep 10th at 2 PM,add_calendar_event,"{""subject"": ""discuss budget with finance team"", ""contact_name"": ""finance team"", ""time_phrase"": ""Sep 10th at 2 PM""}",synonym_replace,hard
+Add a calendar event to discuss budget with finance team on Sep with at 2 PM,add_calendar_event,"{""subject"": ""discuss budget with finance team"", ""contact_name"": ""finance team"", ""time_phrase"": ""Sep 10th at 2 PM""}",spellchecker_correction,medium
+Add a calendar event to discuss budget with finance team on see 10th at 2 PM,add_calendar_event,"{""subject"": ""discuss budget with finance team"", ""contact_name"": ""finance team"", ""time_phrase"": ""Sep 10th at 2 PM""}",spellchecker_correction,medium
+Stop the LLM,stop_ollama_llm, {},original,easy
+Stop Ollama,stop_ollama_llm, {},original,easy
+End the AI session,stop_ollama_llm, {},original,easy
+Shut down the language model,stop_ollama_llm, {},original,easy
+Please stop the LLM,stop_ollama_llm, {},original,easy
+Stop the lam,stop_ollama_llm, {},spellchecker_correction,medium
+halt the LLM,stop_ollama_llm, {},synonym_replace,hard
+halt Ollama,stop_ollama_llm, {},synonym_replace,hard
+Stop llama,stop_ollama_llm, {},spellchecker_correction,medium
+terminal the AI session,stop_ollama_llm, {},synonym_replace,hard
+close down the language model,stop_ollama_llm, {},synonym_replace,hard
+Please stop the lam,stop_ollama_llm, {},spellchecker_correction,medium
+delight stop the LLM,stop_ollama_llm, {},synonym_replace,hard
+"Hey, can you do this: okay, i've set a reminder for '{task}' at {time}.?",reminder_set_full,{},template_response,easy
+"Hey, can you do this: okay, i'll remind you about '{task}'.?",reminder_set_task_only,{},template_response,easy
+"Hey, can you do this: okay, i can set a reminder for {time}.?",reminder_set_time_only,{},template_response,easy
+"Hey, can you do this: when should i remind you??",reminder_ask_for_time,{},template_response,easy
+"Hey, can you do this: what should i remind you about??",reminder_ask_for_task,{},template_response,easy
+"Hey, can you do this: i've also added it to your calendar.?",reminder_added_to_calendar,{},template_response,easy
+"Hey, can you do this: reminder has been set and added to your calendar.?",set_reminder_success_generic,{},template_response,easy
+"Hey, can you do this: chat session saved. you can find it in the 'conversations' directory.?",chat_session_saved,{},template_response,easy
+"Hey, can you do this: there was no conversation to save.?",chat_session_empty,{},template_response,easy
+"Hey, can you do this: sorry, i encountered an error while trying to save the chat session.?",chat_session_save_error,{},template_response,easy
+"Hey, can you do this: today's date is {date}.?",date_query,{},template_response,easy
+"Hey, can you do this: the current time is {time}.?",time_query,{},template_response,easy
+"Hey, can you do this: label?",text,{},template_response,easy

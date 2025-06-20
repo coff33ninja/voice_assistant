@@ -58,6 +58,30 @@ def fine_tune_model(dataset_path, model_save_path):
     except Exception as e:
         print(f"Warning: Exception during augmentation: {e}")
 
+    # --- Validation step before training ---
+    print("\nValidating intents before training...")
+    from scripts.intent_validator import validate_intents
+    while True:
+        valid, messages = validate_intents()
+        if valid:
+            print("Validation passed. All intents are covered.")
+            break
+        print("\nValidation failed. Issues detected:")
+        for msg in messages:
+            print(msg)
+        retry_choice = input("\nValidation failed. Press (r) to retry after fixing, (c) to continue anyway, or (a) to abort: ").strip().lower()
+        if retry_choice == "r":
+            print("Retrying validation...")
+            continue
+        elif retry_choice == "c":
+            print("Continuing with training despite validation issues.")
+            break
+        elif retry_choice == "a":
+            print("Aborting training due to validation issues.")
+            return
+        else:
+            print("Invalid choice. Please enter 'r', 'c', or 'a'.")
+
     # Use augmented dataset if it exists
     dataset_path = AUGMENTED_DATASET_PATH if os.path.isfile(AUGMENTED_DATASET_PATH) else dataset_path
 

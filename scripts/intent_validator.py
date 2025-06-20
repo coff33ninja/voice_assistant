@@ -70,3 +70,8 @@ async def run_validation_and_retrain_async() -> Tuple[bool, str]:
         print("\nValidation failed. Please fix the issues above before retraining.")
         error_summary = "Validation failed. Model not retrained. Issues:\n" + "\n".join(validation_messages)
         return False, error_summary
+
+if __name__ == "__main__":
+    # When run as a script, perform the validation
+    valid, messages = validate_intents()
+    # The output is already printed by validate_intents, but we can add a summary

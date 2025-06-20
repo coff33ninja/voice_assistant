@@ -248,6 +248,7 @@ def install_python_dependencies():
             "pytest-tornasync",
             "twisted",
             "nltk",
+            "hf_xet",
         ],
         "Failed to install core dependencies",
     )

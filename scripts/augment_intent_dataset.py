@@ -1,6 +1,7 @@
 import pandas as pd
 import subprocess
 import sys
+import os
 from collections import Counter
 from modules.contractions import normalize_text, CONTRACTIONS, COMMON_MISSPELLINGS
 import json
@@ -114,6 +115,18 @@ DATASET_PATH = "intent_data/intent_dataset.csv"
 RESPONSES_PATH = "intent_data/intent_responses.csv"
 AUGMENTED_PATH = "intent_data/intent_dataset_augmented.csv"
 MAX_PER_INTENT = 50  # Cap per intent after augmentation
+
+# Archive old augmented data before starting augmentation
+def archive_augmented_data_before_augmentation():
+    result = subprocess.run([sys.executable, 'scripts/archive_augmented_data.py'], capture_output=True, text=True, check=False)
+    print("[Archive Script Output]")
+    print(result.stdout)
+    if result.stderr:
+        print("[Archive Script Error]")
+        print(result.stderr)
+
+# Call the archive function at the start
+archive_augmented_data_before_augmentation()
 
 # Load data
 intent_df = pd.read_csv(DATASET_PATH)
@@ -290,17 +303,24 @@ with open("intent_data/augmentation_stats.json", "w") as f:
 print("\n--- Sample Paraphrases ---")
 for row in new_rows[:5]:
     print(f"[{row['source_method']}] {row['text']}")
-
-# Optional: run intent_validator if available
+# Run intent_validator as a subprocess for robustness
 try:
-    from scripts.intent_validator import validate_intents
-    print("\n--- Intent Validator ---")
-    valid, messages = validate_intents()
-    print("Validation passed!" if valid else "Validation failed:")
-    for msg in messages:
-        print(msg)
-except Exception:
-    print("Intent validator not available or failed to run.")
+    VALIDATOR_SCRIPT_PATH = os.path.join(os.path.dirname(__file__), "intent_validator.py")
+    print("\n--- Running Intent Validator ---")
+    validator_result = subprocess.run(
+        [sys.executable, VALIDATOR_SCRIPT_PATH],
+        capture_output=True, text=True, check=False
+    )
+    print(validator_result.stdout)
+    if validator_result.stderr:
+        print("[Intent Validator Error]")
+        print(validator_result.stderr)
+    if validator_result.returncode != 0:
+        print("Intent validation failed.")
+    else:
+        print("Intent validation completed.")
+except Exception as e:
+    print(f"Intent validator not available or failed to run: {e}")
 
 # Placeholder: For future parallelization or GPU config
 # To parallelize T5 or other augmentation, use concurrent.futures.ThreadPoolExecutor
