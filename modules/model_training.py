@@ -5,14 +5,15 @@ import argparse # For parsing command-line arguments
 
 import json # Import json for entity parsing
 import torch # Import torch for model definition and device check
-from torch import nn # Import nn for model layers
+# nn is no longer directly used here after moving JointIntentSlotModel
 from transformers import ( # type: ignore
     DistilBertTokenizerFast as DistilBertTokenizer, # Use the Fast Tokenizer
     Trainer,
     TrainingArguments,
-    DistilBertModel,
+    # DistilBertModel is now imported in joint_model.py
     DistilBertConfig,
 )  # Import necessary HF components
+from .joint_model import JointIntentSlotModel, JointModelOutput # Import the refactored model
 
 
 def fine_tune_model(dataset_path, model_save_path):
@@ -65,91 +66,6 @@ def fine_tune_model(dataset_path, model_save_path):
 
     print(f"Intent Labels Map: {intent_label_map}")
     print(f"Slot Labels Map: {slot_label_map}")
-
-    # Define the custom model for joint intent and slot filling
-    from transformers.utils import ModelOutput # Import ModelOutput
-    from dataclasses import dataclass # Import dataclass
-    from typing import Optional, Tuple # Import types for ModelOutput
-
-    @dataclass # Add the dataclass decorator
-    class JointModelOutput(ModelOutput):
-        loss: Optional[torch.FloatTensor] = None
-        intent_logits: Optional[torch.FloatTensor] = None # Changed type hint
-        slot_logits: Optional[torch.FloatTensor] = None # Changed type hint
-        hidden_states: Optional[Tuple[torch.FloatTensor]] = None
-        attentions: Optional[Tuple[torch.FloatTensor]] = None
-
-    class JointIntentSlotModel(nn.Module):
-        def __init__(self, config):
-            super().__init__()
-            self.num_intent_labels = config.num_intent_labels
-            self.num_slot_labels = config.num_slot_labels
-            self.config = config # Store config
-
-            self.distilbert = DistilBertModel(config)
-
-            # Intent classification head
-            self.intent_classifier = nn.Linear(config.dim, self.num_intent_labels)
-
-            # Slot filling head
-            self.dropout = nn.Dropout(config.seq_classif_dropout)
-            self.slot_classifier = nn.Linear(config.dim, self.num_slot_labels)
-
-        def forward(
-            self,
-            input_ids=None,
-            attention_mask=None,
-            head_mask=None,
-            inputs_embeds=None,
-            output_attentions=None,
-            output_hidden_states=None,
-            return_dict=None,
-            intent_labels=None,
-            slot_labels=None,
-        ):
-            return_dict = return_dict if return_dict is not None else self.config.use_return_dict
-
-            outputs = self.distilbert(
-                input_ids,
-                attention_mask=attention_mask,
-                head_mask=head_mask,
-                inputs_embeds=inputs_embeds,
-                output_attentions=output_attentions,
-                output_hidden_states=output_hidden_states,
-                return_dict=True, # Always return dict for easier access
-            )
-
-            sequence_output = outputs.last_hidden_state
-            cls_output = sequence_output[:, 0, :]
-            intent_logits = self.intent_classifier(cls_output)
-
-            slot_logits = self.slot_classifier(self.dropout(sequence_output))
-
-            total_loss = None
-            intent_loss = None
-            slot_loss = None
-
-            if intent_labels is not None and slot_labels is not None:
-                loss_fct = nn.CrossEntropyLoss()
-
-                # Intent loss
-                intent_loss = loss_fct(intent_logits.view(-1, self.num_intent_labels), intent_labels.view(-1))
-
-                # Slot loss - only compute for non-ignored tokens (e.g., where slot_labels != -100)
-                # Trainer's default loss computation handles -100 ignore_index
-                slot_loss = loss_fct(slot_logits.view(-1, self.num_slot_labels), slot_labels.view(-1))
-
-                # Combine losses
-                total_loss = intent_loss + slot_loss # Simple sum, can be weighted
-
-            # Return custom output object
-            return JointModelOutput(
-                loss=total_loss,
-                intent_logits=intent_logits,
-                slot_logits=slot_logits,
-                hidden_states=outputs.hidden_states,
-                attentions=outputs.attentions,
-            )
 
     # Normalize the 'text' column before further processing
     print("Normalizing text data in the dataset...")

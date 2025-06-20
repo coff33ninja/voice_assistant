@@ -1,6 +1,7 @@
 # Voice Assistant Commands and Intents
 
 This document outlines the types of commands the voice assistant can currently understand and process.
+The assistant uses an AI model that not only identifies the general intent of your command but also tries to extract important details (entities) such as times, dates, locations, and task descriptions. This helps it understand your requests more accurately.
 
 ## Available Intents
 
@@ -70,7 +71,7 @@ The assistant categorizes your spoken commands into one of the following intents
     *   Example Phrases: "Cancel that", "Stop"
 
 ---
-*Note: The assistant's ability to understand variations of these phrases depends on its training data and the accuracy of the Speech-to-Text (STT) engine.*
+*Note: The assistant's ability to understand variations of these phrases and accurately extract details (entities) depends heavily on its training data (including comprehensive entity annotations in `intent_data/intent_dataset.csv`) and the accuracy of the Speech-to-Text (STT) engine.*
 
 *   **Chat with AI (`start_chat_with_llm`)**
     *   Purpose: To engage in an open-ended conversation with the AI language model (Ollama) and optionally save the interaction.
@@ -90,4 +91,4 @@ The assistant categorizes your spoken commands into one of the following intents
         *   This feature is useful for reviewing interactions or gathering data for training other AI models.
 
 ---
-*Note: The assistant's ability to understand variations of these phrases depends on its training data and the accuracy of the Speech-to-Text (STT) engine.*
+*Note: The assistant's ability to understand variations of these phrases and accurately extract details (entities) depends heavily on its training data (including comprehensive entity annotations in `intent_data/intent_dataset.csv`) and the accuracy of the Speech-to-Text (STT) engine.*
