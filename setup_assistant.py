@@ -57,6 +57,7 @@ SETUP_STEPS = [
     "dependencies",
     "device_detection",
     "tts",
+    "ollama",
     "precise",
     "picovoice_api_key",
     "whisperx",
@@ -101,12 +102,13 @@ def main():
     # Import functions here to ensure they are available for the action_map
     from modules.dataset import create_dataset
     from modules.model_training import fine_tune_model
-    # Ensure run_device_setup is imported if not already at the top
+    from modules.ollama_setup import setup_ollama # Import the new setup function
 
     action_map = {
         "dependencies": (install_dependencies, {}),
         "device_detection": (run_device_setup, {"base_dir_path_str": str(BASE_DIR)}),
         "tts": (setup_tts, {}),
+        "ollama": (setup_ollama, {}),
         "precise": (setup_precise, {"base_dir": BASE_DIR, "model_url": PRECISE_MODEL_URL}),
         "picovoice_api_key": (setup_api_key, {"key_file_path": PICOVOICE_KEY_FILE_PATH, "service_name": "Picovoice", "prompt_message": "Enter Picovoice Access Key (or press Enter to skip): "}),
         "openweather_api_key": (setup_api_key, {"key_file_path": OPENWEATHER_API_KEY_FILE_PATH, "service_name": "OpenWeather", "prompt_message": "Enter OpenWeather API Key (or press Enter to skip): "}),
@@ -125,19 +127,7 @@ def main():
 
             is_step_complete = checkpoints.get(step_name, False)
 
-            # TTS is always interactive for model selection, so we run it and mark it complete for this pass.
-            if step_name == "tts":
-                try:
-                    func_to_call(**func_args)
-                    checkpoints[step_name] = True
-                except Exception as e:
-                    print(f"Error during TTS configuration: {e}")
-                    checkpoints[step_name] = False # Mark as failed
-                finally:
-                    save_checkpoints(checkpoints)
-                continue # Move to the next step in SETUP_STEPS
-
-            # For other steps:
+            # TTS is no longer always interactive; treat like other steps (skippable)
             run_this_step = False
             if not is_step_complete:
                 print("This step is not yet marked as complete.")

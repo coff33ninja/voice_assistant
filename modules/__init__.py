@@ -1,1 +1,1 @@
-# This file marks the 'modules' directory as a Python package.
+from .ollama_setup import setup_ollama
