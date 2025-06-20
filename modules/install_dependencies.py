@@ -247,6 +247,7 @@ def install_python_dependencies():
             "pytest-cov",
             "pytest-tornasync",
             "twisted",
+            "nltk",
         ],
         "Failed to install core dependencies",
     )
