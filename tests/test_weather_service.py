@@ -33,13 +33,13 @@ def mock_aiohttp_get():
     Fixture to mock aiohttp.ClientSession.get.
     Returns a mock response object that can be configured.
     """
-    with patch('aiohttp.ClientSession.get', new_callable=AsyncMock) as mock_get: # mock_get itself should be async if session.get is async
-        mock_response = MagicMock(spec=aiohttp.ClientResponse) # Use spec for better mocking
+    with patch('aiohttp.ClientSession.get', new_callable=AsyncMock) as mock_get:
+        mock_response = MagicMock(spec=aiohttp.ClientResponse)
         # mock_response.raise_for_status is not mocked here; it's configured in individual tests
         mock_response.json = AsyncMock()
-        mock_response.__aenter__ = AsyncMock(return_value=mock_response) # Mock async context manager entry
-        mock_response.__aexit__ = AsyncMock(return_value=False) # Ensure exceptions are not suppressed
-        mock_get.return_value = mock_response
+        # Properly mock async context manager protocol
+        mock_get.return_value.__aenter__.return_value = mock_response
+        mock_get.return_value.__aexit__.return_value = False
         yield mock_get, mock_response
 
 @pytest.fixture
