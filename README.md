@@ -117,14 +117,15 @@ voice_assistant/
 │   ├── intent_responses.csv  # CSV: predefined responses mapped to intents
 │   └── augmentation_stats.json # JSON: stats and logs from the latest data augmentation
 ├── scripts/                  # Utility scripts (e.g., data conversion, maintenance, helper tools)
-│   ├── augment_dictionaries.py # Augments and merges all dictionary resources
+│   ├── augment_dictionaries.py # Augments and merges all dictionary files
 │   ├── augment_intent_dataset.py # Augments the intent dataset with paraphrasing, misspellings, and more
 │   ├── intent_validator.py   # Script to validate intent data consistency and model retraining
 │   ├── models/
 │   │   ├── intent_dataset.csv
 │   │   └── intent_responses.csv
 │   ├── __init__.py
-│   └── __pycache__/
+│   ├── validate_and_clean_sentences.py # Validates and auto-corrects sentences in the intent dataset (auto-run before augmentation)
+│   └── archive_augmented_data.py       # Archives previous augmented data as checkpoints before new augmentation
 ├── setup_assistant.py        # Main setup script
 ├── voice_assistant.py        # Main application script
 ├── USER_INTENTS.md           # Describes available user commands/intents
@@ -231,14 +232,20 @@ This project uses a robust, automated augmentation pipeline for both training da
   - `scripts/augment_dictionaries.py`: Updates/augments all dictionary files (contractions, misspellings, synonyms, normalization, etc.). Both original and augmented versions are saved and available for use.
   - `scripts/augment_intent_dataset.py`: Augments the intent dataset with paraphrases, contractions, misspellings, and more. The augmented dataset is always used for training if available.
 
+**Sentence Validation & Cleaning:**
+- Before any augmentation or training, `scripts/validate_and_clean_sentences.py` is run to auto-correct and clean all sentences in the intent dataset. Only the cleaned dataset is used for augmentation and training, ensuring high data quality.
+
+**Checkpointing:**
+- Before each augmentation run, `scripts/archive_augmented_data.py` archives the previous batch of augmented data as a checkpoint for traceability and rollback.
+
+**Intent Dataset Handling:**
+- Training and retraining always use the latest cleaned and augmented dataset (`intent_dataset_cleaned.csv` → `intent_dataset_augmented.csv`) if present. If not, the cleaning and augmentation steps are triggered automatically.
+
 **Dictionary Handling:**
 - All modules that use dictionaries (e.g., `modules/contractions.py`, normalization, etc.) are designed to load the augmented version if it exists, falling back to the original if not.
 - A merged view (`merged_dictionaries.json`) is also generated for downstream use.
 
-**Intent Dataset Handling:**
-- Training and retraining always use the latest augmented dataset (`intent_dataset_augmented.csv`) if present.
-
-**Stats & Logging:**
+### Stats & Logging
 - Both augmentation scripts log stats (counts, file paths, etc.) for transparency and debugging.
 - Hardware info (CPU/GPU) is logged and included in augmentation stats.
 
@@ -254,3 +261,17 @@ This project uses a robust, automated augmentation pipeline for both training da
 - **Non-Destructive:** Original files are never overwritten; augmented versions are saved separately.
 - **Extensible:** New dictionary/resource types can be added to the augmentation pipeline with minimal changes.
 - **Centralized Automation:** All augmentation and validation steps are triggered automatically from the training pipeline (`modules/model_training.py`), so no manual intervention is needed.
+
+**Troubleshooting & Environment Notes**
+
+- **Java Requirement for LanguageTool:**
+  - The sentence validation/cleaning step requires Java 17 or higher. If you see errors about Java version (e.g., `SystemError: Detected java 1.8. LanguageTool requires Java >= 17`), download and install the latest Java JDK from [Adoptium](https://adoptium.net/) or [Oracle](https://www.oracle.com/java/technologies/downloads/). After installation, restart your terminal/IDE and ensure `java -version` reports 17 or higher. {[Java 17 x64] (https://download.oracle.com/java/17/archive/jdk-17.0.12_windows-x64_bin.exe)
+
+- **Module Import Error in Augmentation or Setup:**
+  - If you see `ModuleNotFoundError: No module named 'modules'` during setup or when running `voice_assistant.py`, it means Python cannot find your project modules. This can happen if:
+    - You run scripts from a subdirectory instead of the project root.
+    - The `PYTHONPATH` is not set to include your project root.
+  - **How to fix:**
+    1. Always run `python setup_assistant.py` and `python voice_assistant.py` from the project root directory (where `modules/` is located).
+    2. If you must run from another directory, set the `PYTHONPATH` to your project root as shown above.
+  - The setup and main scripts are designed to work from the project root, so this error should not occur if you follow this convention.

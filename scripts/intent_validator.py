@@ -1,15 +1,14 @@
-import pandas as pd
 import os
 import sys
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+# --- Ensure project root is in sys.path for absolute imports ---
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, '..'))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
+import pandas as pd
 from typing import Tuple
 from modules.retrain_utils import trigger_model_retraining_async
-
-# Ensure the parent directory is in sys.path for module imports
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-PARENT_DIR = os.path.abspath(os.path.join(SCRIPT_DIR, '..'))
-if PARENT_DIR not in sys.path:
-    sys.path.insert(0, PARENT_DIR)
 
 DATASET_PATH = os.path.abspath(
     os.path.join(SCRIPT_DIR, "..", "intent_data", "intent_dataset.csv")
@@ -75,3 +74,7 @@ if __name__ == "__main__":
     # When run as a script, perform the validation
     valid, messages = validate_intents()
     # The output is already printed by validate_intents, but we can add a summary
+    if valid:
+        print("\nAll intents are valid.")
+    else:
+        print("\nSome intents are invalid. See messages above.")

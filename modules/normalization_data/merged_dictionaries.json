@@ -1,1 +1,34 @@
-{}
+{
+  "contractions.json": {
+    "can't": "cannot",
+    "won't": "will not",
+    "i'm": "i am",
+    "you're": "you are"
+  },
+  "misspellings.json": {
+    "teh": "the",
+    "recieve": "receive",
+    "adress": "address",
+    "occurence": "occurrence"
+  },
+  "synonyms.json": {
+    "happy": [
+      "joyful",
+      "cheerful"
+    ],
+    "sad": [
+      "unhappy",
+      "sorrowful"
+    ],
+    "fast": [
+      "quick",
+      "speedy"
+    ]
+  },
+  "normalization.json": {
+    "u": "you",
+    "r": "are",
+    "pls": "please",
+    "thx": "thanks"
+  }
+}
